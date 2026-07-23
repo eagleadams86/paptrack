@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PAPTrack — CPAP supply, cleaning & reorder tracker</title>
+<meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server — your data never leaves this device.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PAPTrack">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<script>
+  // Apply saved theme before first paint to avoid a flash. Midnight is the default.
+  (function () {
+    var t = localStorage.getItem('pap-theme');
+    if (t === 'dark') t = 'midnight'; // pre-dropdown builds stored 'dark' for the Midnight palette
+    var valid = ['forest', 'light', 'midnight', 'sepia', 'slate', 'solarized', 'synthwave'];
+    if (valid.indexOf(t) === -1) t = 'midnight';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<style>
+  /* Themes — palettes ported from the lottery pages' theme.css. Midnight is the
+     default; the :root block must stay first so the others can override it. */
+  :root, [data-theme="midnight"] {
+    --page: #0a0e1a; --surface: #121829; --ink: #e7eaf6; --ink-2: #aab2d0; --muted: #7e87a8;
+    --hairline: #262f4a; --ring: rgba(129,140,248,0.28);
+    --accent: #818cf8; --accent-ink: #0a0e1a;
+    --good: #4ade80; --warning: #fcd34d; --serious: #fb923c; --critical: #fb7185;
+    --good-bg: rgba(74,222,128,0.16); --warning-bg: rgba(252,211,77,0.14);
+    --serious-bg: rgba(251,146,60,0.16); --critical-bg: rgba(251,113,133,0.18);
+    --chip-bg: #1b2238; --shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  /* Forest — deep green */
+  [data-theme="forest"] {
+    --page: #0a130d; --surface: #111e16; --ink: #e6f1e9; --ink-2: #a9c4b4; --muted: #7c9883;
+    --hairline: #21372a; --ring: rgba(52,211,153,0.28);
+    --accent: #34d399; --accent-ink: #0a130d;
+    --good: #6ee7a0; --warning: #fbbf24; --serious: #fb923c; --critical: #f87171;
+    --good-bg: rgba(110,231,160,0.15); --warning-bg: rgba(251,191,36,0.14);
+    --serious-bg: rgba(251,146,60,0.16); --critical-bg: rgba(248,113,113,0.17);
+    --chip-bg: #182a20; --shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  [data-theme="light"] {
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --hairline: #e1e0d9; --ring: rgba(11,11,11,0.10);
+    --accent: #2a78d6; --accent-ink: #ffffff;
+    --good: #0ca30c; --warning: #b98200; --serious: #c25a2a; --critical: #d03b3b;
+    --good-bg: rgba(12,163,12,0.12); --warning-bg: rgba(250,178,25,0.18);
+    --serious-bg: rgba(236,131,90,0.16); --critical-bg: rgba(208,59,59,0.12);
+    --chip-bg: #f0efec; --shadow: 0 1px 3px rgba(11,11,11,0.06), 0 4px 14px rgba(11,11,11,0.05);
+  }
+  /* Sepia — warm paper light theme */
+  [data-theme="sepia"] {
+    --page: #f3ead7; --surface: #fbf5e7; --ink: #3a3020; --ink-2: #6a5b41; --muted: #8a7a5b;
+    --hairline: #e0d3b4; --ring: rgba(58,48,32,0.14);
+    --accent: #3a3020; --accent-ink: #fbf5e7;
+    --good: #4d7c0f; --warning: #b45309; --serious: #c2410c; --critical: #b1402a;
+    --good-bg: rgba(77,124,15,0.14); --warning-bg: rgba(180,83,9,0.14);
+    --serious-bg: rgba(194,65,12,0.13); --critical-bg: rgba(177,64,42,0.13);
+    --chip-bg: #eee2c9; --shadow: 0 1px 3px rgba(58,48,32,0.08), 0 4px 14px rgba(58,48,32,0.06);
+  }
+  /* Slate — neutral dark with a blue/slate tint */
+  [data-theme="slate"] {
+    --page: #13151b; --surface: #1c1f27; --ink: #eef0f5; --ink-2: #adb1bd; --muted: #888d9a;
+    --hairline: #2d313b; --ring: rgba(238,240,245,0.16);
+    --accent: #eef0f5; --accent-ink: #13151b;
+    --good: #4ade80; --warning: #fcd34d; --serious: #fb923c; --critical: #f87171;
+    --good-bg: rgba(74,222,128,0.15); --warning-bg: rgba(252,211,77,0.13);
+    --serious-bg: rgba(251,146,60,0.15); --critical-bg: rgba(248,113,113,0.17);
+    --chip-bg: #262a33; --shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  /* Solarized — the classic teal/tan dark palette */
+  [data-theme="solarized"] {
+    --page: #002b36; --surface: #073642; --ink: #eee8d5; --ink-2: #93a1a1; --muted: #839496;
+    --hairline: #0f4d5c; --ring: rgba(38,139,210,0.30);
+    --accent: #268bd2; --accent-ink: #002b36;
+    --good: #859900; --warning: #b58900; --serious: #cb4b16; --critical: #dc322f;
+    --good-bg: rgba(133,153,0,0.16); --warning-bg: rgba(181,137,0,0.16);
+    --serious-bg: rgba(203,75,22,0.16); --critical-bg: rgba(220,50,47,0.16);
+    --chip-bg: #0a4250; --shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  /* Synthwave — purple with neon pink/green */
+  [data-theme="synthwave"] {
+    --page: #170e26; --surface: #221537; --ink: #f3e9ff; --ink-2: #cbb3ea; --muted: #9d82c4;
+    --hairline: #3d2a5f; --ring: rgba(255,93,143,0.30);
+    --accent: #ff5d8f; --accent-ink: #170e26;
+    --good: #50fa7b; --warning: #ffd166; --serious: #ff9e64; --critical: #ff5d8f;
+    --good-bg: rgba(80,250,123,0.14); --warning-bg: rgba(255,209,102,0.13);
+    --serious-bg: rgba(255,158,100,0.15); --critical-bg: rgba(255,93,143,0.17);
+    --chip-bg: #2e1d49; --shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.45;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 16px 16px 24px; }
+
+  /* ---- Header ---- */
+  header.top { display: flex; align-items: center; gap: 12px; padding: 6px 0 2px; }
+  .logo { width: 40px; height: 40px; border-radius: 11px; display: block;
+          border: 1px solid var(--hairline); }
+  .title h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
+  .title p { margin: 0; font-size: 0.8rem; color: var(--ink-2); }
+  .top .spacer { flex: 1; }
+  .theme-sel {
+    border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
+    border-radius: 12px; height: 40px; padding: 0 10px; font-size: 0.85rem; cursor: pointer;
+  }
+  .theme-sel:hover { border-color: var(--muted); }
+  .theme-sel:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
+
+  /* ---- Stat tiles ---- */
+  /* Three equal, center-aligned tiles — one per filter chip (clean / replace / reorder),
+     each a category glyph + label, a count, and an emoji sub-line. Mirrors the iOS app. */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 14px;
+    padding: 10px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+  }
+  .stat .label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+  .stat .value { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+  .stat .sub { font-size: 0.75rem; color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---- Toolbar ---- */
+  .toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .search {
+    width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--hairline);
+    background: var(--surface); color: var(--ink); font-size: 0.95rem;
+  }
+  .search:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
+  .filter-block { display: flex; flex-direction: column; gap: 4px; }
+  .filters-cap { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  /* Three chips stretched full-width so the row never scrolls (matches iOS). */
+  .filters { display: flex; gap: 6px; }
+  .filter-chip {
+    flex: 1 1 0; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-2);
+    padding: 6px 8px; border-radius: 999px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+    text-align: center; overflow: hidden; text-overflow: ellipsis;
+  }
+  .filter-chip[aria-pressed="true"] { background: var(--ink); color: var(--page); border-color: var(--ink); font-weight: 600; }
+  .cleanall { align-self: flex-start; }
+
+  /* ---- Cards ---- */
+  .list { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px;
+    padding: 14px 14px 12px; box-shadow: var(--shadow);
+  }
+  .card h3 { margin: 0; font-size: 1.02rem; }
+  .card .notes { font-size: 0.85rem; color: var(--ink-2); margin: 4px 0 0; }
+  /* 2×2 quadrant grid — cleaning · replacing · spares · manage — on chip-bg tiles, matching
+     the iOS card. align-items:stretch keeps the two tiles in a row the same height. */
+  .quadrants { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; align-items: stretch; }
+  .quad {
+    background: var(--chip-bg); border-radius: 12px; padding: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .quad-h { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .quad-line { font-size: 0.8rem; color: var(--ink-2); }
+  .badge {
+    display: flex; align-items: flex-start; gap: 6px; font-size: 0.78rem; line-height: 16px; font-weight: 600;
+    padding: 6px 10px; border-radius: 14px; width: 100%; color: var(--ink);
+  }
+  /* Center the dot on the first text line: (lineHeight − dotSize) / 2 = (16 − 8) / 2 = 4px. */
+  .badge .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; margin-top: 4px; }
+  .b-good { background: var(--good-bg); } .b-good .dot { background: var(--good); }
+  .b-warning { background: var(--warning-bg); } .b-warning .dot { background: var(--warning); }
+  .b-serious { background: var(--serious-bg); } .b-serious .dot { background: var(--serious); }
+  .b-critical { background: var(--critical-bg); } .b-critical .dot { background: var(--critical); }
+  .b-neutral { background: var(--chip-bg); } .b-neutral .dot { background: var(--muted); }
+  .stock { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .stock button {
+    width: 30px; height: 30px; border-radius: 12px; border: 1px solid var(--hairline);
+    background: var(--surface); color: var(--ink); font-size: 1rem; cursor: pointer; line-height: 1;
+  }
+  .stock .count { font-weight: 700; min-width: 1.6ch; text-align: center; }
+  .act {
+    border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
+    padding: 8px 12px; border-radius: 12px; font-size: 0.85rem; cursor: pointer;
+  }
+  .act:hover { border-color: var(--muted); }
+  .quad .act { width: 100%; text-align: center; font-size: 0.82rem; }
+
+  /* ---- Empty state ---- */
+  .empty { text-align: center; padding: 40px 12px; color: var(--ink-2); }
+  .empty .big { width: 72px; height: 72px; border-radius: 18px; display: inline-block; border: 1px solid var(--hairline); }
+  .empty h2 { color: var(--ink); margin: 8px 0 6px; }
+  .empty p { font-size: 0.9rem; max-width: 44ch; margin: 0 auto 16px; }
+  .empty .kits { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  /* ---- Buttons / FAB ---- */
+  .btn {
+    background: var(--accent); color: var(--accent-ink); border: none; font-weight: 700;
+    padding: 12px 18px; border-radius: 999px; font-size: 0.95rem; cursor: pointer;
+  }
+  .fab {
+    position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35); z-index: 5;
+  }
+
+  /* ---- Dialog / form ---- */
+  dialog {
+    border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface); color: var(--ink);
+    width: min(480px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
+  }
+  dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
+  dialog h2 { margin: 0 0 12px; font-size: 1.1rem; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 0.78rem; color: var(--ink-2); margin-bottom: 4px; font-weight: 600; }
+  .field input, .field select {
+    width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--hairline);
+    background: var(--page); color: var(--ink); font-size: 0.95rem;
+  }
+  .field input:focus, .field select:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
+  .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .quick button {
+    border: 1px solid var(--hairline); background: var(--chip-bg); color: var(--ink-2);
+    padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; cursor: pointer;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+
+  /* ---- Footer ---- */
+  footer { margin-top: 28px; font-size: 0.78rem; color: var(--muted); text-align: center; }
+  footer .links { margin-top: 8px; display: flex; gap: 14px; justify-content: center; }
+  footer button { background: none; border: none; color: var(--accent); font-size: 0.78rem; cursor: pointer; text-decoration: underline; padding: 0; }
+  .insurance {
+    margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--hairline); border-radius: 12px;
+    font-size: 0.78rem; color: var(--ink-2); text-align: left;
+  }
+
+  /* ---- Toast ---- */
+  .toast {
+    position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 999px;
+    font-size: 0.85rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
+    max-width: calc(100vw - 40px); text-align: center;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img class="logo" src="data:image/png;base64,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" alt="" aria-hidden="true" width="40" height="40">
+    <div class="title">
+      <h1>PAPTrack</h1>
+      <p>CPAP supplies: clean, replace, reorder</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="act" id="syncBtn" hidden>☁️ Sign in to sync</button>
+    <select class="theme-sel" id="themeSel" aria-label="Theme">
+      <option value="forest">🌲 Forest</option>
+      <option value="light">☀️ Light</option>
+      <option value="midnight">✦ Midnight</option>
+      <option value="sepia">📜 Sepia</option>
+      <option value="slate">☾ Slate</option>
+      <option value="solarized">🌗 Solarized</option>
+      <option value="synthwave">🌆 Synthwave</option>
+    </select>
+  </header>
+
+  <div class="stats" id="stats" hidden>
+    <div class="stat">
+      <div class="label">🧼 Clean</div>
+      <div class="value" id="statClean">0</div>
+      <div class="sub" id="statCleanSub"></div>
+    </div>
+    <div class="stat">
+      <div class="label">↻ Replace</div>
+      <div class="value" id="statReplace">0</div>
+      <div class="sub" id="statReplaceSub"></div>
+    </div>
+    <div class="stat">
+      <div class="label">📦 Reorder</div>
+      <div class="value" id="statReorder">0</div>
+      <div class="sub" id="statReorderSub"></div>
+    </div>
+  </div>
+
+  <div class="toolbar" id="toolbar" hidden>
+    <input type="search" class="search" id="search" placeholder="Search supplies, notes…">
+    <div class="filter-block">
+      <div class="filters-cap">Filter — tap to toggle</div>
+      <div class="filters" role="group" aria-label="Filter supplies">
+        <button class="filter-chip" data-filter="clean" aria-pressed="false">🧼 Clean due</button>
+        <button class="filter-chip" data-filter="replace" aria-pressed="false">↻ Replace due</button>
+        <button class="filter-chip" data-filter="reorder" aria-pressed="false">📦 Reorder due</button>
+      </div>
+    </div>
+    <button class="act cleanall" id="cleanAllBtn" hidden>🧼 Mark all due items cleaned</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="empty" id="empty" hidden>
+    <img class="big" src="data:image/png;base64,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" alt="" aria-hidden="true">
+    <h2>Set up your CPAP kit in one tap</h2>
+    <p>PAPTrack keeps every supply on schedule — daily and weekly cleaning reminders, replacement countdowns, and a spares count so you reorder before you run out.</p>
+    <div class="kits">
+      <button class="btn" id="kitFull">Load full-face kit</button>
+      <button class="btn" id="kitNasal">Load nasal kit</button>
+    </div>
+    <p style="margin-top:14px"><button class="act" id="emptyAdd">or add items one at a time</button></p>
+  </div>
+
+  <footer>
+    <div id="privacyNote">🔒 100% private — everything is stored only in this browser. No account, no server, works offline.</div>
+    <div class="links">
+      <button id="exportBtn">Export backup</button>
+      <button id="importBtn">Import backup</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <div class="insurance">💡 <strong>Resupply tip:</strong> most insurance carriers require PAP adherence data before covering replacement supplies, and coverage varies by plan (copays and deductibles apply). Using distilled water and emptying the humidifier chamber every morning extends its life.</div>
+  </footer>
+</div>
+
+<button class="btn fab" id="addBtn">+ Add supply</button>
+<div class="toast" id="toast" role="status"></div>
+
+<dialog id="formDialog">
+  <h2 id="formTitle">Add supply</h2>
+  <form id="itemForm" method="dialog">
+    <div class="field" id="presetField">
+      <label for="fPreset">Start from a preset</label>
+      <select id="fPreset"></select>
+    </div>
+    <div class="field">
+      <label for="fName">Name</label>
+      <input type="text" id="fName" required maxlength="60" placeholder="e.g. Mask">
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label for="fClean">Clean every (days, 0 = none)</label>
+        <input type="number" id="fClean" min="0" max="365" value="0">
+        <div class="quick">
+          <button type="button" data-clean="1">Daily</button>
+          <button type="button" data-clean="7">Weekly</button>
+          <button type="button" data-clean="0">None</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="fReplace">Replace every (days, 0 = as needed)</label>
+        <input type="number" id="fReplace" min="0" max="1095" required value="90">
+        <div class="quick">
+          <button type="button" data-replace="14">2 wk</button>
+          <button type="button" data-replace="30">1 mo</button>
+          <button type="button" data-replace="90">3 mo</button>
+          <button type="button" data-replace="180">6 mo</button>
+          <button type="button" data-replace="0">As needed</button>
+        </div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label for="fLast">Last replaced</label>
+        <input type="date" id="fLast" required>
+      </div>
+      <div class="field">
+        <label for="fStock">Spares on hand</label>
+        <input type="number" id="fStock" min="0" max="99" value="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fLowAt">Flag for reorder when spares ≤</label>
+      <input type="number" id="fLowAt" min="0" max="20" value="1">
+    </div>
+    <div class="field">
+      <label for="fNotes">Notes (size, model, supplier…)</label>
+      <input type="text" id="fNotes" maxlength="140" placeholder="e.g. ResMed AirFit F30i, size M">
+    </div>
+    <div class="formfoot">
+      <button type="button" class="act" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn" id="saveBtn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="syncChoiceDialog">
+  <h2>Which data do you want to keep?</h2>
+  <p id="syncChoiceBody" style="color:var(--ink-2); font-size:0.88rem; margin:0 0 16px;"></p>
+  <div class="formfoot">
+    <button type="button" class="act" id="syncKeepDeviceBtn">Keep this device</button>
+    <button type="button" class="btn" id="syncKeepGoogleBtn">Keep Google's data</button>
+  </div>
+</dialog>
+
+<details class="changelog" id="cl-box">
+  <summary>Recent changes</summary>
+  <ol id="cl-list"><li>Loading&hellip;</li></ol>
+</details>
+
+<style>
+.changelog{max-width:760px;margin:8px auto 0;padding:0 20px 96px;font-size:12.5px;color:var(--muted)}
+.changelog summary{cursor:pointer;user-select:none;opacity:.75}
+.changelog summary:hover{opacity:1}
+.changelog ol{list-style:none;margin:10px 0 0;padding:0}
+.changelog li{display:flex;gap:10px;padding:3px 0;align-items:baseline}
+.cl-date{white-space:nowrap;opacity:.65;font-variant-numeric:tabular-nums;flex-shrink:0}
+.changelog a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--hairline)}
+.changelog a:hover{color:var(--ink)}
+</style>
+<script>
+/* "Recent changes": on first open, fetch this file's last 10 commit subjects from
+   the GitHub API. Commit subjects are user-facing here — see CLAUDE.md. */
+(function(){
+  var box=document.getElementById('cl-box'),loaded=false;
+  box.addEventListener('toggle',function(){
+    if(!box.open||loaded)return;loaded=true;
+    var list=document.getElementById('cl-list');
+    fetch('https://api.github.com/repos/eagleadams86/paptrack/commits?path=index.html&per_page=10')
+      .then(function(r){if(!r.ok)throw new Error('http');return r.json();})
+      .then(function(cs){
+        list.innerHTML='';
+        if(!cs.length){list.innerHTML='<li>No changes recorded yet.</li>';return;}
+        cs.forEach(function(c){
+          var li=document.createElement('li');
+          var d=document.createElement('span');d.className='cl-date';
+          d.textContent=new Date(c.commit.author.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+          var a=document.createElement('a');
+          a.href=c.html_url;a.target='_blank';a.rel='noopener';
+          a.textContent=c.commit.message.split('\n')[0];
+          li.appendChild(d);li.appendChild(a);list.appendChild(li);
+        });
+      })
+      .catch(function(){list.innerHTML='<li>Changelog unavailable right now (offline?).</li>';});
+  });
+})();
+</script>
+
+<script>
+'use strict';
+const STORAGE_KEY = 'pap-items';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* Capitalizes just the first letter — used on the lowercase schedule labels for display. */
+const capFirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+/* Presets from the standard DME "clean & replace" schedule. */
+const PRESETS = [
+  { key: 'mask',      emoji: '😷', name: 'Mask',                      cleanDays: 1, replaceDays: 90,  note: '' },
+  { key: 'headgear',  emoji: '🪢', name: 'Headgear',                  cleanDays: 7, replaceDays: 180, note: 'Stretches out over time and needs more tightening, affecting mask fit.' },
+  { key: 'tubing',    emoji: '〰️', name: 'Tubing',                    cleanDays: 7, replaceDays: 90,  note: 'Mineral deposits build up and compromise air quality and delivery.' },
+  { key: 'filters',   emoji: '🌫️', name: 'Disposable Fine Filters',   cleanDays: 0, replaceDays: 14,  note: 'Cannot be washed — replace only.' },
+  { key: 'ffcushion', emoji: '🛟', name: 'Full Face Cushions',        cleanDays: 1, replaceDays: 30,  note: 'Cushions break down and lose their seal over time.' },
+  { key: 'nasal',     emoji: '👃', name: 'Nasal Cushions & Pillows',  cleanDays: 1, replaceDays: 14,  note: 'Cushions break down and lose their seal over time.' },
+  { key: 'humid',     emoji: '💧', name: 'Humidifier Chamber',        cleanDays: 1, replaceDays: 180, note: 'Use distilled water and empty every morning to extend its life.' },
+  { key: 'water',     emoji: '💦', name: 'Distilled Water',           cleanDays: 0, replaceDays: 0,   note: 'Consumable — refill as needed. Track jugs on hand to know when to buy more.' },
+  { key: 'custom',    emoji: '🔧', name: '',                          cleanDays: 0, replaceDays: 90,  note: '' },
+];
+const KITS = {
+  full:  ['mask', 'headgear', 'tubing', 'filters', 'ffcushion', 'humid'],
+  nasal: ['mask', 'headgear', 'tubing', 'filters', 'nasal', 'humid'],
+};
+
+let items = load();
+let filter = 'all';
+let query = '';
+let editingId = null;
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  // 'pap-updated' is the conflict-resolution timestamp for cloud sync: newer side wins.
+  localStorage.setItem('pap-updated', String(Date.now()));
+  if (window.cloudPush) window.cloudPush();
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+/* ---------------- Date math ----------------
+   All dates are local-midnight Date objects. parseDate splits 'YYYY-MM-DD' by hand
+   because new Date('YYYY-MM-DD') parses as UTC midnight, which shifts to the
+   previous day in timezones west of UTC. */
+function today() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+function parseDate(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function fmtDate(d) { return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+function daysBetween(a, b) { return Math.round((b - a) / 86400000); } // round absorbs DST's ±1h
+
+/* ---------------- Derived state ---------------- */
+function nextReplace(it) { return addDays(parseDate(it.lastReplaced), it.replaceDays); }
+/* replaceDays 0 = "as needed" (consumables like distilled water): never due, sorts last.
+   Finite sentinel (not Infinity) so subtraction-based sort comparators stay valid. */
+function replaceLeft(it) { return it.replaceDays > 0 ? daysBetween(today(), nextReplace(it)) : 9e9; }
+function cleanDue(it) {
+  if (!it.cleanDays) return false;
+  if (!it.lastCleaned) return true;
+  return daysBetween(parseDate(it.lastCleaned), today()) >= it.cleanDays;
+}
+/* Reorder whenever spares are at or below the threshold — low stock alone drives it, for
+   every item (matches the shipped iOS app; the calendar reminder still leads by ~30 days). */
+function reorderNeeded(it) { return it.stock <= it.lowAt; }
+/* True once an item was already replaced today — hides the "Replaced today" button so it
+   can't be pressed twice in a day (matches the iOS app). */
+function replacedToday(it) { return it.lastReplaced === toISO(today()); }
+/* Badge urgency thresholds scale with the item's replacement cycle, so short-cycle
+   consumables (e.g. 2-week filters) don't look urgent the day they're
+   replaced: warning at ≤40% of the cycle, serious at ≤20% (capped at 14/7 days).
+   The "Replace due" filter is stricter: only items due today or overdue. */
+function soonAt(it) { return Math.min(14, Math.ceil(it.replaceDays * 0.4)); }
+function severity(it, days) {
+  if (days < 0) return 'critical';
+  if (days <= Math.min(7, Math.ceil(it.replaceDays * 0.2))) return 'serious';
+  if (days <= soonAt(it)) return 'warning';
+  return 'good';
+}
+function cleanLabel(n) { return n === 0 ? 'no cleaning' : n === 1 ? 'clean daily' : n === 7 ? 'clean weekly' : `clean every ${n} days`; }
+function replaceLabel(n) {
+  if (n === 0) return 'replace as needed';
+  if (n % 30 === 0) { const m = n / 30; return `replace every ${m === 1 ? 'month' : m + ' months'}`; }
+  if (n % 7 === 0) { const w = n / 7; return `replace every ${w === 1 ? 'week' : w + ' weeks'}`; }
+  return `replace every ${n} days`;
+}
+
+/* ---------------- Rendering ---------------- */
+function agoLabel(iso) {
+  const d = daysBetween(parseDate(iso), today());
+  return d === 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
+}
+/* One badge per category, each returned on its own so the card can place them inside the
+   matching quadrant (cleaning / replacing / spares). */
+function badge(cls, html) { return `<span class="badge ${cls}"><span class="dot"></span>${html}</span>`; }
+function replaceBadge(it) {
+  if (it.replaceDays === 0) return badge('b-good', 'Replace as needed');
+  const left = replaceLeft(it);
+  if (left < 0) return badge('b-critical', `Replace overdue by ${-left} day${left === -1 ? '' : 's'}`);
+  return badge(`b-${severity(it, left)}`, `Replace by ${esc(fmtDate(nextReplace(it)))} · ${left} day${left === 1 ? '' : 's'} left`);
+}
+function cleanBadge(it) {
+  if (it.cleanDays <= 0) return '';
+  if (cleanDue(it)) return badge('b-warning', 'Cleaning due');
+  const since = daysBetween(parseDate(it.lastCleaned), today());
+  return badge('b-good', `Cleaned ${since === 0 ? 'today' : since === 1 ? 'yesterday' : since + ' days ago'}`);
+}
+function reorderBadge(it) {
+  if (!reorderNeeded(it)) return '';
+  return badge(`b-${it.stock === 0 ? 'critical' : 'serious'}`, `Reorder — ${it.stock} spare${it.stock === 1 ? '' : 's'} left`);
+}
+/* The status line under the cleaning label: "Last cleaned …", "Not cleaned yet", or (for
+   items with no cleaning schedule) "No cleaning needed" — mirrors the iOS card. */
+function cleanStatus(it) {
+  if (it.cleanDays <= 0) return 'No cleaning needed';
+  return it.lastCleaned ? `Last cleaned ${agoLabel(it.lastCleaned)}` : 'Not cleaned yet';
+}
+
+function matches(it) {
+  if (query) {
+    const q = query.toLowerCase();
+    if (!(`${it.name} ${it.notes || ''}`.toLowerCase().includes(q))) return false;
+  }
+  switch (filter) {
+    case 'clean': return cleanDue(it);
+    case 'replace': return replaceLeft(it) <= 0;
+    case 'reorder': return reorderNeeded(it);
+    default: return true;
+  }
+}
+
+function render() {
+  const has = items.length > 0;
+  $('stats').hidden = !has;
+  $('toolbar').hidden = !has;
+  $('empty').hidden = has;
+  $('addBtn').hidden = !has;
+
+  if (has) {
+    // Three tiles, one per filter chip — clean-due, replace-due (due today or overdue),
+    // reorder — each a count plus an emoji sub-line or an all-clear check.
+    const dueClean = items.filter(cleanDue);
+    $('statClean').textContent = dueClean.length;
+    $('statCleanSub').textContent = dueClean.length ? dueClean.map(i => i.emoji).join(' ') : 'all clean ✓';
+
+    const dueReplace = items.filter(i => replaceLeft(i) <= 0);
+    $('statReplace').textContent = dueReplace.length;
+    $('statReplaceSub').textContent = dueReplace.length ? dueReplace.map(i => i.emoji).join(' ') : 'on schedule ✓';
+
+    const reorder = items.filter(reorderNeeded);
+    $('statReorder').textContent = reorder.length;
+    $('statReorderSub').textContent = reorder.length ? reorder.map(i => i.emoji).join(' ') : 'stocked up ✓';
+
+    $('cleanAllBtn').hidden = dueClean.length < 2;
+  }
+
+  const visible = items.filter(matches).sort((a, b) => replaceLeft(a) - replaceLeft(b));
+  $('list').innerHTML = visible.map(it => {
+    const isCleanDue = it.cleanDays > 0 && cleanDue(it);
+    return `
+    <article class="card" data-id="${it.id}">
+      <h3>${esc(it.emoji)} ${esc(it.name)}</h3>
+      ${it.notes ? `<p class="notes">${esc(it.notes)}</p>` : ''}
+      <div class="quadrants">
+        <div class="quad">
+          <div class="quad-h">🧼 Cleaning</div>
+          <div class="quad-line">${esc(capFirst(cleanLabel(it.cleanDays)))}</div>
+          <div class="quad-line">${esc(cleanStatus(it))}</div>
+          ${cleanBadge(it)}
+          ${isCleanDue ? `<button class="act" data-act="clean">Mark cleaned</button>` : ''}
+        </div>
+        <div class="quad">
+          <div class="quad-h">↻ Replacing</div>
+          <div class="quad-line">${esc(capFirst(replaceLabel(it.replaceDays)))}</div>
+          <div class="quad-line">Last replaced ${esc(agoLabel(it.lastReplaced))}</div>
+          ${replaceBadge(it)}
+          ${replacedToday(it) ? '' : `<button class="act" data-act="replace">Replaced today</button>`}
+        </div>
+        <div class="quad">
+          <div class="quad-h">📦 Spares</div>
+          <div class="stock">
+            <button data-act="stock-" aria-label="One fewer spare">−</button>
+            <span class="count">${it.stock}</span>
+            <button data-act="stock+" aria-label="One more spare">+</button>
+          </div>
+          ${reorderBadge(it)}
+        </div>
+        <div class="quad">
+          <div class="quad-h">⚙️ Manage</div>
+          <button class="act" data-act="calendar">🗓 Calendar</button>
+          <button class="act" data-act="edit">Edit</button>
+          <button class="act" data-act="delete">Delete</button>
+        </div>
+      </div>
+    </article>`;
+  }).join('') || (has ? `<div class="empty"><p>Nothing matches this filter.</p></div>` : '');
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------------- Card actions ---------------- */
+$('list').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const id = btn.closest('.card').dataset.id;
+  const it = items.find(i => i.id === id);
+  if (!it) return;
+  switch (btn.dataset.act) {
+    case 'clean':
+      it.lastCleaned = toISO(today());
+      save(); render(); toast(`${it.emoji} ${it.name} cleaned ✓`);
+      break;
+    case 'replace': {
+      it.lastReplaced = toISO(today());
+      const usedSpare = it.stock > 0;
+      if (usedSpare) it.stock -= 1;
+      save(); render();
+      toast(`${it.emoji} ${it.name} replaced${usedSpare ? ` — ${it.stock} spare${it.stock === 1 ? '' : 's'} left` : ''} 🎉`);
+      break;
+    }
+    case 'stock+':
+      it.stock = Math.min(99, it.stock + 1);
+      save(); render();
+      break;
+    case 'stock-':
+      it.stock = Math.max(0, it.stock - 1);
+      save(); render();
+      break;
+    case 'calendar':
+      downloadICS(it);
+      break;
+    case 'edit':
+      openForm(it);
+      break;
+    case 'delete':
+      if (confirm(`Delete "${it.name}"?`)) {
+        items = items.filter(i => i.id !== id);
+        save(); render(); toast('Deleted');
+      }
+      break;
+  }
+});
+
+$('cleanAllBtn').addEventListener('click', () => {
+  const due = items.filter(cleanDue);
+  const iso = toISO(today());
+  due.forEach(it => { it.lastCleaned = iso; });
+  save(); render();
+  toast(`Marked ${due.length} item${due.length === 1 ? '' : 's'} cleaned ✓`);
+});
+
+/* ---------------- Calendar (.ics) ---------------- */
+function escICS(s) { return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+function nextClean(it) {
+  const due = it.lastCleaned ? addDays(parseDate(it.lastCleaned), it.cleanDays) : today();
+  return due < today() ? today() : due;
+}
+/* The reorder reminder lands ahead of the replacement date: half the cycle for
+   short-cycle consumables, at most 30 days out (typical insurance resupply window). */
+function nextReorder(it) {
+  const d = addDays(nextReplace(it), -Math.min(30, Math.floor(it.replaceDays / 2)));
+  return d < today() ? today() : d;
+}
+function buildICS(it) {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const day = (d) => toISO(d).replace(/-/g, '');
+  const vevent = (tag, date, summary, desc, alarm) => [
+    'BEGIN:VEVENT',
+    `UID:${it.id}-${tag}-${day(date)}@paptrack`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;VALUE=DATE:${day(date)}`,
+    `DTEND;VALUE=DATE:${day(addDays(date, 1))}`,
+    `SUMMARY:${escICS(summary)}`,
+    `DESCRIPTION:${escICS(desc)}`,
+    'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${escICS(summary)}`, `TRIGGER:${alarm}`, 'END:VALARM',
+    'END:VEVENT',
+  ];
+  const events = [];
+  // As-needed items (replaceDays 0) have no replacement date to put on a calendar.
+  if (it.replaceDays > 0) {
+    events.push(
+      ...vevent('replace', nextReplace(it), `Replace CPAP ${it.name}`,
+        `${it.name} is due for replacement (${replaceLabel(it.replaceDays)}). Check spares and reorder if needed.`, '-P2D'),
+      ...vevent('reorder', nextReorder(it), `Reorder CPAP ${it.name}`,
+        `Replacement of ${it.name} is coming up on ${fmtDate(nextReplace(it))}. Check spares (${it.stock} on hand) and reorder if needed — insurance resupply windows may apply.`, '-PT0M'),
+    );
+  }
+  // Daily-cleaned items don't need calendar nagging; weekly-or-rarer ones do.
+  if (it.cleanDays > 1) {
+    events.push(...vevent('clean', nextClean(it), `Clean CPAP ${it.name}`,
+      `${it.name} is due for cleaning (${cleanLabel(it.cleanDays)}).`, '-PT0M'));
+  }
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PAPTrack//EN', ...events, 'END:VCALENDAR'].join('\r\n');
+}
+function downloadICS(it) {
+  if (it.replaceDays === 0 && it.cleanDays <= 1) {
+    toast('Nothing to schedule — this item is replaced as needed');
+    return;
+  }
+  const blob = new Blob([buildICS(it)], { type: 'text/calendar' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cpap-reminders.ics';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  const kinds = [];
+  if (it.replaceDays > 0) kinds.push('replace', 'reorder');
+  if (it.cleanDays > 1) kinds.push('clean');
+  toast(`Calendar reminders downloaded (${kinds.length} event${kinds.length === 1 ? '' : 's'}: ${kinds.join(', ')})`);
+}
+
+/* ---------------- Add / edit form ---------------- */
+const dlg = $('formDialog');
+function fillPresetOptions() {
+  $('fPreset').innerHTML = PRESETS.map(p =>
+    `<option value="${p.key}">${p.key === 'custom' ? '🔧 Custom item' : `${p.emoji} ${p.name}`}</option>`).join('');
+}
+function applyPreset(key) {
+  const p = PRESETS.find(x => x.key === key);
+  if (!p) return;
+  $('fName').value = p.name;
+  $('fClean').value = p.cleanDays;
+  $('fReplace').value = p.replaceDays;
+  $('fNotes').value = p.note;
+}
+function openForm(it = null) {
+  editingId = it ? it.id : null;
+  $('formTitle').textContent = it ? `Edit ${it.name}` : 'Add supply';
+  $('presetField').hidden = !!it;
+  if (it) {
+    $('fName').value = it.name;
+    $('fClean').value = it.cleanDays;
+    $('fReplace').value = it.replaceDays;
+    $('fLast').value = it.lastReplaced;
+    $('fStock').value = it.stock;
+    $('fLowAt').value = it.lowAt;
+    $('fNotes').value = it.notes || '';
+  } else {
+    $('fPreset').value = 'mask';
+    applyPreset('mask');
+    $('fLast').value = toISO(today());
+    $('fStock').value = 0;
+    $('fLowAt').value = 1;
+  }
+  dlg.showModal();
+}
+$('fPreset').addEventListener('change', (e) => applyPreset(e.target.value));
+dlg.addEventListener('click', (e) => {
+  const c = e.target.closest('button[data-clean]');
+  if (c) { $('fClean').value = c.dataset.clean; return; }
+  const r = e.target.closest('button[data-replace]');
+  if (r) { $('fReplace').value = r.dataset.replace; }
+});
+$('cancelBtn').addEventListener('click', () => dlg.close());
+$('itemForm').addEventListener('submit', () => {
+  const presetKey = editingId ? null : $('fPreset').value;
+  const preset = presetKey ? PRESETS.find(p => p.key === presetKey) : null;
+  const data = {
+    name: $('fName').value.trim() || 'Untitled',
+    cleanDays: Math.max(0, Number($('fClean').value) || 0),
+    replaceDays: Math.max(0, Number($('fReplace').value) || 0),
+    lastReplaced: $('fLast').value || toISO(today()),
+    stock: Math.max(0, Number($('fStock').value) || 0),
+    lowAt: Math.max(0, Number($('fLowAt').value) || 0),
+    notes: $('fNotes').value.trim(),
+  };
+  if (editingId) {
+    const it = items.find(i => i.id === editingId);
+    Object.assign(it, data);
+    toast(`${it.emoji} ${it.name} updated`);
+  } else {
+    items.push({ id: uid(), emoji: preset ? preset.emoji : '🔧', lastCleaned: null, createdAt: Date.now(), ...data });
+    toast(`${data.name} added`);
+  }
+  save(); render();
+});
+
+/* ---------------- Starter kits ---------------- */
+function loadKit(keys) {
+  const iso = toISO(today());
+  keys.forEach(key => {
+    const p = PRESETS.find(x => x.key === key);
+    items.push({
+      id: uid(), emoji: p.emoji, name: p.name, cleanDays: p.cleanDays, replaceDays: p.replaceDays,
+      lastReplaced: iso, lastCleaned: null,
+      stock: key === 'filters' ? 4 : 0, // filters ship in multipacks, so seed a realistic spare count
+      lowAt: 1,
+      notes: p.note, createdAt: Date.now(),
+    });
+  });
+  save(); render();
+  toast(`Added ${keys.length} supplies — set each “last replaced” date via Edit`);
+}
+$('kitFull').addEventListener('click', () => loadKit(KITS.full));
+$('kitNasal').addEventListener('click', () => loadKit(KITS.nasal));
+$('emptyAdd').addEventListener('click', () => openForm());
+$('addBtn').addEventListener('click', () => openForm());
+
+/* ---------------- Search & filters ---------------- */
+$('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
+document.querySelector('.filters').addEventListener('click', (e) => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  // Clicking the active chip again deselects it, back to the All view.
+  filter = filter === chip.dataset.filter ? 'all' : chip.dataset.filter;
+  const active = document.querySelector(`.filter-chip[data-filter="${filter}"]`);
+  document.querySelectorAll('.filter-chip').forEach(c => c.setAttribute('aria-pressed', String(c === active)));
+  render();
+});
+
+/* ---------------- Theme ---------------- */
+$('themeSel').value = document.documentElement.getAttribute('data-theme');
+$('themeSel').addEventListener('change', (e) => {
+  document.documentElement.setAttribute('data-theme', e.target.value);
+  localStorage.setItem('pap-theme', e.target.value);
+});
+
+/* ---------------- Backup ---------------- */
+$('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ app: 'paptrack', version: 1, exported: new Date().toISOString(), items }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `paptrack-backup-${toISO(today())}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Backup downloaded');
+});
+$('importBtn').addEventListener('click', () => $('importFile').click());
+$('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const incoming = Array.isArray(parsed) ? parsed : parsed.items;
+    if (!Array.isArray(incoming)) throw new Error('bad format');
+    if (!confirm(`Replace your ${items.length} item${items.length === 1 ? '' : 's'} with ${incoming.length} from the backup?`)) return;
+    items = incoming;
+    save(); render(); toast('Backup restored');
+  } catch {
+    toast('Could not read that backup file');
+  } finally {
+    e.target.value = '';
+  }
+});
+
+/* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
+window.paptrackGet = () => items;
+window.paptrackAdopt = (newItems, ts) => {
+  items = Array.isArray(newItems) ? newItems : [];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  localStorage.setItem('pap-updated', String(ts || Date.now()));
+  render();
+};
+
+fillPresetOptions();
+render();
+</script>
+
+<script type="module">
+/* ───────────────────────── Optional cross-device sync ─────────────────────────
+   Google sign-in + Firestore sync (free tier). The config below is Firebase's
+   public client config, not a secret — data access is enforced by Firestore
+   security rules, not this key. Set FIREBASE_CONFIG to null to disable sync
+   entirely (the button stays hidden and the app is 100% local). localStorage
+   remains the source of truth either way. The first time a given Google account syncs on
+   this browser, if both sides already have items the user is asked which to keep (see
+   chooseSyncSource) rather than silently picking one by timestamp — that guesswork is what
+   wiped a browser's data once already. After that first reconciliation, and for live
+   updates from other devices, the newer side (by the 'pap-updated' timestamp) wins. */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCtcJiGS8ow4suvIVt5rs3S4JjzSpIiYnw",
+  authDomain: "paptrack-6c817.firebaseapp.com",
+  projectId: "paptrack-6c817",
+  storageBucket: "paptrack-6c817.firebasestorage.app",
+  messagingSenderId: "663133445971",
+  appId: "1:663133445971:web:0d363eaa75ae0fcda78ba6"
+};
+
+const SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
+const btn = document.getElementById('syncBtn');
+const privacyNote = document.getElementById('privacyNote');
+const localTs = () => Number(localStorage.getItem('pap-updated') || 0);
+
+if (FIREBASE_CONFIG) {
+  init().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
+}
+
+let A, F, auth, db, user = null, unsub = null, pushTimer = null;
+
+async function init() {
+  const [{ initializeApp }, authMod, fsMod] = await Promise.all([
+    import(SDK + 'firebase-app.js'),
+    import(SDK + 'firebase-auth.js'),
+    import(SDK + 'firebase-firestore.js'),
+  ]);
+  A = authMod; F = fsMod;
+  const app = initializeApp(FIREBASE_CONFIG);
+  auth = A.getAuth(app);
+  db = F.getFirestore(app);
+  A.onAuthStateChanged(auth, (u) => {
+    user = u;
+    updateUI();
+    if (unsub) { unsub(); unsub = null; }
+    if (u) startSync().catch((e) => console.warn('sync failed', e));
+  });
+  A.getRedirectResult(auth).catch(() => {}); // completes a mobile redirect sign-in, if one is in flight
+  btn.hidden = false;
+  btn.addEventListener('click', onClick);
+}
+
+function updateUI() {
+  if (user) {
+    btn.textContent = `☁️ ${user.displayName ? user.displayName.split(' ')[0] : user.email}`;
+    btn.title = 'Syncing across devices — tap to sign out';
+    privacyNote.textContent = `☁️ Signed in as ${user.email} — your data syncs privately through your own Firebase account and still works offline.`;
+  } else {
+    btn.textContent = '☁️ Sign in to sync';
+    btn.title = 'Sign in with Google to see the same data on all your devices';
+    privacyNote.textContent = '🔒 Private — stored in this browser; sign in to sync your own devices. No account required to use the app.';
+  }
+}
+
+async function onClick() {
+  if (user) {
+    if (confirm('Sign out? The app keeps working with the local copy on this device.')) A.signOut(auth);
+    return;
+  }
+  const provider = new A.GoogleAuthProvider();
+  try {
+    await A.signInWithPopup(auth, provider);
+  } catch (e) {
+    // Popups are unreliable on mobile Safari — fall back to a full-page redirect.
+    if (e && /popup|operation-not-supported/.test(String(e.code))) {
+      try { await A.signInWithRedirect(auth, provider); return; } catch { /* fall through */ }
+    }
+    if (String(e && e.code) !== 'auth/popup-closed-by-user') {
+      window.toast('Sign-in failed — check the Firebase setup');
+      console.warn('sign-in error', e);
+    }
+  }
+}
+
+const docRef = () => F.doc(db, 'paptrack', user.uid);
+
+/* Shows the syncChoiceDialog and resolves to true if the user wants to keep Google's copy,
+   false to keep this device's copy. Escape/backdrop-dismiss defaults to false (the
+   non-destructive choice — it just skips this push instead of overwriting either side). */
+function chooseSyncSource(localCount, remoteCount, remoteUpdatedAt) {
+  return new Promise((resolve) => {
+    const dlg = document.getElementById('syncChoiceDialog');
+    const body = document.getElementById('syncChoiceBody');
+    const when = remoteUpdatedAt ? new Date(remoteUpdatedAt).toLocaleString() : 'an earlier sign-in';
+    body.textContent = `This device has ${localCount} item${localCount === 1 ? '' : 's'} saved locally. Your Google account already has ${remoteCount} item${remoteCount === 1 ? '' : 's'} (last updated ${when}). Pick which to keep — the other copy will be replaced.`;
+    const deviceBtn = document.getElementById('syncKeepDeviceBtn');
+    const googleBtn = document.getElementById('syncKeepGoogleBtn');
+    const preventCancel = (e) => e.preventDefault();
+    function finish(keepGoogle) {
+      deviceBtn.removeEventListener('click', onDevice);
+      googleBtn.removeEventListener('click', onGoogle);
+      dlg.removeEventListener('cancel', preventCancel);
+      dlg.close();
+      resolve(keepGoogle);
+    }
+    const onDevice = () => finish(false);
+    const onGoogle = () => finish(true);
+    deviceBtn.addEventListener('click', onDevice);
+    googleBtn.addEventListener('click', onGoogle);
+    dlg.addEventListener('cancel', preventCancel);
+    dlg.showModal();
+  });
+}
+
+async function startSync() {
+  const snap = await F.getDoc(docRef());
+  const remote = snap.exists() ? snap.data() : null;
+  const local = window.paptrackGet();
+  // Only ask once per account per browser — after the first reconciliation, both sides are
+  // assumed caught up and ordinary timestamp-wins sync is enough. Re-prompts if a different
+  // Google account signs in on this browser.
+  const isFirstSyncForAccount = localStorage.getItem('pap-sync-uid') !== user.uid;
+  if (isFirstSyncForAccount && remote && Array.isArray(remote.items) && remote.items.length && local.length) {
+    const keepGoogle = await chooseSyncSource(local.length, remote.items.length, remote.updatedAt);
+    if (keepGoogle) {
+      window.paptrackAdopt(remote.items, remote.updatedAt);
+      window.toast('Loaded your data from the cloud ☁️');
+    } else {
+      await pushNow();
+      window.toast('Kept this device’s data');
+    }
+  } else if (remote && remote.updatedAt > localTs()) {
+    window.paptrackAdopt(remote.items, remote.updatedAt);
+    window.toast('Loaded your data from the cloud ☁️');
+  } else {
+    await pushNow();
+  }
+  localStorage.setItem('pap-sync-uid', user.uid);
+  unsub = F.onSnapshot(docRef(), (s) => {
+    if (s.metadata.hasPendingWrites || !s.exists()) return;
+    const r = s.data();
+    if (r.updatedAt > localTs()) {
+      window.paptrackAdopt(r.items, r.updatedAt);
+      window.toast('Synced from another device ☁️');
+    }
+  });
+}
+
+async function pushNow() {
+  if (!user) return;
+  await F.setDoc(docRef(), { items: window.paptrackGet(), updatedAt: localTs() || Date.now() });
+}
+
+/* Called by save() on every local change; debounced so rapid edits batch up. */
+window.cloudPush = () => {
+  if (!user) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => pushNow().catch((e) => console.warn('push failed', e)), 1200);
+};
+</script>
+</body>
+</html>
