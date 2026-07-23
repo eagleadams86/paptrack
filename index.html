@@ -310,7 +310,7 @@
         <button class="filter-chip" data-filter="reorder" aria-pressed="false">📦 Reorder due</button>
       </div>
     </div>
-    <button class="act cleanall" id="cleanAllBtn" hidden>🧼 Mark all due items cleaned</button>
+    <button class="act cleanall" id="cleanAllBtn" hidden>Mark all items clean</button>
   </div>
 
   <div class="list" id="list"></div>
@@ -737,11 +737,12 @@ $('list').addEventListener('click', (e) => {
 });
 
 $('cleanAllBtn').addEventListener('click', () => {
-  const due = items.filter(cleanDue);
+  // Marks every item that can be cleaned (has a cleaning schedule), not just those due.
+  const cleanable = items.filter(it => it.cleanDays > 0);
   const iso = toISO(today());
-  due.forEach(it => { it.lastCleaned = iso; });
+  cleanable.forEach(it => { it.lastCleaned = iso; });
   save(); render();
-  toast(`Marked ${due.length} item${due.length === 1 ? '' : 's'} cleaned ✓`);
+  toast(`Marked ${cleanable.length} item${cleanable.length === 1 ? '' : 's'} clean ✓`);
 });
 
 /* ---------------- Calendar (.ics) ---------------- */
