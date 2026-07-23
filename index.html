@@ -208,32 +208,38 @@
 
   /* ---- Dialog / form ---- */
   dialog {
-    border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--hairline); border-radius: 18px; background: var(--page); color: var(--ink);
     width: min(480px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
   }
   dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
   dialog h2 { margin: 0 0 12px; font-size: 1.1rem; }
   .field { margin-bottom: 12px; }
   .field label { display: block; font-size: 0.78rem; color: var(--ink-2); margin-bottom: 4px; font-weight: 600; }
-  .field input, .field select {
+  .field input, .field select, .sec-card > input, .sec-card > select {
     width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--hairline);
     background: var(--page); color: var(--ink); font-size: 0.95rem;
   }
-  .field input:focus, .field select:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
+  .field input:focus, .field select:focus,
+  .sec-card > input:focus, .sec-card > select:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .quick button {
     border: 1px solid var(--hairline); background: var(--chip-bg); color: var(--ink-2);
     padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; cursor: pointer;
   }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  /* Grouped sections mirroring the iOS add/edit form (Cleaning · Replacement · Spares). */
+  .grid2 .field { margin-bottom: 0; }
+  /* Grouped sections mirroring the iOS add/edit form: a bold header, a lighter
+     rounded card holding the fields, and a muted footer hint below it. */
   .formsec { margin-bottom: 16px; }
   .formsec .sec-h {
-    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--ink-2); font-weight: 700; margin: 0 0 8px;
+    font-size: 0.95rem; color: var(--ink); font-weight: 700; margin: 0 0 8px; padding-left: 2px;
   }
-  .formsec .field:last-of-type { margin-bottom: 0; }
-  .sec-foot { font-size: 0.74rem; color: var(--muted); margin: 6px 0 0; }
+  .sec-card {
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 14px; padding: 12px;
+  }
+  .sec-card .field:last-child { margin-bottom: 0; }
+  .sec-foot { font-size: 0.74rem; color: var(--muted); margin: 7px 0 0; padding-left: 2px; }
   .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
 
   /* ---- Footer ---- */
@@ -337,71 +343,84 @@
 <dialog id="formDialog">
   <h2 id="formTitle">Add supply</h2>
   <form id="itemForm" method="dialog">
-    <div class="field" id="presetField">
-      <label for="fPreset">Start from a preset</label>
-      <select id="fPreset"></select>
+    <div class="formsec" id="presetField">
+      <h3 class="sec-h">Start from a preset</h3>
+      <div class="sec-card">
+        <select id="fPreset"></select>
+      </div>
     </div>
-    <div class="field">
-      <label for="fName">Name</label>
-      <input type="text" id="fName" required maxlength="60" placeholder="e.g. Mask">
+
+    <div class="formsec">
+      <h3 class="sec-h">Name</h3>
+      <div class="sec-card">
+        <input type="text" id="fName" required maxlength="60" placeholder="e.g. Mask">
+      </div>
     </div>
 
     <div class="formsec">
       <h3 class="sec-h">Cleaning</h3>
-      <div class="field">
-        <label for="fClean">Clean every (days)</label>
-        <input type="number" id="fClean" min="0" max="365" value="0">
-        <div class="quick">
-          <button type="button" data-clean="1">Daily</button>
-          <button type="button" data-clean="7">Weekly</button>
-          <button type="button" data-clean="0">None</button>
+      <div class="sec-card">
+        <div class="field">
+          <label for="fClean">Clean every (days)</label>
+          <input type="number" id="fClean" min="0" max="365" value="0">
+          <div class="quick">
+            <button type="button" data-clean="1">Daily</button>
+            <button type="button" data-clean="7">Weekly</button>
+            <button type="button" data-clean="0">None</button>
+          </div>
         </div>
-      </div>
-      <div class="field">
-        <label for="fLastClean">Last cleaned</label>
-        <input type="date" id="fLastClean">
+        <div class="field">
+          <label for="fLastClean">Last cleaned</label>
+          <input type="date" id="fLastClean">
+        </div>
       </div>
       <p class="sec-foot">0 = no cleaning reminder</p>
     </div>
 
     <div class="formsec">
       <h3 class="sec-h">Replacement</h3>
-      <div class="field">
-        <label for="fReplace">Replace every (days)</label>
-        <input type="number" id="fReplace" min="0" max="1095" required value="90">
-        <div class="quick">
-          <button type="button" data-replace="14">2 wk</button>
-          <button type="button" data-replace="30">1 mo</button>
-          <button type="button" data-replace="90">3 mo</button>
-          <button type="button" data-replace="180">6 mo</button>
-          <button type="button" data-replace="0">As needed</button>
+      <div class="sec-card">
+        <div class="field">
+          <label for="fReplace">Replace every (days)</label>
+          <input type="number" id="fReplace" min="0" max="1095" required value="90">
+          <div class="quick">
+            <button type="button" data-replace="14">2 wk</button>
+            <button type="button" data-replace="30">1 mo</button>
+            <button type="button" data-replace="90">3 mo</button>
+            <button type="button" data-replace="180">6 mo</button>
+            <button type="button" data-replace="0">As needed</button>
+          </div>
         </div>
-      </div>
-      <div class="field">
-        <label for="fLast">Last replaced</label>
-        <input type="date" id="fLast" required>
+        <div class="field">
+          <label for="fLast">Last replaced</label>
+          <input type="date" id="fLast" required>
+        </div>
       </div>
       <p class="sec-foot">0 = replace as needed, no reminder</p>
     </div>
 
     <div class="formsec">
       <h3 class="sec-h">Spares</h3>
-      <div class="grid2">
-        <div class="field">
-          <label for="fStock">On hand</label>
-          <input type="number" id="fStock" min="0" max="99" value="0">
-        </div>
-        <div class="field">
-          <label for="fLowAt">Reorder at</label>
-          <input type="number" id="fLowAt" min="0" max="20" value="1">
+      <div class="sec-card">
+        <div class="grid2">
+          <div class="field">
+            <label for="fStock">On hand</label>
+            <input type="number" id="fStock" min="0" max="99" value="0">
+          </div>
+          <div class="field">
+            <label for="fLowAt">Reorder at</label>
+            <input type="number" id="fLowAt" min="0" max="20" value="1">
+          </div>
         </div>
       </div>
       <p class="sec-foot">You'll be flagged to reorder once spares on hand drop to this number or fewer.</p>
     </div>
 
-    <div class="field">
-      <label for="fNotes">Notes</label>
-      <input type="text" id="fNotes" maxlength="140" placeholder="size, model, supplier…">
+    <div class="formsec">
+      <h3 class="sec-h">Notes</h3>
+      <div class="sec-card">
+        <input type="text" id="fNotes" maxlength="140" placeholder="size, model, supplier…">
+      </div>
     </div>
     <div class="formfoot">
       <button type="button" class="act" id="cancelBtn">Cancel</button>
