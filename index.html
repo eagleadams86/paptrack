@@ -550,7 +550,7 @@ function cleanDue(it) {
 /* Reorder whenever spares are at or below the threshold — low stock alone drives it, for
    every item (matches the shipped iOS app; the calendar reminder still leads by ~30 days). */
 function reorderNeeded(it) { return it.stock <= it.lowAt; }
-/* True once an item was already replaced today — hides the "Replaced today" button so it
+/* True once an item was already replaced today — hides the "Mark replaced" button so it
    can't be pressed twice in a day (matches the iOS app). */
 function replacedToday(it) { return it.lastReplaced === toISO(today()); }
 /* Badge urgency thresholds scale with the item's replacement cycle, so short-cycle
@@ -661,7 +661,7 @@ function render() {
           <div class="quad-line">${esc(capFirst(replaceLabel(it.replaceDays)))}</div>
           <div class="quad-line">Last replaced ${esc(agoLabel(it.lastReplaced))}</div>
           ${replaceBadge(it)}
-          ${replacedToday(it) ? '' : `<button class="act" data-act="replace">Replaced today</button>`}
+          ${replacedToday(it) ? '' : `<button class="act" data-act="replace">Mark replaced</button>`}
         </div>
         <div class="quad">
           <div class="quad-h">📦 Spares</div>
