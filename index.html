@@ -226,6 +226,14 @@
     padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; cursor: pointer;
   }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* Grouped sections mirroring the iOS add/edit form (Cleaning · Replacement · Spares). */
+  .formsec { margin-bottom: 16px; }
+  .formsec .sec-h {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--ink-2); font-weight: 700; margin: 0 0 8px;
+  }
+  .formsec .field:last-of-type { margin-bottom: 0; }
+  .sec-foot { font-size: 0.74rem; color: var(--muted); margin: 6px 0 0; }
   .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
 
   /* ---- Footer ---- */
@@ -337,9 +345,11 @@
       <label for="fName">Name</label>
       <input type="text" id="fName" required maxlength="60" placeholder="e.g. Mask">
     </div>
-    <div class="grid2">
+
+    <div class="formsec">
+      <h3 class="sec-h">Cleaning</h3>
       <div class="field">
-        <label for="fClean">Clean every (days, 0 = none)</label>
+        <label for="fClean">Clean every (days)</label>
         <input type="number" id="fClean" min="0" max="365" value="0">
         <div class="quick">
           <button type="button" data-clean="1">Daily</button>
@@ -348,7 +358,16 @@
         </div>
       </div>
       <div class="field">
-        <label for="fReplace">Replace every (days, 0 = as needed)</label>
+        <label for="fLastClean">Last cleaned</label>
+        <input type="date" id="fLastClean">
+      </div>
+      <p class="sec-foot">0 = no cleaning reminder</p>
+    </div>
+
+    <div class="formsec">
+      <h3 class="sec-h">Replacement</h3>
+      <div class="field">
+        <label for="fReplace">Replace every (days)</label>
         <input type="number" id="fReplace" min="0" max="1095" required value="90">
         <div class="quick">
           <button type="button" data-replace="14">2 wk</button>
@@ -358,24 +377,31 @@
           <button type="button" data-replace="0">As needed</button>
         </div>
       </div>
-    </div>
-    <div class="grid2">
       <div class="field">
         <label for="fLast">Last replaced</label>
         <input type="date" id="fLast" required>
       </div>
-      <div class="field">
-        <label for="fStock">Spares on hand</label>
-        <input type="number" id="fStock" min="0" max="99" value="0">
+      <p class="sec-foot">0 = replace as needed, no reminder</p>
+    </div>
+
+    <div class="formsec">
+      <h3 class="sec-h">Spares</h3>
+      <div class="grid2">
+        <div class="field">
+          <label for="fStock">On hand</label>
+          <input type="number" id="fStock" min="0" max="99" value="0">
+        </div>
+        <div class="field">
+          <label for="fLowAt">Reorder at</label>
+          <input type="number" id="fLowAt" min="0" max="20" value="1">
+        </div>
       </div>
+      <p class="sec-foot">You'll be flagged to reorder once spares on hand drop to this number or fewer.</p>
     </div>
+
     <div class="field">
-      <label for="fLowAt">Flag for reorder when spares ≤</label>
-      <input type="number" id="fLowAt" min="0" max="20" value="1">
-    </div>
-    <div class="field">
-      <label for="fNotes">Notes (size, model, supplier…)</label>
-      <input type="text" id="fNotes" maxlength="140" placeholder="e.g. ResMed AirFit F30i, size M">
+      <label for="fNotes">Notes</label>
+      <input type="text" id="fNotes" maxlength="140" placeholder="size, model, supplier…">
     </div>
     <div class="formfoot">
       <button type="button" class="act" id="cancelBtn">Cancel</button>
@@ -780,6 +806,7 @@ function openForm(it = null) {
   if (it) {
     $('fName').value = it.name;
     $('fClean').value = it.cleanDays;
+    $('fLastClean').value = it.lastCleaned || '';
     $('fReplace').value = it.replaceDays;
     $('fLast').value = it.lastReplaced;
     $('fStock').value = it.stock;
@@ -788,6 +815,7 @@ function openForm(it = null) {
   } else {
     $('fPreset').value = 'mask';
     applyPreset('mask');
+    $('fLastClean').value = toISO(today());
     $('fLast').value = toISO(today());
     $('fStock').value = 0;
     $('fLowAt').value = 1;
@@ -808,6 +836,7 @@ $('itemForm').addEventListener('submit', () => {
   const data = {
     name: $('fName').value.trim() || 'Untitled',
     cleanDays: Math.max(0, Number($('fClean').value) || 0),
+    lastCleaned: $('fLastClean').value || null,
     replaceDays: Math.max(0, Number($('fReplace').value) || 0),
     lastReplaced: $('fLast').value || toISO(today()),
     stock: Math.max(0, Number($('fStock').value) || 0),
@@ -819,7 +848,7 @@ $('itemForm').addEventListener('submit', () => {
     Object.assign(it, data);
     toast(`${it.emoji} ${it.name} updated`);
   } else {
-    items.push({ id: uid(), emoji: preset ? preset.emoji : '🔧', lastCleaned: null, createdAt: Date.now(), ...data });
+    items.push({ id: uid(), emoji: preset ? preset.emoji : '🔧', createdAt: Date.now(), ...data });
     toast(`${data.name} added`);
   }
   save(); render();
