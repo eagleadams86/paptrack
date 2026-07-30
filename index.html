@@ -850,6 +850,19 @@ dlg.addEventListener('click', (e) => {
   if (r) { $('fReplace').value = r.dataset.replace; }
 });
 $('cancelBtn').addEventListener('click', () => dlg.close());
+/* Clicking outside the form cancels it, same as Cancel or Escape — edits are discarded. A click on
+   the backdrop reports the dialog itself as the target, but so does one on the dialog's own padding
+   or scrollbar, so test the pointer against the dialog's box rather than trusting the target. Both
+   the press and the release have to land outside, so dragging a selection out of a field (or letting
+   go off-target) doesn't throw the edits away. */
+const outsideForm = (e) => {
+  if (e.target !== dlg) return false;
+  const r = dlg.getBoundingClientRect();
+  return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressBeganOutsideForm = false;
+dlg.addEventListener('pointerdown', (e) => { pressBeganOutsideForm = outsideForm(e); });
+dlg.addEventListener('click', (e) => { if (pressBeganOutsideForm && outsideForm(e)) dlg.close(); });
 $('itemForm').addEventListener('submit', () => {
   const presetKey = editingId ? null : $('fPreset').value;
   const preset = presetKey ? PRESETS.find(p => p.key === presetKey) : null;
