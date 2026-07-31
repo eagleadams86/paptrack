@@ -22,9 +22,12 @@
 </script>
 <style>
   /* Themes — palettes ported from the lottery pages' theme.css. Midnight is the
-     default; the :root block must stay first so the others can override it. */
+     default; the :root block must stay first so the others can override it.
+     --muted carries the smallest text in the app (10px tile labels, 12.5px changelog)
+     against three different backgrounds — page, surface and chip-bg — so every palette's
+     value is tuned to clear 4.5:1 on the lightest of the three. */
   :root, [data-theme="midnight"] {
-    --page: #0a0e1a; --surface: #121829; --ink: #e7eaf6; --ink-2: #aab2d0; --muted: #7e87a8;
+    --page: #0a0e1a; --surface: #121829; --ink: #e7eaf6; --ink-2: #aab2d0; --muted: #8088a9;
     --hairline: #262f4a; --ring: rgba(129,140,248,0.28);
     --accent: #818cf8; --accent-ink: #0a0e1a;
     --good: #4ade80; --warning: #fcd34d; --serious: #fb923c; --critical: #fb7185;
@@ -43,9 +46,9 @@
     --chip-bg: #182a20; --shadow: 0 1px 3px rgba(0,0,0,0.5);
   }
   [data-theme="light"] {
-    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #6e6c67;
     --hairline: #e1e0d9; --ring: rgba(11,11,11,0.10);
-    --accent: #2a78d6; --accent-ink: #ffffff;
+    --accent: #2772cc; --accent-ink: #ffffff;
     --good: #0ca30c; --warning: #b98200; --serious: #c25a2a; --critical: #d03b3b;
     --good-bg: rgba(12,163,12,0.12); --warning-bg: rgba(250,178,25,0.18);
     --serious-bg: rgba(236,131,90,0.16); --critical-bg: rgba(208,59,59,0.12);
@@ -53,7 +56,7 @@
   }
   /* Sepia — warm paper light theme */
   [data-theme="sepia"] {
-    --page: #f3ead7; --surface: #fbf5e7; --ink: #3a3020; --ink-2: #6a5b41; --muted: #8a7a5b;
+    --page: #f3ead7; --surface: #fbf5e7; --ink: #3a3020; --ink-2: #6a5b41; --muted: #71644b;
     --hairline: #e0d3b4; --ring: rgba(58,48,32,0.14);
     --accent: #3a3020; --accent-ink: #fbf5e7;
     --good: #4d7c0f; --warning: #b45309; --serious: #c2410c; --critical: #b1402a;
@@ -63,7 +66,7 @@
   }
   /* Slate — neutral dark with a blue/slate tint */
   [data-theme="slate"] {
-    --page: #13151b; --surface: #1c1f27; --ink: #eef0f5; --ink-2: #adb1bd; --muted: #888d9a;
+    --page: #13151b; --surface: #1c1f27; --ink: #eef0f5; --ink-2: #adb1bd; --muted: #8c919e;
     --hairline: #2d313b; --ring: rgba(238,240,245,0.16);
     --accent: #eef0f5; --accent-ink: #13151b;
     --good: #4ade80; --warning: #fcd34d; --serious: #fb923c; --critical: #f87171;
@@ -73,9 +76,9 @@
   }
   /* Solarized — the classic teal/tan dark palette */
   [data-theme="solarized"] {
-    --page: #002b36; --surface: #073642; --ink: #eee8d5; --ink-2: #93a1a1; --muted: #839496;
+    --page: #002b36; --surface: #073642; --ink: #eee8d5; --ink-2: #9da9a9; --muted: #9ca9ab;
     --hairline: #0f4d5c; --ring: rgba(38,139,210,0.30);
-    --accent: #268bd2; --accent-ink: #002b36;
+    --accent: #3094da; --accent-ink: #002b36;
     --good: #859900; --warning: #b58900; --serious: #cb4b16; --critical: #dc322f;
     --good-bg: rgba(133,153,0,0.16); --warning-bg: rgba(181,137,0,0.16);
     --serious-bg: rgba(203,75,22,0.16); --critical-bg: rgba(220,50,47,0.16);
@@ -93,6 +96,12 @@
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
+  /* Visible to screen readers only — carries the text equivalents for content that is
+     shown graphically (emoji tiles) or implied by layout (the list's section heading). */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
   html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0; background: var(--page); color: var(--ink);
@@ -244,8 +253,14 @@
 
   /* ---- Footer ---- */
   footer { margin-top: 28px; font-size: 0.78rem; color: var(--muted); text-align: center; }
-  footer .links { margin-top: 8px; display: flex; gap: 14px; justify-content: center; }
-  footer button { background: none; border: none; color: var(--accent); font-size: 0.78rem; cursor: pointer; text-decoration: underline; padding: 0; }
+  footer .links { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
+  /* Padded out to clear the 24×24 minimum target size — these are the only route to a
+     backup, so they need to be comfortably tappable rather than hairline-thin links. */
+  footer button {
+    background: none; border: none; color: var(--accent); font-size: 0.82rem; cursor: pointer;
+    text-decoration: underline; padding: 6px 10px; border-radius: 8px; min-height: 32px;
+  }
+  footer button:hover { background: var(--chip-bg); }
   .insurance {
     margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--hairline); border-radius: 12px;
     font-size: 0.78rem; color: var(--ink-2); text-align: left;
@@ -282,26 +297,32 @@
     </select>
   </header>
 
+  <!-- Each tile's three visible parts are decorative to a screen reader on their own — the
+       sub-line is a row of emoji, and the count is a bare number. They're hidden from the
+       accessibility tree and a single sr-only sentence per tile carries the same meaning. -->
   <div class="stats" id="stats" hidden>
     <div class="stat">
-      <div class="label">🧼 Clean</div>
-      <div class="value" id="statClean">0</div>
-      <div class="sub" id="statCleanSub"></div>
+      <div class="label" aria-hidden="true">🧼 Clean</div>
+      <div class="value" id="statClean" aria-hidden="true">0</div>
+      <div class="sub" id="statCleanSub" aria-hidden="true"></div>
+      <span class="sr-only" id="statCleanSr"></span>
     </div>
     <div class="stat">
-      <div class="label">↻ Replace</div>
-      <div class="value" id="statReplace">0</div>
-      <div class="sub" id="statReplaceSub"></div>
+      <div class="label" aria-hidden="true">↻ Replace</div>
+      <div class="value" id="statReplace" aria-hidden="true">0</div>
+      <div class="sub" id="statReplaceSub" aria-hidden="true"></div>
+      <span class="sr-only" id="statReplaceSr"></span>
     </div>
     <div class="stat">
-      <div class="label">📦 Reorder</div>
-      <div class="value" id="statReorder">0</div>
-      <div class="sub" id="statReorderSub"></div>
+      <div class="label" aria-hidden="true">📦 Reorder</div>
+      <div class="value" id="statReorder" aria-hidden="true">0</div>
+      <div class="sub" id="statReorderSub" aria-hidden="true"></div>
+      <span class="sr-only" id="statReorderSr"></span>
     </div>
   </div>
 
   <div class="toolbar" id="toolbar" hidden>
-    <input type="search" class="search" id="search" placeholder="Search supplies, notes…">
+    <input type="search" class="search" id="search" aria-label="Search supplies and notes" placeholder="Search supplies, notes…">
     <div class="filter-block">
       <div class="filters-cap">Filter — tap to toggle</div>
       <div class="filters" role="group" aria-label="Filter supplies">
@@ -310,9 +331,11 @@
         <button class="filter-chip" data-filter="reorder" aria-pressed="false">📦 Reorder due</button>
       </div>
     </div>
-    <button class="act cleanall" id="cleanAllBtn" hidden>Mark all items clean</button>
+    <button class="act cleanall" id="cleanAllBtn" hidden>Mark all due items clean</button>
   </div>
 
+  <!-- The cards are h3s; this gives them an h2 to sit under so the outline doesn't skip a level. -->
+  <h2 class="sr-only">Your supplies</h2>
   <div class="list" id="list"></div>
 
   <div class="empty" id="empty" hidden>
@@ -331,7 +354,7 @@
     <div class="links">
       <button id="exportBtn">Export backup</button>
       <button id="importBtn">Import backup</button>
-      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <input type="file" id="importFile" accept=".json,application/json" aria-label="Choose a backup file" hidden>
     </div>
     <div class="insurance">💡 <strong>Resupply tip:</strong> most insurance carriers require PAP adherence data before covering replacement supplies, and coverage varies by plan (copays and deductibles apply). Using distilled water and emptying the humidifier chamber every morning extends its life.</div>
   </footer>
@@ -343,17 +366,19 @@
 <dialog id="formDialog">
   <h2 id="formTitle">Add supply</h2>
   <form id="itemForm" method="dialog">
+    <!-- These three sections have a heading instead of a <label>, so the control points at
+         the heading with aria-labelledby — a placeholder is not an accessible name. -->
     <div class="formsec" id="presetField">
-      <h3 class="sec-h">Start from a preset</h3>
+      <h3 class="sec-h" id="presetH">Start from a preset</h3>
       <div class="sec-card">
-        <select id="fPreset"></select>
+        <select id="fPreset" aria-labelledby="presetH"></select>
       </div>
     </div>
 
     <div class="formsec">
-      <h3 class="sec-h">Name</h3>
+      <h3 class="sec-h" id="nameH">Name</h3>
       <div class="sec-card">
-        <input type="text" id="fName" required maxlength="60" placeholder="e.g. Mask">
+        <input type="text" id="fName" aria-labelledby="nameH" required maxlength="60" placeholder="e.g. Mask">
       </div>
     </div>
 
@@ -417,9 +442,9 @@
     </div>
 
     <div class="formsec">
-      <h3 class="sec-h">Notes</h3>
+      <h3 class="sec-h" id="notesH">Notes</h3>
       <div class="sec-card">
-        <input type="text" id="fNotes" maxlength="140" placeholder="size, model, supplier…">
+        <input type="text" id="fNotes" aria-labelledby="notesH" maxlength="140" placeholder="size, model, supplier…">
       </div>
     </div>
     <div class="formfoot">
@@ -445,11 +470,13 @@
 
 <style>
 .changelog{max-width:760px;margin:8px auto 0;padding:0 20px 96px;font-size:12.5px;color:var(--muted)}
-.changelog summary{cursor:pointer;user-select:none;opacity:.75}
-.changelog summary:hover{opacity:1}
+/* No opacity dimming here — it stacked on top of an already-muted colour and pushed the
+   summary and dates down to ~2:1 in the light palettes. Colour alone carries the hierarchy. */
+.changelog summary{cursor:pointer;user-select:none;padding:4px 0}
+.changelog summary:hover{color:var(--ink-2)}
 .changelog ol{list-style:none;margin:10px 0 0;padding:0}
 .changelog li{display:flex;gap:10px;padding:3px 0;align-items:baseline}
-.cl-date{white-space:nowrap;opacity:.65;font-variant-numeric:tabular-nums;flex-shrink:0}
+.cl-date{white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0}
 .changelog a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--hairline)}
 .changelog a:hover{color:var(--ink)}
 </style>
@@ -514,9 +541,53 @@ let editingId = null;
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    return normalizeItems(raw ? JSON.parse(raw) : []);
   } catch { return []; }
+}
+
+/* ---------------- Untrusted input ----------------
+   Items reach us from three places we don't control: localStorage, an imported backup
+   file, and a synced cloud document. Everything from those paths goes through here first.
+   Two things depend on it. A record missing 'lastReplaced' used to throw inside render(),
+   and because the bad data was already persisted the app then failed on every load —
+   a blank list with no error and no way back. And 'id' is interpolated into a markup
+   attribute, so a crafted backup could smuggle in an event handler. Coercing every field
+   to a known type and charset closes both, and keeps one malformed record from taking the
+   whole list down with it. */
+function normalizeItem(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const int = (v, min, max, dflt) => {
+    const n = Math.floor(Number(v));
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : dflt;
+  };
+  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+  // Round-tripping through toISO rejects both nonsense and dates that silently roll over
+  // (Date treats '2026-02-31' as March 3rd), so downstream date math always has a real day.
+  const isoOrNull = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
+    && toISO(parseDate(v)) === v ? v : null);
+  return {
+    id: str(raw.id, 64).replace(/[^A-Za-z0-9_-]/g, '') || uid(),
+    emoji: str(raw.emoji, 8) || '🔧',
+    name: str(raw.name, 60).trim() || 'Untitled',
+    cleanDays: int(raw.cleanDays, 0, 365, 0),
+    replaceDays: int(raw.replaceDays, 0, 1095, 0),
+    lastCleaned: isoOrNull(raw.lastCleaned),
+    lastReplaced: isoOrNull(raw.lastReplaced) || toISO(today()),
+    stock: int(raw.stock, 0, 99, 0),
+    lowAt: int(raw.lowAt, 0, 20, 1),
+    notes: str(raw.notes, 140),
+    createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, Date.now()),
+  };
+}
+function normalizeItems(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  return list.map(normalizeItem).filter(Boolean).map((it) => {
+    // Duplicate ids would make a card's buttons act on whichever item matched first.
+    if (seen.has(it.id)) it.id = uid();
+    seen.add(it.id);
+    return it;
+  });
 }
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -573,8 +644,11 @@ function replaceLabel(n) {
 }
 
 /* ---------------- Rendering ---------------- */
+/* Dates ahead of today read as "in 3 days" rather than "-3 days ago". The form no longer
+   accepts a future date, but backups and synced data written by older builds can hold one. */
 function agoLabel(iso) {
   const d = daysBetween(parseDate(iso), today());
+  if (d < 0) return `in ${-d} day${d === -1 ? '' : 's'}`;
   return d === 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
 }
 /* One badge per category, each returned on its own so the card can place them inside the
@@ -589,8 +663,7 @@ function replaceBadge(it) {
 function cleanBadge(it) {
   if (it.cleanDays <= 0) return '';
   if (cleanDue(it)) return badge('b-warning', 'Cleaning due');
-  const since = daysBetween(parseDate(it.lastCleaned), today());
-  return badge('b-good', `Cleaned ${since === 0 ? 'today' : since === 1 ? 'yesterday' : since + ' days ago'}`);
+  return badge('b-good', `Cleaned ${esc(agoLabel(it.lastCleaned))}`);
 }
 function reorderBadge(it) {
   if (!reorderNeeded(it)) return '';
@@ -626,17 +699,26 @@ function render() {
   if (has) {
     // Three tiles, one per filter chip — clean-due, replace-due (due today or overdue),
     // reorder — each a count plus an emoji sub-line or an all-clear check.
+    // The emoji sub-line is hidden from assistive tech; srLine writes the same information
+    // as a sentence, naming the supplies the emoji stand for.
+    const srLine = (list, verb, allClear) => list.length
+      ? `${list.length} ${list.length === 1 ? 'supply' : 'supplies'} ${verb}: ${list.map(i => i.name).join(', ')}`
+      : allClear;
+
     const dueClean = items.filter(cleanDue);
     $('statClean').textContent = dueClean.length;
     $('statCleanSub').textContent = dueClean.length ? dueClean.map(i => i.emoji).join(' ') : 'all clean ✓';
+    $('statCleanSr').textContent = srLine(dueClean, 'due for cleaning', 'All supplies are clean');
 
     const dueReplace = items.filter(i => replaceLeft(i) <= 0);
     $('statReplace').textContent = dueReplace.length;
     $('statReplaceSub').textContent = dueReplace.length ? dueReplace.map(i => i.emoji).join(' ') : 'on schedule ✓';
+    $('statReplaceSr').textContent = srLine(dueReplace, 'due for replacement', 'All replacements are on schedule');
 
     const reorder = items.filter(reorderNeeded);
     $('statReorder').textContent = reorder.length;
     $('statReorderSub').textContent = reorder.length ? reorder.map(i => i.emoji).join(' ') : 'stocked up ✓';
+    $('statReorderSr').textContent = srLine(reorder, 'to reorder', 'All supplies are stocked up');
 
     $('cleanAllBtn').hidden = dueClean.length < 2;
   }
@@ -644,9 +726,14 @@ function render() {
   const visible = items.filter(matches).sort((a, b) => replaceLeft(a) - replaceLeft(b));
   $('list').innerHTML = visible.map(it => {
     const isCleanDue = it.cleanDays > 0 && cleanDue(it);
+    // Every card repeats the same seven buttons, so each one's accessible name ends with the
+    // supply it belongs to — otherwise a screen reader just reads "Delete, Delete, Delete".
+    // The item name goes last so the visible text stays a prefix of the accessible name,
+    // which is what voice-control users say out loud to press it.
+    const n = esc(it.name);
     return `
-    <article class="card" data-id="${it.id}">
-      <h3>${esc(it.emoji)} ${esc(it.name)}</h3>
+    <article class="card" data-id="${esc(it.id)}" tabindex="-1" aria-labelledby="cardh-${esc(it.id)}">
+      <h3 id="cardh-${esc(it.id)}"><span aria-hidden="true">${esc(it.emoji)}</span> ${n}</h3>
       ${it.notes ? `<p class="notes">${esc(it.notes)}</p>` : ''}
       <div class="quadrants">
         <div class="quad">
@@ -654,29 +741,29 @@ function render() {
           <div class="quad-line">${esc(capFirst(cleanLabel(it.cleanDays)))}</div>
           <div class="quad-line">${esc(cleanStatus(it))}</div>
           ${cleanBadge(it)}
-          ${isCleanDue ? `<button class="act" data-act="clean">Mark cleaned</button>` : ''}
+          ${isCleanDue ? `<button class="act" data-act="clean" aria-label="Mark cleaned — ${n}">Mark cleaned</button>` : ''}
         </div>
         <div class="quad">
           <div class="quad-h">↻ Replacing</div>
           <div class="quad-line">${esc(capFirst(replaceLabel(it.replaceDays)))}</div>
           <div class="quad-line">Last replaced ${esc(agoLabel(it.lastReplaced))}</div>
           ${replaceBadge(it)}
-          ${replacedToday(it) ? '' : `<button class="act" data-act="replace">Mark replaced</button>`}
+          ${replacedToday(it) ? '' : `<button class="act" data-act="replace" aria-label="Mark replaced — ${n}">Mark replaced</button>`}
         </div>
         <div class="quad">
           <div class="quad-h">📦 Spares</div>
           <div class="stock">
-            <button data-act="stock-" aria-label="One fewer spare">−</button>
+            <button data-act="stock-" aria-label="One fewer spare — ${n}">−</button>
             <span class="count">${it.stock}</span>
-            <button data-act="stock+" aria-label="One more spare">+</button>
+            <button data-act="stock+" aria-label="One more spare — ${n}">+</button>
           </div>
           ${reorderBadge(it)}
         </div>
         <div class="quad">
           <div class="quad-h">⚙️ Manage</div>
-          <button class="act" data-act="calendar">🗓 Calendar</button>
-          <button class="act" data-act="edit">Edit</button>
-          <button class="act" data-act="delete">Delete</button>
+          <button class="act" data-act="calendar" aria-label="Calendar — ${n}"><span aria-hidden="true">🗓</span> Calendar</button>
+          <button class="act" data-act="edit" aria-label="Edit — ${n}">Edit</button>
+          <button class="act" data-act="delete" aria-label="Delete — ${n}">Delete</button>
         </div>
       </div>
     </article>`;
@@ -694,32 +781,45 @@ function toast(msg) {
 }
 
 /* ---------------- Card actions ---------------- */
+/* render() rebuilds the entire list, which destroys the button that was just pressed and
+   sends keyboard focus back to the top of the document. Put it back on the same button —
+   or on the card, when the action was what removed that button (Mark cleaned, Mark
+   replaced) — so a keyboard or screen-reader user keeps their place in the list. */
+function renderKeepingFocus(id, act) {
+  render();
+  const card = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+  if (!card) { $('addBtn').focus(); return; }
+  const btn = act && card.querySelector(`button[data-act="${act}"]`);
+  (btn || card).focus();
+}
+
 $('list').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-act]');
   if (!btn) return;
   const id = btn.closest('.card').dataset.id;
   const it = items.find(i => i.id === id);
   if (!it) return;
-  switch (btn.dataset.act) {
+  const act = btn.dataset.act;
+  switch (act) {
     case 'clean':
       it.lastCleaned = toISO(today());
-      save(); render(); toast(`${it.emoji} ${it.name} cleaned ✓`);
+      save(); renderKeepingFocus(id, act); toast(`${it.emoji} ${it.name} cleaned ✓`);
       break;
     case 'replace': {
       it.lastReplaced = toISO(today());
       const usedSpare = it.stock > 0;
       if (usedSpare) it.stock -= 1;
-      save(); render();
+      save(); renderKeepingFocus(id, act);
       toast(`${it.emoji} ${it.name} replaced${usedSpare ? ` — ${it.stock} spare${it.stock === 1 ? '' : 's'} left` : ''} 🎉`);
       break;
     }
     case 'stock+':
-      it.stock = Math.min(99, it.stock + 1);
-      save(); render();
-      break;
     case 'stock-':
-      it.stock = Math.max(0, it.stock - 1);
-      save(); render();
+      it.stock = act === 'stock+' ? Math.min(99, it.stock + 1) : Math.max(0, it.stock - 1);
+      save(); renderKeepingFocus(id, act);
+      // The count sits in markup that was just replaced, so announce the new value through
+      // the toast — it's the one live region that survives a re-render.
+      toast(`${it.name} — ${it.stock} spare${it.stock === 1 ? '' : 's'}`);
       break;
     case 'calendar':
       downloadICS(it);
@@ -730,23 +830,44 @@ $('list').addEventListener('click', (e) => {
     case 'delete':
       if (confirm(`Delete "${it.name}"?`)) {
         items = items.filter(i => i.id !== id);
-        save(); render(); toast('Deleted');
+        save(); renderKeepingFocus(id, null); toast('Deleted');
       }
       break;
   }
 });
 
 $('cleanAllBtn').addEventListener('click', () => {
-  // Marks every item that can be cleaned (has a cleaning schedule), not just those due.
-  const cleanable = items.filter(it => it.cleanDays > 0);
+  // Only the items actually due. Marking an item that isn't due would record a cleaning
+  // that never happened and reset its clock — the button appears on a count of due items,
+  // so it needs to act on exactly those.
+  const due = items.filter(cleanDue);
   const iso = toISO(today());
-  cleanable.forEach(it => { it.lastCleaned = iso; });
+  due.forEach(it => { it.lastCleaned = iso; });
   save(); render();
-  toast(`Marked ${cleanable.length} item${cleanable.length === 1 ? '' : 's'} clean ✓`);
+  toast(`Marked ${due.length} item${due.length === 1 ? '' : 's'} clean ✓`);
 });
 
 /* ---------------- Calendar (.ics) ---------------- */
-function escICS(s) { return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n'); }
+function escICS(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
+    .replace(/\r\n?/g, '\n').replace(/\n/g, '\\n'); // a bare CR would end the line early
+}
+/* RFC 5545 caps a content line at 75 octets; longer lines continue on the next line behind
+   a single space. Measured in UTF-8 bytes and split between code points, so a supply name
+   with an accent or emoji in it can't be cut in half. Without this, a long name produced
+   200-character lines that stricter calendar apps reject outright. */
+function foldICS(line) {
+  if (new TextEncoder().encode(line).length <= 75) return line;
+  const out = [];
+  let cur = '', bytes = 0;
+  for (const ch of line) {
+    const n = new TextEncoder().encode(ch).length;
+    if (bytes + n > 75) { out.push(cur); cur = ' '; bytes = 1; }
+    cur += ch; bytes += n;
+  }
+  out.push(cur);
+  return out.join('\r\n');
+}
 function nextClean(it) {
   const due = it.lastCleaned ? addDays(parseDate(it.lastCleaned), it.cleanDays) : today();
   return due < today() ? today() : due;
@@ -786,19 +907,25 @@ function buildICS(it) {
     events.push(...vevent('clean', nextClean(it), `Clean CPAP ${it.name}`,
       `${it.name} is due for cleaning (${cleanLabel(it.cleanDays)}).`, '-PT0M'));
   }
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PAPTrack//EN', ...events, 'END:VCALENDAR'].join('\r\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PAPTrack//EN', ...events, 'END:VCALENDAR']
+    .map(foldICS).join('\r\n');
+}
+/* Revoking the object URL in the same tick as the click can cancel the download in Safari
+   and Firefox, which read the URL asynchronously — hold it briefly, then release it. */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 function downloadICS(it) {
   if (it.replaceDays === 0 && it.cleanDays <= 1) {
     toast('Nothing to schedule — this item is replaced as needed');
     return;
   }
-  const blob = new Blob([buildICS(it)], { type: 'text/calendar' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'cpap-reminders.ics';
-  a.click();
-  URL.revokeObjectURL(a.href);
+  downloadBlob(new Blob([buildICS(it)], { type: 'text/calendar' }), 'cpap-reminders.ics');
   const kinds = [];
   if (it.replaceDays > 0) kinds.push('replace', 'reorder');
   if (it.cleanDays > 1) kinds.push('clean');
@@ -823,6 +950,10 @@ function openForm(it = null) {
   editingId = it ? it.id : null;
   $('formTitle').textContent = it ? `Edit ${it.name}` : 'Add supply';
   $('presetField').hidden = !!it;
+  // "Last cleaned" and "last replaced" record something that already happened, so a future
+  // date is always a typo — and it used to render as "cleaned -5 days ago". Set on open
+  // rather than in markup so the ceiling is still correct on a tab left open overnight.
+  $('fLastClean').max = $('fLast').max = toISO(today());
   if (it) {
     $('fName').value = it.name;
     $('fClean').value = it.cleanDays;
@@ -866,18 +997,23 @@ dlg.addEventListener('click', (e) => { if (pressBeganOutsideForm && outsideForm(
 $('itemForm').addEventListener('submit', () => {
   const presetKey = editingId ? null : $('fPreset').value;
   const preset = presetKey ? PRESETS.find(p => p.key === presetKey) : null;
+  // Backstop for the max= on the date fields: ISO strings compare chronologically, so this
+  // pins anything ahead of today back to today even if the browser let it through.
+  const iso = toISO(today());
+  const notFuture = (v) => (v && v > iso ? iso : v);
   const data = {
     name: $('fName').value.trim() || 'Untitled',
     cleanDays: Math.max(0, Number($('fClean').value) || 0),
-    lastCleaned: $('fLastClean').value || null,
+    lastCleaned: notFuture($('fLastClean').value) || null,
     replaceDays: Math.max(0, Number($('fReplace').value) || 0),
-    lastReplaced: $('fLast').value || toISO(today()),
+    lastReplaced: notFuture($('fLast').value) || iso,
     stock: Math.max(0, Number($('fStock').value) || 0),
     lowAt: Math.max(0, Number($('fLowAt').value) || 0),
     notes: $('fNotes').value.trim(),
   };
   if (editingId) {
     const it = items.find(i => i.id === editingId);
+    if (!it) return; // the item went away while the form was open
     Object.assign(it, data);
     toast(`${it.emoji} ${it.name} updated`);
   } else {
@@ -930,11 +1066,7 @@ $('themeSel').addEventListener('change', (e) => {
 /* ---------------- Backup ---------------- */
 $('exportBtn').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify({ app: 'paptrack', version: 1, exported: new Date().toISOString(), items }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `paptrack-backup-${toISO(today())}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  downloadBlob(blob, `paptrack-backup-${toISO(today())}.json`);
   toast('Backup downloaded');
 });
 $('importBtn').addEventListener('click', () => $('importFile').click());
@@ -943,11 +1075,16 @@ $('importFile').addEventListener('change', async (e) => {
   if (!file) return;
   try {
     const parsed = JSON.parse(await file.text());
-    const incoming = Array.isArray(parsed) ? parsed : parsed.items;
-    if (!Array.isArray(incoming)) throw new Error('bad format');
+    const raw = Array.isArray(parsed) ? parsed : parsed && parsed.items;
+    if (!Array.isArray(raw)) throw new Error('bad format');
+    // Validate before the confirm, so the count offered is the count actually restorable.
+    const incoming = normalizeItems(raw);
+    const dropped = raw.length - incoming.length;
+    if (!incoming.length) throw new Error('no usable items');
     if (!confirm(`Replace your ${items.length} item${items.length === 1 ? '' : 's'} with ${incoming.length} from the backup?`)) return;
     items = incoming;
-    save(); render(); toast('Backup restored');
+    save(); render();
+    toast(dropped ? `Backup restored — ${dropped} unreadable item${dropped === 1 ? '' : 's'} skipped` : 'Backup restored');
   } catch {
     toast('Could not read that backup file');
   } finally {
@@ -958,7 +1095,7 @@ $('importFile').addEventListener('change', async (e) => {
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
 window.paptrackAdopt = (newItems, ts) => {
-  items = Array.isArray(newItems) ? newItems : [];
+  items = normalizeItems(newItems);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   localStorage.setItem('pap-updated', String(ts || Date.now()));
   render();
@@ -1055,8 +1192,9 @@ async function onClick() {
 const docRef = () => F.doc(db, 'paptrack', user.uid);
 
 /* Shows the syncChoiceDialog and resolves to true if the user wants to keep Google's copy,
-   false to keep this device's copy. Escape/backdrop-dismiss defaults to false (the
-   non-destructive choice — it just skips this push instead of overwriting either side). */
+   false to keep this device's copy. Escape is deliberately blocked: either answer replaces
+   one of the two copies, so there is no safe default to dismiss into — the choice has to be
+   made explicitly. Both buttons are reachable by keyboard, so this isn't a focus trap. */
 function chooseSyncSource(localCount, remoteCount, remoteUpdatedAt) {
   return new Promise((resolve) => {
     const dlg = document.getElementById('syncChoiceDialog');
@@ -1099,7 +1237,7 @@ async function startSync() {
       await pushNow();
       window.toast('Kept this device’s data');
     }
-  } else if (remote && remote.updatedAt > localTs()) {
+  } else if (remote && Array.isArray(remote.items) && remote.updatedAt > localTs()) {
     window.paptrackAdopt(remote.items, remote.updatedAt);
     window.toast('Loaded your data from the cloud ☁️');
   } else {
@@ -1109,7 +1247,9 @@ async function startSync() {
   unsub = F.onSnapshot(docRef(), (s) => {
     if (s.metadata.hasPendingWrites || !s.exists()) return;
     const r = s.data();
-    if (r.updatedAt > localTs()) {
+    // A document without an items array is a half-written or foreign doc, never an
+    // intentional "delete everything" — adopting it would clear this device's list.
+    if (Array.isArray(r.items) && r.updatedAt > localTs()) {
       window.paptrackAdopt(r.items, r.updatedAt);
       window.toast('Synced from another device ☁️');
     }
