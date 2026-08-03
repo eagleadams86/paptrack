@@ -147,17 +147,31 @@
   }
   .quad-h { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
   .quad-line { font-size: 0.8rem; color: var(--ink-2); }
+  /* The 1.5px border is the badge's real status signal, not trim. The tint fills are pale
+     washes built to sit behind text, and they barely differ from each other once red-green
+     deficiency flattens them — 8.2 apart on the dark themes, 14.2 on the light ones, against
+     a "tell apart at a glance" bar of 18. The strong status colours clear it comfortably
+     (20.5-24.6), so the border is where that separation lives; an 8px dot was too little
+     surface to carry it. It doubles as the outline that lifts the pill off the card.
+     Non-text contrast against the card runs 5.3-13.7, well over the 3:1 needed. */
   .badge {
     display: flex; align-items: flex-start; gap: 6px; font-size: 0.78rem; line-height: 16px; font-weight: 600;
     padding: 6px 10px; border-radius: 14px; width: 100%; color: var(--ink);
+    border: 1.5px solid transparent;
   }
-  /* Center the dot on the first text line: (lineHeight − dotSize) / 2 = (16 − 8) / 2 = 4px. */
+  /* Center the dot on the first text line: (lineHeight − dotSize) / 2 = (16 − 8) / 2 = 4px.
+     The border does not affect this — it offsets the dot and the text equally. */
   .badge .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; margin-top: 4px; }
-  .b-good { background: var(--good-bg); } .b-good .dot { background: var(--good); }
-  .b-warning { background: var(--warning-bg); } .b-warning .dot { background: var(--warning); }
-  .b-serious { background: var(--serious-bg); } .b-serious .dot { background: var(--serious); }
-  .b-critical { background: var(--critical-bg); } .b-critical .dot { background: var(--critical); }
-  .b-neutral { background: var(--chip-bg); } .b-neutral .dot { background: var(--muted); }
+  .b-good { background: var(--good-bg); border-color: var(--good); } .b-good .dot { background: var(--good); }
+  .b-warning { background: var(--warning-bg); border-color: var(--warning); } .b-warning .dot { background: var(--warning); }
+  /* "Serious" and "critical" deliberately share the red. Four severities do not fit: once the
+     red-green axis is gone there is room for about three levels, and forcing a fourth put two
+     of them 3 apart. Charles chose to merge them rather than keep a distinction he could not
+     see. severity() still returns 'serious' as a separate tier, so the split can be restored
+     by giving this rule its own colour again — the data never stopped carrying it. */
+  .b-serious, .b-critical { background: var(--critical-bg); border-color: var(--critical); }
+  .b-serious .dot, .b-critical .dot { background: var(--critical); }
+  .b-neutral { background: var(--chip-bg); border-color: var(--hairline); } .b-neutral .dot { background: var(--muted); }
   .stock { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .stock button {
     width: 30px; height: 30px; border-radius: 12px; border: 1px solid var(--hairline);
@@ -630,9 +644,13 @@ function replaceBadge(it) {
   if (left < 0) return badge('b-critical', `Replace overdue by ${-left} day${left === -1 ? '' : 's'}`);
   return badge(`b-${severity(it, left)}`, `Replace by ${esc(fmtDate(nextReplace(it)))} · ${left} day${left === 1 ? '' : 's'} left`);
 }
+/* Cleaning is red, not amber, once it's due. Amber means "coming up"; there is no
+   coming-up state here — cleanDue() only flips on the day the interval elapses, so the
+   badge appears exactly when the item is already overdue for a clean. Showing that in
+   amber undersold it next to "Replace overdue", which is the same kind of miss in red. */
 function cleanBadge(it) {
   if (it.cleanDays <= 0) return '';
-  if (cleanDue(it)) return badge('b-warning', 'Cleaning due');
+  if (cleanDue(it)) return badge('b-critical', 'Cleaning due');
   return badge('b-good', `Cleaned ${esc(agoLabel(it.lastCleaned))}`);
 }
 function reorderBadge(it) {
