@@ -18,9 +18,15 @@ This is a real, shipped product — the flagship web build alongside the native 
   the axis that survives red-green deficiency — it carries about three levels, and the fourth
   landed 3 apart from its neighbour. `severity()` still returns `'serious'` as its own tier,
   so the split is one CSS rule away if it's ever wanted; the data never stopped carrying it.
-- **"Cleaning due" is red, not amber.** `cleanDue()` has no "coming up" tier — it flips only
-  once the interval has already elapsed (or the item was never cleaned), so the badge always
-  means overdue. Amber undersold it next to "Replace overdue", which is the same kind of miss.
+- **The cleaning badge carries the same data as the replace badge** — due date, days left,
+  days overdue — off `nextClean`/`cleanLeft` instead of `nextReplace`/`replaceLeft`, coloured
+  by the same `severity(cycle, days)` bands with `cleanDays` as the cycle. Overdue stays red,
+  not amber: it's the same kind of miss as "Replace overdue". The one asymmetry is an item
+  that was never cleaned — no date to count from, so it just reads "Cleaning due" in red.
+- **`severity()`'s bands are clamped to `cycle - 1`.** Daily cleaning is the reason: without
+  it `ceil(1 × 0.2) = 1` puts a mask in the serious band the moment it's cleaned. The clamp
+  never binds at replacement cycles (the shortest shipped is 14 days), so replace badges are
+  byte-identical to before.
 - **README.md is the index** — keep it current whenever the app meaningfully changes.
 - After changes: **browser-test locally first**, then commit, push, verify the Pages deploy, and spot-check live. To serve locally: the desktop app's preview pane reads `.claude/launch.json` (port 8011); otherwise run `python3 -m http.server 8011` in this folder and drive a browser with whatever automation is available. Any local server + browser works — don't hunt for a specific tool.
 

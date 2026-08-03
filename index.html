@@ -597,26 +597,30 @@ function nextReplace(it) { return addDays(parseDate(it.lastReplaced), it.replace
 /* replaceDays 0 = "as needed" (consumables like distilled water): never due, sorts last.
    Finite sentinel (not Infinity) so subtraction-based sort comparators stay valid. */
 function replaceLeft(it) { return it.replaceDays > 0 ? daysBetween(today(), nextReplace(it)) : 9e9; }
-function cleanDue(it) {
-  if (!it.cleanDays) return false;
-  if (!it.lastCleaned) return true;
-  return daysBetween(parseDate(it.lastCleaned), today()) >= it.cleanDays;
-}
+/* Cleaning mirrors replacing: a due date and a days-left count off the same clock. An item
+   that was never cleaned is due today (there is no last-cleaned date to count from). */
+function nextClean(it) { return it.lastCleaned ? addDays(parseDate(it.lastCleaned), it.cleanDays) : today(); }
+function cleanLeft(it) { return it.cleanDays > 0 ? daysBetween(today(), nextClean(it)) : 9e9; }
+function cleanDue(it) { return it.cleanDays > 0 && cleanLeft(it) <= 0; }
 /* Reorder whenever spares are at or below the threshold — low stock alone drives it, for
    every item (matches the shipped iOS app; the calendar reminder still leads by ~30 days). */
 function reorderNeeded(it) { return it.stock <= it.lowAt; }
 /* True once an item was already replaced today — hides the "Mark replaced" button so it
    can't be pressed twice in a day (matches the iOS app). */
 function replacedToday(it) { return it.lastReplaced === toISO(today()); }
-/* Badge urgency thresholds scale with the item's replacement cycle, so short-cycle
-   consumables (e.g. 2-week filters) don't look urgent the day they're
-   replaced: warning at ≤40% of the cycle, serious at ≤20% (capped at 14/7 days).
-   The "Replace due" filter is stricter: only items due today or overdue. */
-function soonAt(it) { return Math.min(14, Math.ceil(it.replaceDays * 0.4)); }
-function severity(it, days) {
+/* Badge urgency thresholds scale with the item's cycle, so short-cycle consumables (e.g.
+   2-week filters) don't look urgent the day they're replaced: warning at ≤40% of the cycle,
+   serious at ≤20% (capped at 14/7 days). The `cycle - 1` clamp keeps a band from swallowing
+   the whole cycle, which only bites on daily cleaning (cycle 1): without it, ceil(1 × 0.2) = 1
+   would paint a mask red the moment it was cleaned. It never binds at replacement cycles.
+   The "due" filters are stricter: only items due today or overdue.
+   Both badges use this — `cycle` is replaceDays for one and cleanDays for the other. */
+function soonAt(cycle) { return band(cycle, 0.4, 14); }
+function band(cycle, pct, cap) { return Math.min(cap, Math.ceil(cycle * pct), cycle - 1); }
+function severity(cycle, days) {
   if (days < 0) return 'critical';
-  if (days <= Math.min(7, Math.ceil(it.replaceDays * 0.2))) return 'serious';
-  if (days <= soonAt(it)) return 'warning';
+  if (days <= band(cycle, 0.2, 7)) return 'serious';
+  if (days <= soonAt(cycle)) return 'warning';
   return 'good';
 }
 function cleanLabel(n) { return n === 0 ? 'no cleaning' : n === 1 ? 'clean daily' : n === 7 ? 'clean weekly' : `clean every ${n} days`; }
@@ -642,16 +646,19 @@ function replaceBadge(it) {
   if (it.replaceDays === 0) return badge('b-good', 'Replace as needed');
   const left = replaceLeft(it);
   if (left < 0) return badge('b-critical', `Replace overdue by ${-left} day${left === -1 ? '' : 's'}`);
-  return badge(`b-${severity(it, left)}`, `Replace by ${esc(fmtDate(nextReplace(it)))} · ${left} day${left === 1 ? '' : 's'} left`);
+  return badge(`b-${severity(it.replaceDays, left)}`, `Replace by ${esc(fmtDate(nextReplace(it)))} · ${left} day${left === 1 ? '' : 's'} left`);
 }
-/* Cleaning is red, not amber, once it's due. Amber means "coming up"; there is no
-   coming-up state here — cleanDue() only flips on the day the interval elapses, so the
-   badge appears exactly when the item is already overdue for a clean. Showing that in
-   amber undersold it next to "Replace overdue", which is the same kind of miss in red. */
+/* The cleaning badge carries the same data as the replace one — due date, days left, days
+   overdue — read off the cleaning cycle instead of the replacement cycle, and coloured by the
+   same bands. Overdue stays red: it's the same kind of miss as "Replace overdue", and amber
+   undersold it. An item that was never cleaned has no date to count from, so it just reads
+   "Cleaning due". */
 function cleanBadge(it) {
   if (it.cleanDays <= 0) return '';
-  if (cleanDue(it)) return badge('b-critical', 'Cleaning due');
-  return badge('b-good', `Cleaned ${esc(agoLabel(it.lastCleaned))}`);
+  if (!it.lastCleaned) return badge('b-critical', 'Cleaning due');
+  const left = cleanLeft(it);
+  if (left < 0) return badge('b-critical', `Clean overdue by ${-left} day${left === -1 ? '' : 's'}`);
+  return badge(`b-${severity(it.cleanDays, left)}`, `Clean by ${esc(fmtDate(nextClean(it)))} · ${left} day${left === 1 ? '' : 's'} left`);
 }
 function reorderBadge(it) {
   if (!reorderNeeded(it)) return '';
@@ -856,8 +863,9 @@ function foldICS(line) {
   out.push(cur);
   return out.join('\r\n');
 }
-function nextClean(it) {
-  const due = it.lastCleaned ? addDays(parseDate(it.lastCleaned), it.cleanDays) : today();
+/* Calendar events can't be filed in the past, so an already-overdue clean lands on today. */
+function nextCleanEvent(it) {
+  const due = nextClean(it);
   return due < today() ? today() : due;
 }
 /* The reorder reminder lands ahead of the replacement date: half the cycle for
@@ -892,7 +900,7 @@ function buildICS(it) {
   }
   // Daily-cleaned items don't need calendar nagging; weekly-or-rarer ones do.
   if (it.cleanDays > 1) {
-    events.push(...vevent('clean', nextClean(it), `Clean CPAP ${it.name}`,
+    events.push(...vevent('clean', nextCleanEvent(it), `Clean CPAP ${it.name}`,
       `${it.name} is due for cleaning (${cleanLabel(it.cleanDays)}).`, '-PT0M'));
   }
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//PAPTrack//EN', ...events, 'END:VCALENDAR']
