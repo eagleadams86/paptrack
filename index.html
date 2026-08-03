@@ -2,6 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Content Security Policy. GitHub Pages can't set response headers, so this meta
+     tag is the only place to declare one (and it still applies when the file is
+     opened via file://). 'unsafe-inline' is unavoidable: the app is inline script
+     and style by design, with no build step to generate hashes. The real value is
+     the host allowlists — script only from this page and Firebase's CDN, network
+     calls only to the Firebase endpoints sync actually uses plus the GitHub API
+     (changelog), frames only from this app's Firebase auth helper. form-action is
+     'self' rather than 'none' because the add/edit form submits with
+     method="dialog", which some browsers have historically checked against
+     form-action; 'self' keeps it working everywhere while still blocking
+     submission to any external URL.
+     Note: frame-ancestors is ignored in a meta tag; it needs a real header. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.github.com; frame-src https://paptrack-6c817.firebaseapp.com; base-uri 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PAPTrack — CPAP supply, cleaning & reorder tracker</title>
 <meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server — your data never leaves this device.">
@@ -481,8 +494,11 @@
           var li=document.createElement('li');
           var d=document.createElement('span');d.className='cl-date';
           d.textContent=new Date(c.commit.author.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-          var a=document.createElement('a');
-          a.href=c.html_url;a.target='_blank';a.rel='noopener';
+          // Only accept a real github.com https link — never trust a URL from
+          // the API blindly, or a javascript: href would run on click.
+          var url=String(c.html_url||'');
+          var a=document.createElement(/^https:\/\/github\.com\//.test(url)?'a':'span');
+          if(a.tagName==='A'){a.href=url;a.target='_blank';a.rel='noopener noreferrer';}
           a.textContent=c.commit.message.split('\n')[0];
           li.appendChild(d);li.appendChild(a);list.appendChild(li);
         });
@@ -1187,6 +1203,14 @@ async function onClick() {
 
 const docRef = () => F.doc(db, 'paptrack', user.uid);
 
+/* Stamps this device's copy as the newest. "Keep this device" has to actually win
+   everywhere, and pushNow() sends the timestamp the local copy already carries —
+   which, when the cloud is what looked newer, is the older of the two. Without
+   this the choice sticks here and nowhere else: a third device holding an
+   in-between timestamp would push its copy back up and resurrect exactly what
+   was rejected. (The Android port fixed this first; same rule here.) */
+const touchLocal = () => localStorage.setItem('pap-updated', String(Date.now()));
+
 /* Shows the syncChoiceDialog and resolves to true if the user wants to keep Google's copy,
    false to keep this device's copy. Escape is deliberately blocked: either answer replaces
    one of the two copies, so there is no safe default to dismiss into — the choice has to be
@@ -1216,24 +1240,49 @@ function chooseSyncSource(localCount, remoteCount, remoteUpdatedAt) {
   });
 }
 
+/* Reconciling the two copies at sign-in.
+
+   The rule underneath all the branches: **an empty copy never beats a copy with
+   data in it, whatever the timestamps say.** Timestamp-wins on its own has a
+   hole: signing in on a fresh browser pushes that browser's empty state to the
+   cloud stamped `now`, and the reconciliation dialog only opens when *both*
+   sides hold items — so the device that actually had the supplies, carrying an
+   older timestamp, would skip the dialog, take the empty cloud copy as "newer",
+   and empty itself. (This exact failure cost real data in Sprint Velocity,
+   whose sync this ports; the guard comes back from there.)
+
+   With that rule, the dialog is only needed for the genuine conflict: both
+   sides hold items and neither is obviously right. Once per account per
+   browser — after the first reconciliation both sides are caught up and
+   timestamps are enough. A different Google account signing in re-prompts. */
 async function startSync() {
   const snap = await F.getDoc(docRef());
   const remote = snap.exists() ? snap.data() : null;
   const local = window.paptrackGet();
-  // Only ask once per account per browser — after the first reconciliation, both sides are
-  // assumed caught up and ordinary timestamp-wins sync is enough. Re-prompts if a different
-  // Google account signs in on this browser.
+  const remoteHas = !!(remote && Array.isArray(remote.items) && remote.items.length);
+  const localHas = local.length > 0;
   const isFirstSyncForAccount = localStorage.getItem('pap-sync-uid') !== user.uid;
-  if (isFirstSyncForAccount && remote && Array.isArray(remote.items) && remote.items.length && local.length) {
+
+  if (remoteHas && localHas && isFirstSyncForAccount) {
     const keepGoogle = await chooseSyncSource(local.length, remote.items.length, remote.updatedAt);
     if (keepGoogle) {
       window.paptrackAdopt(remote.items, remote.updatedAt);
       window.toast('Loaded your data from the cloud ☁️');
     } else {
+      touchLocal();
       await pushNow();
       window.toast('Kept this device’s data');
     }
-  } else if (remote && Array.isArray(remote.items) && remote.updatedAt > localTs()) {
+  } else if (remoteHas && !localHas) {
+    /* Nothing here to lose. */
+    window.paptrackAdopt(remote.items, remote.updatedAt);
+    window.toast('Loaded your data from the cloud ☁️');
+  } else if (localHas && !remoteHas) {
+    /* The cloud copy is empty — seeded by a sign-in on a browser that had
+       nothing in it yet. It doesn't get to overwrite a device that holds
+       real supplies. */
+    await pushNow();
+  } else if (remoteHas && remote.updatedAt > localTs()) {
     window.paptrackAdopt(remote.items, remote.updatedAt);
     window.toast('Loaded your data from the cloud ☁️');
   } else {
@@ -1245,10 +1294,24 @@ async function startSync() {
     const r = s.data();
     // A document without an items array is a half-written or foreign doc, never an
     // intentional "delete everything" — adopting it would clear this device's list.
-    if (Array.isArray(r.items) && r.updatedAt > localTs()) {
-      window.paptrackAdopt(r.items, r.updatedAt);
-      window.toast('Synced from another device ☁️');
+    if (!Array.isArray(r.items) || !(r.updatedAt > localTs())) return;
+    /* Same empty-never-beats-data rule live. Clearing everything really is
+       something people do, so this asks rather than refusing — but it asks,
+       because the alternative is a device quietly emptying itself. Declining
+       re-pushes what's here, stamped now, so the two sides stop disagreeing. */
+    if (!r.items.length && window.paptrackGet().length) {
+      const keep = !confirm('Another device has cleared all its PAPTrack supplies.\n\n'
+        + 'Clear this device too? Cancel keeps what’s on this device and restores it '
+        + 'to your other devices.');
+      if (keep) {
+        touchLocal();
+        pushNow().catch((e) => console.warn('push failed', e));
+        window.toast('Kept this device’s data');
+        return;
+      }
     }
+    window.paptrackAdopt(r.items, r.updatedAt);
+    window.toast('Synced from another device ☁️');
   });
 }
 
