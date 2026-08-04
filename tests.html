@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="midnight">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAPTrack — tests</title>
+<style>
+  /* Dev-only page: pins the web-only pure functions in index.html — the
+     untrusted-input boundary (normalizeItem) and the .ics calendar generation,
+     which exist on no other platform (the shared schedule math is already pinned
+     by the iOS and Android suites). Loads the real app in a hidden same-origin
+     iframe and calls its functions directly, so what's tested is what ships.
+     Serve over http://localhost (python3 -m http.server 8011); file:// iframes
+     are blocked in some browsers. Read-only: nothing here writes localStorage.
+     Colours are the Midnight palette from the theme pack (dev page, hardcoded). */
+  body { background: #0a0e1a; color: #e7eaf6; margin: 0;
+         font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: #838cab; font-size: 12.5px; margin: 0 0 18px; }
+  #summary { font-weight: 600; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px;
+             border: 1px solid #262f4a; background: #121829; }
+  #summary.ok  { color: #72fe84; border-color: #72fe84; }
+  #summary.bad { color: #fb7874; border-color: #fb7874; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td { padding: 6px 8px; border-bottom: 1px solid #262f4a; vertical-align: top; }
+  td.st { width: 28px; font-weight: 700; }
+  tr.pass td.st { color: #72fe84; }
+  tr.fail td.st { color: #fb7874; }
+  tr.fail td.msg { color: #fb7874; }
+  .msg { color: #838cab; font-size: 12px; white-space: pre-wrap; }
+  .group td { padding-top: 16px; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+              text-transform: uppercase; color: #838cab; border-bottom-color: #374163; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PAPTrack — pure-function tests</h1>
+  <p class="sub">Runs against the real <code>index.html</code> in a hidden iframe. Read-only: nothing is saved.</p>
+  <div id="summary">Loading app…</div>
+  <table><tbody id="out"></tbody></table>
+</div>
+<iframe id="app" src="index.html" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" title="app under test"></iframe>
+
+<script>
+'use strict';
+const TESTS = [];
+function group(name) { TESTS.push({ group: name }); }
+function t(name, fn) { TESTS.push({ name, fn }); }
+function eq(actual, expected, note) {
+  const a = JSON.stringify(actual), e = JSON.stringify(expected);
+  if (a !== e) throw new Error((note ? note + ': ' : '') + 'expected ' + e + ', got ' + a);
+}
+function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy'); }
+let w; // the app iframe's window
+
+/* Local-midnight ISO date offset from today, matching the app's own date maths. */
+function iso(offsetDays) {
+  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + offsetDays);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+group('normalizeItem — the untrusted-input boundary (backups, cloud docs, localStorage)');
+t('a crafted id is scrubbed to the plain charset', () => {
+  const it = w.normalizeItem({ id: 'x"><img src=q onerror=alert(1)>', name: 'Mask', replaceDays: 90, lastReplaced: iso(-10) });
+  ok(/^[A-Za-z0-9_-]+$/.test(it.id), 'id is plain, got ' + JSON.stringify(it.id));
+});
+t('impossible and rolling-over dates are rejected, not silently shifted', () => {
+  eq(w.normalizeItem({ name: 'x', lastCleaned: '2026-02-31', lastReplaced: iso(-1) }).lastCleaned, null,
+    'Feb 31 must not become Mar 3');
+  eq(w.normalizeItem({ name: 'x', lastCleaned: 'yesterday', lastReplaced: iso(-1) }).lastCleaned, null);
+});
+t('a missing lastReplaced falls back to today instead of crashing render', () => {
+  eq(w.normalizeItem({ name: 'x' }).lastReplaced, iso(0));
+});
+t('numbers are clamped into range and junk becomes the default', () => {
+  const it = w.normalizeItem({ name: 'x', stock: 500, lowAt: -3, cleanDays: 'lots', replaceDays: 9999, lastReplaced: iso(0) });
+  eq(it.stock, 99);
+  eq(it.lowAt, 0);
+  eq(it.cleanDays, 0);
+  eq(it.replaceDays, 1095);
+});
+t('strings are truncated to their field limits', () => {
+  const it = w.normalizeItem({ name: 'n'.repeat(200), notes: 'm'.repeat(500), lastReplaced: iso(0) });
+  eq(it.name.length, 60);
+  eq(it.notes.length, 140);
+});
+t('normalizeItems drops non-objects and re-ids duplicates', () => {
+  const list = w.normalizeItems([
+    { id: 'same', name: 'A', lastReplaced: iso(0) },
+    'junk', null, 42,
+    { id: 'same', name: 'B', lastReplaced: iso(0) },
+  ]);
+  eq(list.length, 2, 'two real items survive');
+  ok(list[0].id !== list[1].id, 'duplicate ids are re-issued');
+});
+t('a non-array is an empty list, not a throw', () => {
+  eq(w.normalizeItems({ items: [] }), []);
+});
+
+group('escICS / foldICS — RFC 5545 text rules');
+t('backslash, semicolon, comma, and newlines are escaped', () => {
+  eq(w.escICS('a;b,c\\d\r\ne'), 'a\\;b\\,c\\\\d\\ne');
+});
+t('long lines fold at 75 octets with a space continuation', () => {
+  const folded = w.foldICS('SUMMARY:' + 'X'.repeat(200));
+  const physical = folded.split('\r\n');
+  ok(physical.length > 1, 'the line folded');
+  for (const line of physical)
+    ok(new TextEncoder().encode(line).length <= 75, 'physical line over 75 octets: ' + line.length + ' chars');
+  ok(physical.slice(1).every(l => l.startsWith(' ')), 'continuations start with a space');
+  eq(physical[0] + physical.slice(1).map(l => l.slice(1)).join(''), 'SUMMARY:' + 'X'.repeat(200),
+    'unfolding reproduces the original');
+});
+t('folding never splits a multi-byte character (emoji survive)', () => {
+  const folded = w.foldICS('SUMMARY:' + '😀'.repeat(40));
+  for (const line of folded.split('\r\n')) {
+    const bytes = new TextEncoder().encode(line);
+    ok(bytes.length <= 75, 'physical line over 75 octets');
+    eq(new TextDecoder().decode(bytes), line, 'chunk survives a UTF-8 round-trip intact');
+  }
+});
+t('a short line is returned untouched', () => {
+  eq(w.foldICS('DTSTART;VALUE=DATE:20260803'), 'DTSTART;VALUE=DATE:20260803');
+});
+
+group('buildICS — which events a supply gets');
+t('a scheduled item gets replace + reorder + clean events', () => {
+  const ics = w.buildICS({ id: 'abc', name: 'Mask', cleanDays: 7, lastCleaned: iso(-3),
+    replaceDays: 90, lastReplaced: iso(-30), stock: 2, lowAt: 1, notes: '' });
+  eq((ics.match(/BEGIN:VEVENT/g) || []).length, 3);
+  ok(ics.startsWith('BEGIN:VCALENDAR'), 'calendar wrapper present');
+  ok(ics.includes('SUMMARY:Replace CPAP Mask'), 'replace event');
+  ok(ics.includes('SUMMARY:Reorder CPAP Mask'), 'reorder event');
+  ok(ics.includes('SUMMARY:Clean CPAP Mask'), 'clean event');
+  const due = iso(60).replace(/-/g, '');
+  ok(ics.includes('DTSTART;VALUE=DATE:' + due), 'replace lands on lastReplaced + cycle');
+});
+t('daily cleaning gets no calendar nagging; as-needed gets no replace/reorder', () => {
+  const daily = w.buildICS({ id: 'a', name: 'Mask', cleanDays: 1, lastCleaned: iso(0),
+    replaceDays: 90, lastReplaced: iso(-10), stock: 0, lowAt: 1, notes: '' });
+  eq((daily.match(/SUMMARY:Clean/g) || []).length, 0);
+  const asNeeded = w.buildICS({ id: 'b', name: 'Water', cleanDays: 7, lastCleaned: iso(-2),
+    replaceDays: 0, lastReplaced: iso(-10), stock: 3, lowAt: 1, notes: '' });
+  eq((asNeeded.match(/SUMMARY:Replace/g) || []).length, 0);
+  eq((asNeeded.match(/SUMMARY:Reorder/g) || []).length, 0);
+});
+t('an overdue clean lands on today, never in the past', () => {
+  const ics = w.buildICS({ id: 'c', name: 'Tube', cleanDays: 7, lastCleaned: iso(-30),
+    replaceDays: 0, lastReplaced: iso(-10), stock: 0, lowAt: 1, notes: '' });
+  ok(ics.includes('DTSTART;VALUE=DATE:' + iso(0).replace(/-/g, '')), 'clean event dated today');
+});
+
+group('severity + labels — light echo of the natively-pinned rules');
+t('the cycle − 1 clamp keeps daily cleaning good on the day it was cleaned', () => {
+  eq(w.severity(1, 1), 'good');
+  eq(w.severity(90, 40), 'good');
+  eq(w.severity(90, 14), 'warning');
+  eq(w.severity(90, 7), 'serious');
+  eq(w.severity(90, -1), 'critical');
+});
+t('agoLabel reads future dates as "in N days", not negative history', () => {
+  eq(w.agoLabel(iso(3)), 'in 3 days');
+  eq(w.agoLabel(iso(0)), 'today');
+  eq(w.agoLabel(iso(-1)), 'yesterday');
+});
+
+/* ── Runner ───────────────────────────────────────────────────────────────── */
+window.addEventListener('load', () => {
+  const frame = document.getElementById('app');
+  const start = () => setTimeout(run, 150);
+  if (frame.contentDocument && frame.contentDocument.readyState === 'complete'
+      && frame.contentWindow.normalizeItem) start();
+  else frame.addEventListener('load', start, { once: true });
+});
+
+function run() {
+  w = document.getElementById('app').contentWindow;
+  const out = document.getElementById('out');
+  let pass = 0, fail = 0;
+  for (const item of TESTS) {
+    if (item.group) {
+      const tr = document.createElement('tr');
+      tr.className = 'group';
+      tr.innerHTML = '<td colspan="3"></td>';
+      tr.firstChild.textContent = item.group;
+      out.appendChild(tr);
+      continue;
+    }
+    const tr = document.createElement('tr');
+    const st = document.createElement('td'); st.className = 'st';
+    const name = document.createElement('td'); name.textContent = item.name;
+    const msg = document.createElement('td'); msg.className = 'msg';
+    try {
+      item.fn();
+      tr.className = 'pass'; st.textContent = '✓'; pass++;
+    } catch (e) {
+      tr.className = 'fail'; st.textContent = '✕'; msg.textContent = e.message; fail++;
+    }
+    tr.appendChild(st); tr.appendChild(name); tr.appendChild(msg);
+    out.appendChild(tr);
+  }
+  const s = document.getElementById('summary');
+  s.textContent = fail === 0 ? `All ${pass} tests pass` : `${fail} of ${pass + fail} tests FAILED`;
+  s.className = fail === 0 ? 'ok' : 'bad';
+  document.title = (fail === 0 ? '✓ ' : '✕ ') + document.title;
+}
+</script>
+</body>
+</html>

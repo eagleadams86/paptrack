@@ -86,13 +86,16 @@ How sync behaves: `localStorage` stays the source of truth. The **first** time a
 GitHub Pages (static hosting, this repo, main branch)
     └── index.html — single file; loads the Firebase SDK from gstatic.com
             ├── all state ──► browser localStorage (source of truth, works offline)
-            └── signed in ──► Firestore doc paptrack/{uid} (last-write-wins by
-                              updatedAt; live onSnapshot updates on other devices)
+            └── signed in ──► Firestore doc paptrack/{uid} (newer-wins by updatedAt,
+                              with the empty-never-beats-data guard; live onSnapshot
+                              updates on other devices)
 
 Backup/restore via JSON export & import.
 ```
 
 There is no server of our own — the only backend is the optional Firebase (auth + one Firestore document per user, free tier). The app works from a double-clicked file just as well as from GitHub Pages, and degrades to fully-local mode when Firebase is unreachable or the user is signed out.
+
+**Tests:** `tests.html` (open it via a local server, e.g. `python3 -m http.server 8011`) loads the real `index.html` in a hidden iframe and pins the web-only pure functions — the untrusted-input validation that guards backups and synced data, and the `.ics` calendar generation. No build step, no frameworks; the page either says "All N tests pass" or lists what broke. The shared schedule math is additionally pinned by the [iOS](https://github.com/eagleadams86/paptrack-ios) and [Android](https://github.com/eagleadams86/paptrack-android) unit-test suites.
 
 ---
 
