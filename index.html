@@ -1127,7 +1127,9 @@ render();
    this browser, if both sides already have items the user is asked which to keep (see
    chooseSyncSource) rather than silently picking one by timestamp — that guesswork is what
    wiped a browser's data once already. After that first reconciliation, and for live
-   updates from other devices, the newer side (by the 'pap-updated' timestamp) wins. */
+   updates from other devices, the newer side (by the 'pap-updated' timestamp) wins —
+   except that an empty copy never silently beats one with items in it; see startSync
+   for the full rule. */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCtcJiGS8ow4suvIVt5rs3S4JjzSpIiYnw",
   authDomain: "paptrack-6c817.firebaseapp.com",
