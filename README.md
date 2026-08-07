@@ -78,6 +78,27 @@ Because all three ports (web, iOS, Android) share this one Firebase project and 
 
 The config object is not a secret (access is controlled by the rules above, which restrict each user to their own document). Because the authorized domain is `eagleadams86.github.io`, sign-in and sync work identically at this repo's `/paptrack/` path and at the old `/prototypes/` path — no Firebase change was needed for the move.
 
+### Two ways in, and why
+
+`GOOGLE_CLIENT_ID`, just above `FIREBASE_CONFIG`, decides which door sign-in uses:
+
+| `GOOGLE_CLIENT_ID` | Sign-in goes via | Notes |
+|---|---|---|
+| `null` *(current)* | Firebase's popup at `<project>.firebaseapp.com` | Blocked on some corporate networks |
+| set | Google Identity Services, straight to `accounts.google.com` | Survives those filters |
+
+Firebase's popup **starts** at `<project>.firebaseapp.com/__/auth/handler` and only redirects on to Google from there, so a proxy that blocks that first hop kills sign-in outright — nothing in the app ever runs. **This project's hostname is one of the blocked ones**, confirmed on a corporate network.
+
+The block is per **hostname**, not per domain, which is worth stating because the obvious conclusion is wrong. Measured on one network on a single day: this app's hostname and Team Dashboard's were both refused, while Sprint Velocity's went through untouched — identical sign-in code, and the blocked pair weren't the newest projects. Which way a filter lands on a hostname is outside our control and can change.
+
+Google Identity Services sidesteps it: the popup goes to `accounts.google.com`, returns an OAuth access token, and Firebase exchanges it for the same session via `signInWithCredential`. Same Google account, same Firestore document, same rules — only the doorway changes.
+
+**To switch over:** Cloud Console → APIs & Services → Credentials → the OAuth 2.0 Client ID named *Web client (auto created by Google Service)*. Copy its Client ID into `GOOGLE_CLIENT_ID`, and add `https://eagleadams86.github.io` under **Authorized JavaScript origins** — exact match including port, so `http://localhost` and `http://localhost:8011` are different origins. Without it Google refuses with `origin_mismatch`.
+
+While the constant is `null` nothing changes and Google's client isn't even fetched, so the switch is a one-line flip once the console step is done. Team Dashboard and Sprint Velocity have already made it and deleted their fallbacks.
+
+**This is web-only.** The iOS and Android apps use native Google Sign-In and are unaffected.
+
 How sync behaves: `localStorage` stays the source of truth. The **first** time a given Google account signs in on a browser, if both the browser and the cloud already have items saved, a dialog asks which to keep ("Keep this device" vs. "Keep Google's data") instead of guessing — silently picking the most-recently-changed side once wiped out a browser's data when an unrelated/stale cloud doc happened to have a newer timestamp. After that first reconciliation (tracked per-account via a `pap-sync-uid` flag in `localStorage`), and for live updates pushed from other devices, whichever side changed most recently (`updatedAt`) wins — with one hard rule on top: **an empty copy never silently beats a copy with items in it**, whatever the timestamps say. A fresh sign-in with nothing saved can't overwrite a cloud copy that has your supplies, and if another device genuinely clears everything, this one asks before following suit (declining restores your copy to the other devices). Signing out or losing connectivity just leaves the local copy in charge.
 
 ---

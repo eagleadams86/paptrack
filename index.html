@@ -8,13 +8,19 @@
      and style by design, with no build step to generate hashes. The real value is
      the host allowlists — script only from this page and Firebase's CDN, network
      calls only to the Firebase endpoints sync actually uses plus the GitHub API
-     (changelog), frames only from this app's Firebase auth helper. form-action is
-     'self' rather than 'none' because the add/edit form submits with
-     method="dialog", which some browsers have historically checked against
-     form-action; 'self' keeps it working everywhere while still blocking
+     (changelog), frames only from Google's sign-in and this app's Firebase auth
+     helper. form-action is 'self' rather than 'none' because the add/edit form
+     submits with method="dialog", which some browsers have historically checked
+     against form-action; 'self' keeps it working everywhere while still blocking
      submission to any external URL.
-     Note: frame-ancestors is ignored in a meta tag; it needs a real header. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.github.com; frame-src https://paptrack-6c817.firebaseapp.com; base-uri 'none'; form-action 'self'">
+     Note: frame-ancestors is ignored in a meta tag; it needs a real header.
+
+     accounts.google.com is here because sign-in prefers Google Identity Services
+     (see the sign-in block at the foot of the file). The firebaseapp.com and
+     apis.google.com entries stay only while the old popup remains as a fallback;
+     when GOOGLE_CLIENT_ID is set they go unused, and both can be dropped once the
+     fallback is retired — Team Dashboard and Sprint Velocity have already done so. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.github.com https://accounts.google.com; frame-src https://paptrack-6c817.firebaseapp.com https://accounts.google.com; base-uri 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PAPTrack — CPAP supply, cleaning & reorder tracker</title>
 <meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server — your data never leaves this device.">
@@ -1139,7 +1145,42 @@ const FIREBASE_CONFIG = {
   appId: "1:663133445971:web:0d363eaa75ae0fcda78ba6"
 };
 
+/* ── Why sign-in prefers Google Identity Services ───────────────────────────
+   Firebase's signInWithPopup opens the popup at
+   <project>.firebaseapp.com/__/auth/handler and only redirects on to Google from
+   there, so a proxy that blocks that first hop kills sign-in outright — nothing
+   in the app ever runs.
+
+   This project's hostname is one of the blocked ones. Corporate web filters
+   block individual firebaseapp.com hostnames, per *hostname* rather than per
+   domain: on one network on the same day, this app's hostname and a sibling's
+   were both refused while a third sibling's went through untouched, with
+   identical code. Which way a filter lands on a hostname is outside our control
+   and can change, so "the other apps are fine" proves nothing either way.
+
+   Team Dashboard proved the fix and Sprint Velocity and Golf Handicap followed:
+   a popup straight to accounts.google.com returns an OAuth access token, and
+   Firebase exchanges it for the same session via signInWithCredential. Same
+   Google account, same Firestore document, same rules — only the doorway changes.
+
+   Web only. The iOS and Android apps use native Google Sign-In and are not
+   affected by any of this.
+
+   ⚠️ GOOGLE_CLIENT_ID is NOT part of FIREBASE_CONFIG and can't be derived from
+   it. It comes from Google Cloud Console → APIs & Services → Credentials → the
+   OAuth 2.0 Client ID named "Web client (auto created by Google Service)", and
+   that same screen must list this app's origins (https://eagleadams86.github.io
+   plus the exact localhost origin, port included) under "Authorized JavaScript
+   origins" or Google refuses with origin_mismatch.
+
+   While it is null the old popup still runs, so nothing regresses before that
+   console step is done. Setting it switches the doorway over; the popup path,
+   the firebaseapp.com frame-src and apis.google.com can all be deleted once
+   this has been tested on the network that needed it. */
+const GOOGLE_CLIENT_ID = null;   /* ← paste the Web client ID here to switch over */
+
 const SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
+const GIS = 'https://accounts.google.com/gsi/client';
 const btn = document.getElementById('syncBtn');
 const privacyNote = document.getElementById('privacyNote');
 const localTs = () => Number(localStorage.getItem('pap-updated') || 0);
@@ -1148,13 +1189,31 @@ if (FIREBASE_CONFIG) {
   init().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
 }
 
-let A, F, auth, db, user = null, unsub = null, pushTimer = null;
+let A, F, auth, db, user = null, unsub = null, pushTimer = null, tokenClient = null;
+
+/* Google's sign-in client is a classic script, not a module — it hangs
+   window.google off the page once it's in. Resolves as soon as that's true.
+   A failure here is not fatal while the popup fallback exists, so init()
+   swallows it rather than taking the whole sync button away. */
+function loadGis() {
+  return new Promise((resolve, reject) => {
+    if (window.google?.accounts?.oauth2) return resolve();
+    const s = document.createElement('script');
+    s.src = GIS; s.async = true; s.defer = true;
+    s.onload = () => window.google?.accounts?.oauth2
+      ? resolve()
+      : reject(new Error('Google sign-in client loaded but exposed no oauth2 API'));
+    s.onerror = () => reject(new Error('Could not load Google sign-in client'));
+    document.head.appendChild(s);
+  });
+}
 
 async function init() {
   const [{ initializeApp }, authMod, fsMod] = await Promise.all([
     import(SDK + 'firebase-app.js'),
     import(SDK + 'firebase-auth.js'),
     import(SDK + 'firebase-firestore.js'),
+    GOOGLE_CLIENT_ID ? loadGis().catch((e) => { console.warn('GIS unavailable, falling back to the popup:', e); }) : null,
   ]);
   A = authMod; F = fsMod;
   const app = initializeApp(FIREBASE_CONFIG);
@@ -1167,8 +1226,42 @@ async function init() {
     if (u) startSync().catch((e) => console.warn('sync failed', e));
   });
   A.getRedirectResult(auth).catch(() => {}); // completes a mobile redirect sign-in, if one is in flight
+  /* Built once, reused for every sign-in. requestAccessToken() must be called
+     from inside the click handler or the browser treats the popup as
+     unsolicited and blocks it. Absent when GOOGLE_CLIENT_ID is null, or when
+     Google's client failed to load — onClick falls back to the popup either way. */
+  if (GOOGLE_CLIENT_ID && window.google?.accounts?.oauth2) {
+    tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'openid email profile',
+      callback: (resp) => {
+        if (!resp || !resp.access_token) { onSignInFailed(resp); return; }
+        /* null id_token: Firebase accepts an OAuth access token on its own and
+           reads the profile from it. */
+        const cred = A.GoogleAuthProvider.credential(null, resp.access_token);
+        A.signInWithCredential(auth, cred).catch(onSignInFailed);
+      },
+      error_callback: (err) => {
+        /* Closing the popup is a normal thing to do, not a failure worth a toast. */
+        if (err && /popup_closed|user_cancel/.test(String(err.type))) return;
+        onSignInFailed(err);
+      },
+    });
+  }
   btn.hidden = false;
   btn.addEventListener('click', onClick);
+}
+
+function onSignInFailed(e) {
+  console.warn('sign-in error', e);
+  const s = String((e && (e.type || e.code || e.message)) || e || '');
+  if (s.includes('origin_mismatch') || s.includes('idpiframe') || s.includes('invalid_client')) {
+    window.toast('Sign-in rejected — this site isn’t an authorised origin for the Google client');
+  } else if (s.includes('popup_failed_to_open')) {
+    window.toast('Sign-in popup was blocked — allow popups for this site and try again');
+  } else {
+    window.toast('Sign-in failed — check the Firebase setup');
+  }
 }
 
 function updateUI() {
@@ -1188,6 +1281,13 @@ async function onClick() {
     if (confirm('Sign out? The app keeps working with the local copy on this device.')) A.signOut(auth);
     return;
   }
+  /* The preferred door. Everything after this happens in the token client's
+     callbacks — the popup goes to accounts.google.com and comes back with a
+     token, and onAuthStateChanged picks it up from there. */
+  if (tokenClient) { tokenClient.requestAccessToken(); return; }
+
+  /* Fallback while GOOGLE_CLIENT_ID is unset: Firebase's own popup, via
+     <project>.firebaseapp.com. Works everywhere that hostname isn't blocked. */
   const provider = new A.GoogleAuthProvider();
   try {
     await A.signInWithPopup(auth, provider);
