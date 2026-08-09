@@ -599,9 +599,18 @@ function normalizeItems(list) {
   });
 }
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  // 'pap-updated' is the conflict-resolution timestamp for cloud sync: newer side wins.
-  localStorage.setItem('pap-updated', String(Date.now()));
+  /* Guarded: Safari's private mode and a full quota both throw here, and an
+     unguarded throw would kill the click handler mid-save with nothing on
+     screen to say so. The in-memory list is still good — and still reaches the
+     cloud below if signed in — so warn and carry on. */
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    // 'pap-updated' is the conflict-resolution timestamp for cloud sync: newer side wins.
+    localStorage.setItem('pap-updated', String(Date.now()));
+  } catch (e) {
+    console.warn('Could not write saved data', e);
+    toast('⚠️ This browser is blocking storage (full, or private mode?) — changes may be lost when the tab closes');
+  }
   if (window.cloudPush) window.cloudPush();
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -1434,8 +1443,27 @@ async function pushNow() {
 window.cloudPush = () => {
   if (!user) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => pushNow().catch((e) => console.warn('push failed', e)), 1200);
+  pushTimer = setTimeout(() => { pushTimer = null; pushNow().catch((e) => console.warn('push failed', e)); }, 1200);
 };
+
+/* The debounce means "edit, then close the tab inside 1.2s" would leave the
+   push scheduled but never sent — localStorage has the change, the cloud
+   doesn't, and the other devices stay stale until the NEXT edit on this one.
+   Flush a pending push the moment the page is hidden; pagehide too, for the
+   paths that skip visibilitychange. Best-effort by nature — a request this
+   late in a page's life can still be cut off — but the next edit or sign-in
+   re-sends regardless, so nothing is ever lost, only late. Ported from
+   Flow Metrics (Team Dashboard). */
+const flushPush = () => {
+  if (!user || !pushTimer) return;
+  clearTimeout(pushTimer);
+  pushTimer = null;
+  pushNow().catch(() => { /* page is going away — nowhere left to report */ });
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushPush();
+});
+addEventListener('pagehide', flushPush);
 </script>
 </body>
 </html>
