@@ -117,6 +117,10 @@ There is no server of our own — the only backend is the optional Firebase (aut
 
 **Tests:** `tests.html` (open it via a local server, e.g. `python3 -m http.server 8011`) loads the real `index.html` in a hidden iframe and pins the web-only pure functions — the untrusted-input validation that guards backups and synced data, and the `.ics` calendar generation. No build step, no frameworks; the page either says "All N tests pass" or lists what broke. The shared schedule math is additionally pinned by the [iOS](https://github.com/eagleadams86/paptrack-ios) and [Android](https://github.com/eagleadams86/paptrack-android) unit-test suites.
 
+![tests](https://github.com/eagleadams86/paptrack/actions/workflows/tests.yml/badge.svg)
+
+The suite also runs on every push: [`.github/workflows/tests.yml`](.github/workflows/tests.yml) serves the folder, opens `tests.html` in headless Chromium and fails the build if the summary goes red or the page throws — same workflow as the rest of the app family.
+
 ---
 
 ## Recent changes feed
