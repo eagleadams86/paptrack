@@ -117,6 +117,8 @@ There is no server of our own — the only backend is the optional Firebase (aut
 
 **Tests:** `tests.html` (open it via a local server, e.g. `python3 -m http.server 8011`) loads the real `index.html` in a hidden iframe and pins the web-only pure functions — the untrusted-input validation that guards backups and synced data, and the `.ics` calendar generation. No build step, no frameworks; the page either says "All N tests pass" or lists what broke. The shared schedule math is additionally pinned by the [iOS](https://github.com/eagleadams86/paptrack-ios) and [Android](https://github.com/eagleadams86/paptrack-android) unit-test suites.
 
+**It only runs on localhost, and enforces that itself.** The test code writes nothing, but the iframe boots the real app — and GitHub Pages publishes `tests.html` next to it, at `/paptrack/tests.html`, where that iframe would be your signed-in copy: sync would start inside an invisible frame, and the which-copy dialog could fire where nobody can answer it. Two guards. The iframe carries `data-pap-tests`, which the sync module checks so it never initialises in the harness; and a gate at the foot of `tests.html` checks `location.hostname` and, anywhere but `localhost` / `127.0.0.1` / `[::1]`, never creates the iframe at all — it explains why and says how to run the suite properly. CI reaches the page on `localhost:8011`, so it is unaffected.
+
 ![tests](https://github.com/eagleadams86/paptrack/actions/workflows/tests.yml/badge.svg)
 
 The suite also runs on every push: [`.github/workflows/tests.yml`](.github/workflows/tests.yml) serves the folder, opens `tests.html` in headless Chromium and fails the build if the summary goes red or the page throws — same workflow as the rest of the app family.

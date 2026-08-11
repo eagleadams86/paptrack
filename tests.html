@@ -12,6 +12,14 @@
      iframe and calls its functions directly, so what's tested is what ships.
      Serve over http://localhost (python3 -m http.server 8011); file:// iframes
      are blocked in some browsers. Read-only: nothing here writes localStorage.
+
+     The iframe boots the real app, though, which is not nothing: on an origin
+     that has signed in, the sync module would start a live Firestore session
+     inside an invisible frame. Two guards, and both are needed. The iframe
+     carries data-pap-tests, which index.html checks so sync never initialises in
+     the harness. And the gate at the foot of this script refuses to create the
+     iframe at all off localhost — GitHub Pages publishes this file next to the
+     app, so "somewhere else" is a page anyone can open.
      Colours are the Midnight palette from the theme pack (dev page, hardcoded). */
   body { background: #0a0e1a; color: #e7eaf6; margin: 0;
          font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -36,11 +44,14 @@
 <body>
 <div class="wrap">
   <h1>PAPTrack — pure-function tests</h1>
-  <p class="sub">Runs against the real <code>index.html</code> in a hidden iframe. Read-only: nothing is saved.</p>
+  <p class="sub">Runs against the real <code>index.html</code> in a hidden iframe. Read-only:
+    nothing is saved — and it only runs on <code>localhost</code>, where that iframe can't be
+    your signed-in copy of the app.</p>
   <div id="summary">Loading app…</div>
   <table><tbody id="out"></tbody></table>
 </div>
-<iframe id="app" src="index.html" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" title="app under test"></iframe>
+<!-- The iframe is built in script, not here: it boots the real app, so it must
+     not exist until the localhost gate at the foot of this file has passed. -->
 
 <script>
 'use strict';
@@ -166,13 +177,49 @@ t('agoLabel reads future dates as "in N days", not negative history', () => {
 });
 
 /* ── Runner ───────────────────────────────────────────────────────────────── */
-window.addEventListener('load', () => {
-  const frame = document.getElementById('app');
-  const start = () => setTimeout(run, 150);
-  if (frame.contentDocument && frame.contentDocument.readyState === 'complete'
-      && frame.contentWindow.normalizeItem) start();
-  else frame.addEventListener('load', start, { once: true });
-});
+
+/* The localhost gate. Booting the app is itself the side effect worth guarding:
+   on the published origin the iframe would be a real, signed-in copy, and
+   onAuthStateChanged would start a Firestore session — or raise the "another
+   device cleared its supplies" dialog — inside a frame nobody can see. So the
+   check comes before the iframe exists, not inside its load handler.
+
+   '' covers file://, which has no host: the suite can't run there either way
+   (file:// iframes are blocked) and its storage is a throwaway opaque origin, so
+   it falls through to the ordinary "serve it over localhost" advice. */
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]', ''];
+
+if (LOCAL_HOSTS.includes(location.hostname)) {
+  const frame = document.createElement('iframe');
+  frame.id = 'app';
+  frame.title = 'app under test';
+  /* index.html checks for this and leaves the sync module uninitialised. */
+  frame.setAttribute('data-pap-tests', '');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';
+  frame.addEventListener('load', () => setTimeout(run, 150), { once: true }); // let boot finish
+  frame.src = 'index.html';           /* set before append: one load event, the real one */
+  document.body.appendChild(frame);
+} else {
+  const s = document.getElementById('summary');
+  s.className = 'bad';
+  s.textContent = 'Not run here — this page boots a live copy of the app.';
+  const tr = document.createElement('tr');
+  const td = document.createElement('td');
+  td.colSpan = 3;
+  td.style.cssText = 'font-size:13px;line-height:1.6';
+  td.innerHTML =
+    'The suite loads the app in a hidden frame to test it. On <strong></strong> ' +
+    'that frame would be your real, signed-in copy, quietly starting a sync session where ' +
+    'you can\'t see it. It runs on <code>localhost</code> only, against a copy served from ' +
+    'the repo folder:<br><br><code>cd ~/claude-paptrack &amp;&amp; ' +
+    'python3 -m http.server 8011</code><br>then open ' +
+    '<code>http://localhost:8011/tests.html</code>.<br><br>' +
+    'Nothing has been changed by opening this page — <a href="index.html">back to the app</a>.';
+  td.querySelector('strong').textContent = location.hostname;
+  tr.appendChild(td);
+  document.getElementById('out').appendChild(tr);
+}
 
 function run() {
   w = document.getElementById('app').contentWindow;

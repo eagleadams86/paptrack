@@ -1201,7 +1201,16 @@ const btn = document.getElementById('syncBtn');
 const privacyNote = document.getElementById('privacyNote');
 const localTs = () => Number(localStorage.getItem('pap-updated') || 0);
 
-if (FIREBASE_CONFIG) {
+/* tests.html loads this page in a hidden iframe (marked data-pap-tests) to reach
+   the pure functions. The harness must not boot a real session: if this origin
+   had ever signed in, onAuthStateChanged would fire inside the invisible iframe
+   and sync — or the which-copy dialog nobody can see — would run mid-test. Same
+   guard as the sibling Team Dashboard, Sprint Velocity and Golf Handicap apps. */
+let inTestHarness = false;
+try { inTestHarness = !!(window.frameElement && window.frameElement.hasAttribute('data-pap-tests')); }
+catch (e) { /* cross-origin parent — not the harness */ }
+
+if (FIREBASE_CONFIG && !inTestHarness) {
   init().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
 }
 
