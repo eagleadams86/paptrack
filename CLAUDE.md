@@ -32,6 +32,36 @@ This is a real, shipped product — the flagship web build alongside the native 
   it `ceil(1 × 0.2) = 1` puts a mask in the serious band the moment it's cleaned. The clamp
   never binds at replacement cycles (the shortest shipped is 14 days), so replace badges are
   byte-identical to before.
+- **The web icon is the shipped native icon's pixels, RECOLOURED — never redrawn.**
+  `make_favicon.py` opens the iOS master
+  (`~/claude-paptrack-ios/PAPTrack/Assets.xcassets/AppIcon.appiconset/icon-1024.png`),
+  repaints the three rings and the dot without touching a coordinate, and writes all
+  three web copies from that one image: `favicon.ico` plus the two base64 PNG data
+  URIs in `index.html` (`rel="icon"` at 64px, `apple-touch-icon` at 180px). Those
+  three are one picture; hand-editing a base64 blob is how they drift, so re-run the
+  script instead. **Porting the Android vector was tried first and produced a visibly
+  different icon** — `ic_launcher_foreground.xml` is laid out around the adaptive-icon
+  safe zone, with a bigger dot, fatter strokes and equal angular spans, where the
+  shipped iOS art sits further right with a smaller dot and spans that narrow outward
+  (52°, 46°, 40°). That is why this recolours rather than redraws: the geometry can't
+  drift because it is never re-derived. Pixel-diffed after the change — 71,683 pixels
+  altered, none of them outside the mark.
+- **The COLOUR is where the web parts company with the phone icons**, and it was asked
+  for. The native rings fade by ALPHA over the page (full accent, 72%, 45%), which
+  bottoms the outer arc out near `#40477e`; on a home screen that reads as a signal
+  weakening, but in a 16px row of tabs beside the sibling apps it just read dim. The
+  web ramp runs between the family's two accent tones instead — `#a5b4fc`, their
+  midpoint, then `--accent` — so the falloff survives while every ring stays a colour
+  the family uses. The iOS and Android icons still fade to alpha and are deliberately
+  left alone: changing those means a new build and, for iOS, a new submission. The
+  `.ico` is also left **square**, unlike every sibling's rounded tile, because this art
+  is the app icon's and iOS/Android apply their own mask — rounding it would change a
+  shape the app already ships with.
+- **`favicon.ico` now has a `<link>` of its own** (`rel="alternate icon"`, versioned).
+  It had none: the browser only ever fetched it from the site root, so there was no URL
+  to version and a cached copy survived an icon change indefinitely. Bump the `?v=`
+  whenever the script is re-run; the data URIs need no version, since their content is
+  the URL.
 - **README.md is the index** — keep it current whenever the app meaningfully changes.
 - After changes: **browser-test locally first**, then commit, push, verify the Pages deploy, and spot-check live. To serve locally: the desktop app's preview pane reads `.claude/launch.json` (port 8011); otherwise run `python3 -m http.server 8011` in this folder and drive a browser with whatever automation is available. Any local server + browser works — don't hunt for a specific tool.
 - **`tests.html` pins the web-only pure functions — open it on the same local server and check "All N tests pass" whenever you touch `normalizeItem`/`normalizeItems`, the `.ics` generation (`escICS`/`foldICS`/`buildICS`), or `severity`.** It loads the real `index.html` in a hidden iframe and calls the functions directly (they're all plain `function` declarations, so no app-side hook is needed). Needs `http://localhost` — `file://` iframes are blocked in some browsers. **It also refuses to run anywhere else, and that is load-bearing:** Pages publishes `tests.html` beside the app, where the iframe would be the signed-in copy and `onAuthStateChanged` would start a real sync — or raise the which-copy dialog — inside an invisible frame. Two guards, both needed: the iframe carries `data-pap-tests`, which the sync module checks before `init()`, and the gate at the foot of `tests.html` never creates the iframe at all off localhost (booting the app IS the side effect, so the check can't live in the load handler). **`file://` is deliberately NOT in `LOCAL_HOSTS`**: it has no hostname, and `''` used to sit in that list on the reasoning that the suite couldn't run there anyway — but that sent it down the iframe branch, where the frame silently fails to load and the suite blamed the app. Opening the file off disk now gets the advice that fixes it, and a frame that never loaded the app is reported as a setup problem rather than as every test failing at once. Don't put the iframe back in the markup. CI runs the same page headless on every push (`.github/workflows/tests.yml`) on `localhost:8011`, so the gate lets it through, and fails the build if the summary goes red. The shared schedule math is additionally pinned by the iOS and Android test suites.
