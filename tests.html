@@ -187,7 +187,7 @@ t('agoLabel reads future dates as "in N days", not negative history', () => {
    '' covers file://, which has no host: the suite can't run there either way
    (file:// iframes are blocked) and its storage is a throwaway opaque origin, so
    it falls through to the ordinary "serve it over localhost" advice. */
-const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]', ''];
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
 if (LOCAL_HOSTS.includes(location.hostname)) {
   const frame = document.createElement('iframe');
@@ -203,26 +203,53 @@ if (LOCAL_HOSTS.includes(location.hostname)) {
 } else {
   const s = document.getElementById('summary');
   s.className = 'bad';
-  s.textContent = 'Not run here — this page boots a live copy of the app.';
+  /* Two reasons to be here, needing different sentences: a published copy
+     (where booting the app would touch real, signed-in data) and a file://
+     copy off disk (where it simply cannot work — browsers block file://
+     iframes). Both end at the same instruction. */
+  const onDisk = location.protocol === 'file:';
+  s.textContent = onDisk
+    ? 'Not run from a file — this page needs a local server.'
+    : 'Not run here — this page boots a live copy of the app.';
   const tr = document.createElement('tr');
   const td = document.createElement('td');
   td.colSpan = 3;
   td.style.cssText = 'font-size:13px;line-height:1.6';
-  td.innerHTML =
-    'The suite loads the app in a hidden frame to test it. On <strong></strong> ' +
-    'that frame would be your real, signed-in copy, quietly starting a sync session where ' +
-    'you can\'t see it. It runs on <code>localhost</code> only, against a copy served from ' +
-    'the repo folder:<br><br><code>cd ~/claude-paptrack &amp;&amp; ' +
+  td.innerHTML = (onDisk
+    ? 'The suite loads the app in a hidden frame to test it, and a browser blocks that '
+      + 'frame when the page is opened straight off disk — so the tests would have nothing '
+      + 'to run against. Serve the folder instead:'
+    : 'The suite loads the app in a hidden frame to test it. On <strong></strong> '
+      + 'that frame would be your real, signed-in copy, quietly starting a sync session where '
+      + 'you can\'t see it. It runs on <code>localhost</code> only, against a copy served from '
+      + 'the repo folder:') +
+    '<br><br><code>cd ~/claude-paptrack &amp;&amp; ' +
     'python3 -m http.server 8011</code><br>then open ' +
     '<code>http://localhost:8011/tests.html</code>.<br><br>' +
     'Nothing has been changed by opening this page — <a href="index.html">back to the app</a>.';
-  td.querySelector('strong').textContent = location.hostname;
+  if (!onDisk) td.querySelector('strong').textContent = location.hostname;
   tr.appendChild(td);
   document.getElementById('out').appendChild(tr);
 }
 
 function run() {
   w = document.getElementById('app').contentWindow;
+  /* A frame that never got the app is a SETUP problem — the folder isn't being
+     served, so index.html came back 404 — and without this every test throws
+     "Cannot read properties of undefined" in turn, which reads like the app is
+     catastrophically broken. Say the one thing that fixes it instead.
+     normalizeItem is the sentinel: this page has no hooks object, it calls the
+     app's function declarations directly, and that is the first of them. */
+  if (!w || typeof w.normalizeItem !== 'function') {
+    const s = document.getElementById('summary');
+    s.className = 'bad';
+    s.textContent = 'The hidden frame never loaded index.html — is this folder being served?';
+    document.getElementById('out').innerHTML =
+      '<tr><td class="msg" style="white-space:normal;font-family:inherit;font-size:13px">' +
+      'Run <code>cd ~/claude-paptrack &amp;&amp; python3 -m http.server 8011</code> and open ' +
+      '<code>http://localhost:8011/tests.html</code>.</td></tr>';
+    return;
+  }
   const out = document.getElementById('out');
   let pass = 0, fail = 0;
   for (const item of TESTS) {
