@@ -108,6 +108,21 @@ t('normalizeItems drops non-objects and re-ids duplicates', () => {
 t('a non-array is an empty list, not a throw', () => {
   eq(w.normalizeItems({ items: [] }), []);
 });
+/* Nothing this boundary produces may hold `undefined`. localStorage drops such a key
+   silently, so a local copy looks perfect — but setDoc() walks the live object and
+   Firestore rejects the WHOLE document over one of them (invalid-argument). That is
+   how Sprint Velocity lost sync on 2026-08-12, off one new optional field absent from
+   every copy saved before it existed. Checked by key, not by value: `x === undefined`
+   passes whether the key is there or not. */
+t('no record holds an undefined value, which would stop cloud sync dead', () => {
+  const deepUndef = (v, path) => (v && typeof v === 'object')
+    ? Object.keys(v).flatMap(k => v[k] === undefined ? [path + '.' + k] : deepUndef(v[k], path + '.' + k))
+    : [];
+  /* The shape that produces one: records saved before fields existed. */
+  const list = w.normalizeItems([{ name: 'Old mask' }, { id: 'keep', notes: 'n' }, {}]);
+  eq(deepUndef(list, 'items').join(','), '');
+  eq(list.length, 3, 'and they are all still real records');
+});
 
 group('escICS / foldICS — RFC 5545 text rules');
 t('backslash, semicolon, comma, and newlines are escaped', () => {

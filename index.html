@@ -1443,9 +1443,22 @@ async function startSync() {
   });
 }
 
+/* The cloud copy goes through JSON, exactly as save() writes the local one, so the
+   two are the same bytes by construction rather than nearly so.
+
+   Not tidiness: setDoc() walks the LIVE object and Firestore rejects the whole
+   document if it finds a single `undefined` anywhere in it (invalid-argument), where
+   localStorage would simply drop that key and carry on. Sprint Velocity lost sync to
+   exactly that on 2026-08-12 — one new optional field, absent from every copy saved
+   before it existed, written back as undefined by its sanitiser — while the local
+   copy looked perfect throughout. normalizeItem() here rebuilds every record as a
+   fresh literal with a concrete default for every field, so it can't produce one
+   today; this guards the next field added to that list. */
+const forCloud = (v) => JSON.parse(JSON.stringify(v));
+
 async function pushNow() {
   if (!user) return;
-  await F.setDoc(docRef(), { items: window.paptrackGet(), updatedAt: localTs() || Date.now() });
+  await F.setDoc(docRef(), { items: forCloud(window.paptrackGet()), updatedAt: localTs() || Date.now() });
 }
 
 /* Called by save() on every local change; debounced so rapid edits batch up. */
