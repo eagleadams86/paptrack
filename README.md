@@ -6,7 +6,7 @@ PAPTrack keeps CPAP supplies on schedule three ways at once: **cleaning** (daily
 
 This is the **web version** — the whole app in a single self-contained `index.html`. Open it directly in a browser (`file://` works) or use the live link above. No build step, and no account is ever required (an optional Google sign-in adds cross-device sync — see below).
 
-### The PAPTrack family
+### The PAPTrack Family
 
 | Platform | Repo |
 |----------|------|
@@ -17,7 +17,7 @@ This is the **web version** — the whole app in a single self-contained `index.
 
 ---
 
-## Built-in supply presets
+## Built-In Supply Presets
 
 | Supply | Clean | Replace |
 |--------|-------|---------|
@@ -54,7 +54,7 @@ Every value is editable per item, and custom items are supported for anything el
 
 ---
 
-## Cross-device sync (Firebase, free tier)
+## Cross-Device Sync (Firebase, Free Tier)
 
 Sync is **enabled** in this deployment, backed by the `paptrack-6c817` Firebase project — the `FIREBASE_CONFIG` object at the bottom `<script type="module">` block of `index.html` points at it. Setting that constant back to `null` returns the app to fully-local mode and hides all sync UI. To recreate the setup from scratch (e.g. in a fork):
 
@@ -78,7 +78,7 @@ Because all three ports (web, iOS, Android) share this one Firebase project and 
 
 The config object is not a secret (access is controlled by the rules above, which restrict each user to their own document). Because the authorized domain is `eagleadams86.github.io`, sign-in and sync work identically at this repo's `/paptrack/` path and at the old `/prototypes/` path — no Firebase change was needed for the move.
 
-### Why sign-in doesn't use Firebase's popup
+### Why Sign-In Doesn't Use Firebase's Popup
 
 Sign-in goes through **Google Identity Services**: a popup straight to `accounts.google.com` returns an OAuth access token, and Firebase exchanges it for a session via `signInWithCredential`. `GOOGLE_CLIENT_ID`, just above `FIREBASE_CONFIG`, is what makes that possible.
 
@@ -125,6 +125,6 @@ The suite also runs on every push: [`.github/workflows/tests.yml`](.github/workf
 
 ---
 
-## Recent changes feed
+## Recent Changes Feed
 
 The in-app "Recent changes" panel fetches this repo's last 10 commits for `index.html` from the GitHub API. **Commit subjects are user-facing** — write them in plain English a non-developer can read (what changed and why it matters, not implementation detail).
