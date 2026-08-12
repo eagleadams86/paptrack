@@ -98,6 +98,20 @@ Two consequences worth knowing:
 
 How sync behaves: `localStorage` stays the source of truth. The **first** time a given Google account signs in on a browser, if both the browser and the cloud already have items saved, a dialog asks which to keep ("Keep this device" vs. "Keep Google's data") instead of guessing — silently picking the most-recently-changed side once wiped out a browser's data when an unrelated/stale cloud doc happened to have a newer timestamp. After that first reconciliation (tracked per-account via a `pap-sync-uid` flag in `localStorage`), and for live updates pushed from other devices, whichever side changed most recently (`updatedAt`) wins — with one hard rule on top: **an empty copy never silently beats a copy with items in it**, whatever the timestamps say. A fresh sign-in with nothing saved can't overwrite a cloud copy that has your supplies, and if another device genuinely clears everything, this one asks before following suit (declining restores your copy to the other devices). Signing out or losing connectivity just leaves the local copy in charge.
 
+**When sync stops working, it says so.** Failures used to end in the browser console, which
+nobody has open — so the button went on showing your name and the note went on promising your
+supplies were reaching your other devices, while nothing had left the browser. The button now
+reads **⚠️ Not syncing** and the note at the foot of the page gives the cause in plain English
+and what to do about it. Nothing is ever lost when this happens: this browser stays the source
+of truth and the cloud only mirrors it. There's no retry button on purpose — Firestore retries
+the transient causes itself, and the next successful save clears the state. Two details are
+load-bearing: the live listener carries an **error callback**, because a listener that errors is
+dropped by Firestore and never fires again (without it, another device's updates simply stop
+arriving while the header still says "syncing"); and `invalid-argument` is **not** assumed to
+mean "too big" — Firestore uses that one code for both an oversized document and a value it
+can't store, so the advice to remove a supply appears only when the size really is the problem.
+A remedy that destroys data is never the guess.
+
 ---
 
 ## Architecture

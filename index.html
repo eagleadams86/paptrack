@@ -1266,9 +1266,12 @@ async function init() {
   db = F.getFirestore(app);
   A.onAuthStateChanged(auth, (u) => {
     user = u;
+    /* A fresh session starts clean: signing out and back in is the remedy this
+       app suggests for half of the causes, so a stale warning must not survive it. */
+    syncError = null;
     updateUI();
     if (unsub) { unsub(); unsub = null; }
-    if (u) startSync().catch((e) => console.warn('sync failed', e));
+    if (u) startSync().catch(setSyncError);
   });
   /* Built once, reused for every sign-in. requestAccessToken() must be called
      from inside the click handler or the browser treats the popup as
@@ -1305,8 +1308,77 @@ function onSignInFailed(e) {
   }
 }
 
+/* ── When sync stops working, say so ────────────────────────────────────────
+   Every failure here used to end in console.warn, which nobody has open — so the
+   button went on showing the account name and the note went on promising the data
+   was reaching the other devices, while nothing had left the browser for weeks.
+   This is the treatment the sibling apps already had (Sprint Velocity, Flow
+   Metrics, Golf Handicap); PAPTrack is the app their sync was ported *from*, and
+   the improvement was never brought back until now.
+
+   There is deliberately no retry button. The transient causes are already retried
+   by the SDK, the permanent ones aren't fixed by pressing anything, and the next
+   successful push clears the state on its own. */
+let syncError = null;
+
+/* Firestore's codes mean nothing to anyone who hasn't read the docs, so each maps
+   to a plain sentence plus what to do about it. */
+function describeSyncError(e) {
+  const code = String((e && e.code) || e || '');
+  /* Firestore reports two unrelated things as invalid-argument: a document over the
+     1 MiB cap, and a value it can't store (an `undefined` anywhere in the object).
+     The sibling apps assumed the first and so told the user to delete their data
+     over what turned out to be an app bug. Size wording only when Firestore's own
+     message says size — a remedy that destroys data must never be the guess. */
+  if (code.includes('invalid-argument')) {
+    const detail = String((e && e.message) || '');
+    if (/maximum allowed size|exceeds|too large|longer than|bytes/i.test(detail)) return {
+      reason: 'There are more supplies here than can be synced in one go.',
+      fix: 'Export a backup, then remove a supply you no longer track — sync picks up again on the next change.' };
+    return {
+      reason: 'The cloud refused this copy of your supplies — that’s a fault in the app, not in what you entered.',
+      fix: 'Nothing is lost: everything is still here and still saved. Reloading the page usually clears it.' };
+  }
+  if (code.includes('permission-denied') || code.includes('unauthenticated')) return {
+    reason: 'Google refused the sign-in for this data.',
+    fix: 'Signing out and back in usually clears it.' };
+  if (code.includes('resource-exhausted')) return {
+    reason: 'This project has hit its daily sync limit.',
+    fix: 'It resets tomorrow; nothing is lost in the meantime.' };
+  if (code.includes('unavailable') || code.includes('deadline-exceeded')) return {
+    reason: 'Couldn’t reach Google just now.',
+    fix: 'It should sort itself out — the next change will try again.' };
+  return { reason: 'Sync has stopped working.',
+    fix: 'The next change will try again. If it keeps up, sign out and back in.' };
+}
+
+function setSyncError(e) {
+  console.warn('sync problem', e);
+  const first = !syncError;
+  syncError = describeSyncError(e);
+  updateUI();
+  /* Announce the change of state, not every retry: each save() schedules another
+     push, so a lasting problem calls this repeatedly and a toast each time would be
+     noise. The button carries the state for as long as it lasts, and the note at the
+     foot of the page holds the detail — so say where to look. */
+  if (first) window.toast('⚠️ Not syncing — see the note at the foot of the page');
+}
+
+/* Called on every successful push, so recovery needs no intervention. */
+function clearSyncError() {
+  if (!syncError) return;
+  syncError = null;
+  updateUI();
+  window.toast('Syncing again ☁️');
+}
+
 function updateUI() {
-  if (user) {
+  if (user && syncError) {
+    btn.textContent = '⚠️ Not syncing';
+    btn.title = syncError.reason + ' ' + syncError.fix;
+    privacyNote.textContent = `⚠️ Not syncing — ${syncError.reason} Everything is still saved in `
+      + `this browser, but your other devices aren’t getting it. ${syncError.fix}`;
+  } else if (user) {
     btn.textContent = `☁️ ${user.displayName ? user.displayName.split(' ')[0] : user.email}`;
     btn.title = 'Syncing across devices — tap to sign out';
     privacyNote.textContent = `☁️ Signed in as ${user.email} — your data syncs privately through your own Firebase account and still works offline.`;
@@ -1433,13 +1505,21 @@ async function startSync() {
         + 'to your other devices.');
       if (keep) {
         touchLocal();
-        pushNow().catch((e) => console.warn('push failed', e));
+        pushNow().catch(setSyncError);
         window.toast('Kept this device’s data');
         return;
       }
     }
     window.paptrackAdopt(r.items, r.updatedAt);
     window.toast('Synced from another device ☁️');
+  }, (e) => {
+    /* The second argument is not optional. A listener that errors is handed to this
+       callback and then DROPPED by Firestore — it never fires again. Without one,
+       losing permission or connectivity mid-session meant another device's updates
+       simply stopped arriving, with the button still saying "syncing". Same rule
+       as the sibling apps; this file was the last one still missing it. */
+    setSyncError(e);
+    unsub = null;
   });
 }
 
@@ -1459,13 +1539,16 @@ const forCloud = (v) => JSON.parse(JSON.stringify(v));
 async function pushNow() {
   if (!user) return;
   await F.setDoc(docRef(), { items: forCloud(window.paptrackGet()), updatedAt: localTs() || Date.now() });
+  /* The only thing that clears the warning — which is why there's no retry button:
+     the next save recovers the state on its own. */
+  clearSyncError();
 }
 
 /* Called by save() on every local change; debounced so rapid edits batch up. */
 window.cloudPush = () => {
   if (!user) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => { pushTimer = null; pushNow().catch((e) => console.warn('push failed', e)); }, 1200);
+  pushTimer = setTimeout(() => { pushTimer = null; pushNow().catch(setSyncError); }, 1200);
 };
 
 /* The debounce means "edit, then close the tab inside 1.2s" would leave the
