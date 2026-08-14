@@ -122,12 +122,18 @@
   .wrap { max-width: 760px; margin: 0 auto; padding: 16px 16px 24px; }
 
   /* ---- Header ---- */
-  header.top { display: flex; align-items: center; gap: 12px; padding: 6px 0 2px; }
-  .logo { width: 40px; height: 40px; border-radius: 11px; display: block;
+  /* Wraps, deliberately. Three controls plus the title do not fit across a phone,
+     and a header that overflows scrolls the WHOLE page sideways — so the buttons
+     drop to a line of their own rather than being pushed off the right edge. */
+  header.top { display: flex; align-items: center; gap: 12px; padding: 6px 0 2px; flex-wrap: wrap; }
+  .logo { width: 40px; height: 40px; border-radius: 11px; display: block; flex: none;
           border: 1px solid var(--hairline); }
   .title h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
   .title p { margin: 0; font-size: 0.8rem; color: var(--ink-2); }
-  .top .spacer { flex: 1; }
+  /* margin-left:auto rather than a flexible spacer: a spacer would sit on the
+     first line and strand the buttons at the left edge of the second. */
+  .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+                 justify-content: flex-end; margin-left: auto; }
   .theme-sel {
     border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
     border-radius: 12px; height: 40px; padding: 0 10px; font-size: 0.85rem; cursor: pointer;
@@ -221,6 +227,11 @@
   }
   .act:hover { border-color: var(--muted); }
   .quad .act { width: 100%; text-align: center; font-size: 0.82rem; }
+  /* Destructive buttons. Same shape as every other button — only the colour differs,
+     from the existing --critical token, so nothing here diverges from the theme pack.
+     Mirrored in Sprint Predictability, Flow Metrics, Money Map and Golf Handicap. */
+  .act.danger { color: var(--critical); border-color: var(--critical); }
+  .act.danger:hover { background: var(--critical-bg); border-color: var(--critical); }
 
   /* ---- Empty state ---- */
   .empty { text-align: center; padding: 40px 12px; color: var(--ink-2); }
@@ -274,6 +285,27 @@
   .sec-card .field:last-child { margin-bottom: 0; }
   .sec-foot { font-size: 0.74rem; color: var(--muted); margin: 7px 0 0; padding-left: 2px; }
   .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+  /* ---- Back up & restore ---- */
+  dialog p.hint { font-size: 0.82rem; color: var(--ink-2); margin: 0 0 12px; }
+  .datarow { display: flex; gap: 10px; flex-wrap: wrap; }
+  /* "Start again" inside the backup dialog. Folded away deliberately: the one
+     irreversible action in the app should take a deliberate open, not sit a
+     mis-click away from the export. Same pattern in the sibling apps. */
+  details.danger-zone { margin-top: 16px; border-top: 1px solid var(--hairline); padding-top: 12px; }
+  details.danger-zone > summary {
+    cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--ink-2);
+  }
+  details.danger-zone > summary:hover { color: var(--ink); }
+  .warn { color: var(--critical); font-size: 0.82rem; margin: 0 0 12px; }
+  .warn:empty { display: none; }
+  /* The delete-all footer holds three buttons, and on a phone they don't fit
+     across one line: the safety net goes on a row of its own rather than
+     wrapping its own label in half beside the two answers. */
+  .clearfoot { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 14px; }
+  .clearfoot .safety { margin-right: auto; }
+  @media (max-width: 460px) {
+    .clearfoot .safety { flex: 1 0 100%; margin-right: 0; }
+  }
 
   /* ---- Footer ---- */
   footer { margin-top: 28px; font-size: 0.78rem; color: var(--muted); text-align: center; }
@@ -308,14 +340,19 @@
       <h1>PAPTrack</h1>
       <p>CPAP Supply Tracker</p>
     </div>
-    <div class="spacer"></div>
-    <button class="act" id="syncBtn" hidden>☁️ Sign in to sync</button>
-    <select class="theme-sel" id="themeSel" aria-label="Theme">
-      <option value="dark">☾ Dark</option>
-      <option value="light">☀️ Light</option>
-      <option value="midnight">✦ Midnight</option>
-      <option value="sepia">📜 Sepia</option>
-    </select>
+    <div class="top-actions">
+      <button class="act" id="syncBtn" hidden>☁️ Sign in to sync</button>
+      <!-- Backing up used to be two underlined links at the very foot of the page, which
+           is nowhere near where you look for it. It sits beside the other app-level
+           controls now, the same place every sibling app keeps it. -->
+      <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data">Back up</button>
+      <select class="theme-sel" id="themeSel" aria-label="Theme">
+        <option value="dark">☾ Dark</option>
+        <option value="light">☀️ Light</option>
+        <option value="midnight">✦ Midnight</option>
+        <option value="sepia">📜 Sepia</option>
+      </select>
+    </div>
   </header>
 
   <!-- Each tile's three visible parts are decorative to a screen reader on their own — the
@@ -372,11 +409,6 @@
 
   <footer>
     <div id="privacyNote">🔒 100% private — everything is stored only in this browser. No account, no server, works offline.</div>
-    <div class="links">
-      <button id="exportBtn">Export backup</button>
-      <button id="importBtn">Import backup</button>
-      <input type="file" id="importFile" accept=".json,application/json" aria-label="Choose a backup file" hidden>
-    </div>
     <div class="insurance">💡 <strong>Resupply tip:</strong> most insurance carriers require PAP adherence data before covering replacement supplies, and coverage varies by plan (copays and deductibles apply). Using distilled water and emptying the humidifier chamber every morning extends its life.</div>
   </footer>
 </div>
@@ -473,6 +505,48 @@
       <button type="submit" class="btn" id="saveBtn">Save</button>
     </div>
   </form>
+</dialog>
+
+<!-- ── Back up / restore, opened from the header ─────────────────────────────── -->
+<dialog id="dataDialog" aria-labelledby="dataDialogTitle">
+  <h2 id="dataDialogTitle">Back Up &amp; Restore</h2>
+  <p class="hint">One JSON file holding every supply, its schedule and its spares count — a
+    copy you keep, independent of this browser and of any Google account. With no account
+    needed to use PAPTrack, clearing your browser data is the one thing that will lose it.</p>
+  <div class="datarow">
+    <button type="button" class="act" id="exportBtn">⬇︎ Download backup (JSON)</button>
+    <button type="button" class="act" id="importBtn">⬆︎ Restore from backup</button>
+    <input type="file" id="importFile" accept=".json,application/json" aria-label="Choose a backup file" hidden>
+  </div>
+  <p class="hint" style="margin-top:12px">Restoring <strong>replaces every supply in this
+    browser</strong>. You're told what the file holds and asked to confirm first — and if
+    you're signed in, the restored copy becomes the one your other devices get.</p>
+  <details class="danger-zone">
+    <summary>Start Again</summary>
+    <p class="hint" style="margin-top:10px">Deletes every supply in this browser. Your theme
+      is kept.</p>
+    <div class="datarow">
+      <button type="button" class="act danger" id="clearBtn">Delete all data</button>
+    </div>
+  </details>
+  <div class="formfoot">
+    <button type="button" class="btn" id="dataCloseBtn">Done</button>
+  </div>
+</dialog>
+
+<!-- ── Confirming a delete-all ───────────────────────────────────────────────
+     Its own dialog rather than a confirm(): this is the one action with no way
+     back, so it gets room to say exactly how much is going, whether it reaches
+     the other devices, and to offer the backup that is the only route back. -->
+<dialog id="clearDialog" aria-labelledby="clearTitle">
+  <h2 id="clearTitle">Delete All Data?</h2>
+  <p class="hint" id="clearBody"></p>
+  <p class="warn" id="clearSyncWarn" role="status"></p>
+  <div class="clearfoot">
+    <button type="button" class="act safety" id="clearBackupBtn">⬇︎ Download backup first</button>
+    <button type="button" class="act" id="clearCancel">Cancel</button>
+    <button type="button" class="act danger" id="clearConfirm">Delete everything</button>
+  </div>
 </dialog>
 
 <dialog id="syncChoiceDialog">
@@ -1031,14 +1105,17 @@ $('cancelBtn').addEventListener('click', () => dlg.close());
    or scrollbar, so test the pointer against the dialog's box rather than trusting the target. Both
    the press and the release have to land outside, so dragging a selection out of a field (or letting
    go off-target) doesn't throw the edits away. */
-const outsideForm = (e) => {
-  if (e.target !== dlg) return false;
-  const r = dlg.getBoundingClientRect();
-  return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
-};
-let pressBeganOutsideForm = false;
-dlg.addEventListener('pointerdown', (e) => { pressBeganOutsideForm = outsideForm(e); });
-dlg.addEventListener('click', (e) => { if (pressBeganOutsideForm && outsideForm(e)) dlg.close(); });
+function closeOnBackdropClick(d) {
+  const outside = (e) => {
+    if (e.target !== d) return false;
+    const r = d.getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  let pressBeganOutside = false;
+  d.addEventListener('pointerdown', (e) => { pressBeganOutside = outside(e); });
+  d.addEventListener('click', (e) => { if (pressBeganOutside && outside(e)) d.close(); });
+}
+closeOnBackdropClick(dlg);
 $('itemForm').addEventListener('submit', () => {
   const presetKey = editingId ? null : $('fPreset').value;
   const preset = presetKey ? PRESETS.find(p => p.key === presetKey) : null;
@@ -1108,12 +1185,28 @@ $('themeSel').addEventListener('change', (e) => {
   localStorage.setItem('pap-theme', e.target.value);
 });
 
-/* ---------------- Backup ---------------- */
-$('exportBtn').addEventListener('click', () => {
+/* ---------------- Backup ----------------
+   Reached from the header's "Back up" button rather than from two links at the
+   foot of the page. Restoring and deleting everything belong beside the export
+   that is the only way back from either, and the foot of the page is nowhere
+   near where anyone looks for them. */
+const dataDialog = $('dataDialog');
+$('dataBtn').addEventListener('click', () => dataDialog.showModal());
+$('dataCloseBtn').addEventListener('click', () => dataDialog.close());
+/* Both dismiss on a backdrop click, like the item form. `syncChoiceDialog` is
+   deliberately left out: picking which copy of your supplies survives has to be
+   a choice, not something you can click past by accident. */
+closeOnBackdropClick(dataDialog);
+
+/* Its own function because the delete-all dialog offers the same download as its
+   safety net — one press away from losing everything is exactly when a backup is
+   worth taking. */
+function downloadBackup() {
   const blob = new Blob([JSON.stringify({ app: 'paptrack', version: 1, exported: new Date().toISOString(), items }, null, 2)], { type: 'application/json' });
   downloadBlob(blob, `paptrack-backup-${toISO(today())}.json`);
   toast('Backup downloaded');
-});
+}
+$('exportBtn').addEventListener('click', downloadBackup);
 $('importBtn').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', async (e) => {
   const file = e.target.files[0];
@@ -1129,12 +1222,53 @@ $('importFile').addEventListener('change', async (e) => {
     if (!confirm(`Replace your ${items.length} item${items.length === 1 ? '' : 's'} with ${incoming.length} from the backup?`)) return;
     items = incoming;
     save(); render();
+    dataDialog.close();
     toast(dropped ? `Backup restored — ${dropped} unreadable item${dropped === 1 ? '' : 's'} skipped` : 'Backup restored');
   } catch {
     toast('Could not read that backup file');
   } finally {
     e.target.value = '';
   }
+});
+
+/* ---------------- Delete all data ----------------
+   Folded behind "Start again" in the backup dialog and confirmed in a dialog of
+   its own, because it is the only action here with nothing behind it but a
+   backup file. The theme survives: it lives under its own `pap-theme` key rather
+   than with the items, and someone starting fresh is not asking to lose it. */
+const clearDialog = $('clearDialog');
+closeOnBackdropClick(clearDialog);
+
+$('clearBtn').addEventListener('click', () => {
+  /* Closed first rather than stacked: a confirmation is the whole screen's
+     business, and backing out of it should not drop you into the dialog you
+     started from as though nothing had been asked. */
+  dataDialog.close();
+  $('clearBody').textContent =
+    `This deletes ${items.length} suppl${items.length === 1 ? 'y' : 'ies'}, with every cleaning `
+    + `date, replacement date and spares count on them. Your theme is kept. There is no undo — `
+    + `a downloaded backup is the only way to get any of it back.`;
+  /* Said plainly, because "clear this browser" and "clear every device I own"
+     are very different acts and the button looks identical either way. */
+  const signedIn = typeof window.papSignedIn === 'function' && window.papSignedIn();
+  $('clearSyncWarn').textContent = signedIn
+    ? 'You are signed in, so this also clears the copy in your Google account. Your other devices will ask before clearing themselves.'
+    : '';
+  clearDialog.showModal();
+});
+
+$('clearBackupBtn').addEventListener('click', downloadBackup);
+$('clearCancel').addEventListener('click', () => clearDialog.close());
+$('clearConfirm').addEventListener('click', () => {
+  items = [];
+  save();                 // the one write path, so this pushes to the cloud too
+  /* …but save() debounces its push, and a delete must not sit in that window:
+     clearing then closing the tab inside 1.2s would leave the cloud copy intact,
+     to resurrect everything on the next sign-in. */
+  if (window.cloudFlush) window.cloudFlush();
+  clearDialog.close();
+  render();
+  toast('Everything deleted — starting fresh');
 });
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
@@ -1230,6 +1364,11 @@ if (FIREBASE_CONFIG && !inTestHarness) {
 }
 
 let A, F, auth, db, user = null, unsub = null, pushTimer = null, tokenClient = null;
+
+/* The classic script above can't see `user` (this is a module), and the
+   delete-all dialog has to tell the truth about whether deleting reaches the
+   user's other devices. Same hook as Golf Handicap's ghSignedIn. */
+window.papSignedIn = () => !!user;
 
 /* Google's sign-in client is a classic script, not a module — it hangs
    window.google off the page once it's in. Resolves as soon as that's true.
@@ -1566,7 +1705,18 @@ window.cloudPush = () => {
   pushTimer = setTimeout(() => { pushTimer = null; pushNow().catch(setSyncError); }, 1200);
 };
 
-/* The debounce means "edit, then close the tab inside 1.2s" would leave the
+/* Skips the debounce. "Delete all data" calls this so the cleared list reaches
+   the cloud before the tab can be closed — otherwise the next sign-in would pour
+   everything straight back. */
+window.cloudFlush = () => {
+  if (!user) return;
+  clearTimeout(pushTimer);
+  pushTimer = null;
+  pushNow().catch(setSyncError);
+};
+
+/* The same window, closed for ordinary edits too. The debounce means "edit, then
+   close the tab inside 1.2s" would leave the
    push scheduled but never sent — localStorage has the change, the cloud
    doesn't, and the other devices stay stale until the NEXT edit on this one.
    Flush a pending push the moment the page is hidden; pagehide too, for the
