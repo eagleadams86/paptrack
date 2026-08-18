@@ -306,6 +306,10 @@
   /* ---- Footer ---- */
   footer { margin-top: 28px; font-size: 0.78rem; color: var(--text-muted); text-align: center; }
   footer .links { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
+  /* Same padded target as the buttons below — a hairline footer link is no easier
+     to hit than a hairline footer button. */
+  footer .links a { color: var(--accent); padding: 6px 10px; min-height: 32px;
+    display: inline-flex; align-items: center; }
   /* Padded out to clear the 24×24 minimum target size — these are the only route to a
      backup, so they need to be comfortably tappable rather than hairline-thin links. */
   footer button {
@@ -405,6 +409,7 @@
 
   <footer>
     <div id="privacyNote">🔒 100% private — everything is stored only in this browser. No account, no server, works offline.</div>
+    <div class="links"><a href="https://github.com/eagleadams86/paptrack" target="_blank" rel="noopener noreferrer">How it works</a></div>
     <div class="insurance">💡 <strong>Resupply tip:</strong> most insurance carriers require PAP adherence data before covering replacement supplies, and coverage varies by plan (copays and deductibles apply). Using distilled water and emptying the humidifier chamber every morning extends its life.</div>
   </footer>
 </div>
