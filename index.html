@@ -1539,7 +1539,7 @@ function updateUI() {
   } else if (user) {
     btn.textContent = `☁️ ${user.displayName ? user.displayName.split(' ')[0] : user.email}`;
     btn.title = 'Syncing across devices — tap to sign out';
-    privacyNote.textContent = `☁️ Signed in as ${user.email} — your data syncs privately through your own Firebase account and still works offline.`;
+    privacyNote.textContent = `☁️ Signed in as ${user.email} — your data syncs privately to your own account and still works offline.`;
   } else {
     btn.textContent = '☁️ Sign in to sync';
     btn.title = 'Sign in with Google to see the same data on all your devices';
