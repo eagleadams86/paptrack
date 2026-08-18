@@ -246,8 +246,11 @@ if (LOCAL_HOSTS.includes(location.hostname)) {
   if (!onDisk) td.querySelector('strong').textContent = location.hostname;
   tr.appendChild(td);
   document.getElementById('out').appendChild(tr);
-}
+  /* Only where the suite itself can't run: on localhost the CI row would sit
+     above the live results — and CI's scraper counts every tr.fail on the page,
+     so a red *previous* run rendered here could fail a green suite. */
   showLatestRun();
+}
 
 
 /* ── The scorecard, where the suite itself can't run ─────────────────────────

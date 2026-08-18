@@ -23,7 +23,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.github.com https://accounts.google.com; frame-src https://accounts.google.com; base-uri 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PAPTrack — CPAP supply, cleaning & reorder tracker</title>
-<meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server — your data never leaves this device.">
+<meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server of ours — your data stays on this device unless you sign in to sync.">
 <!-- The standard name is mobile-web-app-capable; Chrome warns that the apple-
      prefixed one is deprecated. Both stay: older iOS reads only the apple- one. -->
 <meta name="mobile-web-app-capable" content="yes">
@@ -416,7 +416,7 @@
 <button class="btn fab" id="addBtn">+ Add supply</button>
 <div class="toast" id="toast" role="status"></div>
 
-<dialog id="formDialog">
+<dialog id="formDialog" aria-labelledby="formTitle">
   <h2 id="formTitle">Add Supply</h2>
   <form id="itemForm" method="dialog">
     <!-- These three sections have a heading instead of a <label>, so the control points at
@@ -549,8 +549,8 @@
   </div>
 </dialog>
 
-<dialog id="syncChoiceDialog">
-  <h2>Which Data Do You Want to Keep?</h2>
+<dialog id="syncChoiceDialog" aria-labelledby="syncChoiceTitle">
+  <h2 id="syncChoiceTitle">Which Data Do You Want to Keep?</h2>
   <p id="syncChoiceBody" style="color:var(--ink-2); font-size:0.88rem; margin:0 0 16px;"></p>
   <div class="formfoot">
     <button type="button" class="act" id="syncKeepDeviceBtn">Keep this device</button>
@@ -807,7 +807,11 @@ function matches(it) {
   }
 }
 
+/* The day the list was last rendered for — read by the visibilitychange
+   handler below to catch a tab crossing midnight. */
+let lastRenderDay = null;
 function render() {
+  lastRenderDay = toISO(today());
   const has = items.length > 0;
   $('stats').hidden = !has;
   $('toolbar').hidden = !has;
@@ -1123,14 +1127,18 @@ $('itemForm').addEventListener('submit', () => {
   // pins anything ahead of today back to today even if the browser let it through.
   const iso = toISO(today());
   const notFuture = (v) => (v && v > iso ? iso : v);
+  // Same ranges as normalizeItem: the min=/max= attributes are only advisory for
+  // typed input in some engines, and an out-of-range value would otherwise live
+  // in memory (and sync) until the next load repairs it.
+  const clampInt = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
   const data = {
     name: $('fName').value.trim() || 'Untitled',
-    cleanDays: Math.max(0, Number($('fClean').value) || 0),
+    cleanDays: clampInt($('fClean').value, 0, 365),
     lastCleaned: notFuture($('fLastClean').value) || null,
-    replaceDays: Math.max(0, Number($('fReplace').value) || 0),
+    replaceDays: clampInt($('fReplace').value, 0, 1095),
     lastReplaced: notFuture($('fLast').value) || iso,
-    stock: Math.max(0, Number($('fStock').value) || 0),
-    lowAt: Math.max(0, Number($('fLowAt').value) || 0),
+    stock: clampInt($('fStock').value, 0, 99),
+    lowAt: clampInt($('fLowAt').value, 0, 20),
     notes: $('fNotes').value.trim(),
   };
   if (editingId) {
@@ -1275,10 +1283,35 @@ $('clearConfirm').addEventListener('click', () => {
 window.paptrackGet = () => items;
 window.paptrackAdopt = (newItems, ts) => {
   items = normalizeItems(newItems);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  localStorage.setItem('pap-updated', String(ts || Date.now()));
+  /* Guarded like save(): a quota/private-mode throw here would otherwise escape
+     into the onSnapshot callback and skip render(), leaving the adopted copy
+     invisible. The in-memory list is good either way. */
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem('pap-updated', String(ts || Date.now()));
+  } catch (e) {
+    console.warn('Could not write synced data', e);
+    toast('⚠️ This browser is blocking storage (full, or private mode?) — changes may be lost when the tab closes');
+  }
   render();
 };
+
+/* Another tab of this same browser writes localStorage directly, and the write
+   raises 'pap-updated' to the pushed timestamp — so the cloud snapshot's
+   newer-than-local guard would skip it and this tab would sit stale until
+   reload. The storage event only ever fires in the tabs that DIDN'T write. */
+window.addEventListener('storage', (e) => {
+  if (e.key !== STORAGE_KEY || e.newValue === null) return;
+  try { items = normalizeItems(JSON.parse(e.newValue)); } catch { return; }
+  render();
+});
+
+/* A tab left open past midnight keeps yesterday's badge colours, due counts and
+   "Mark replaced" buttons until something re-renders. Timers can be frozen in a
+   hidden tab, so check the wall clock when the tab comes back instead. */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && lastRenderDay !== toISO(today())) render();
+});
 
 fillPresetOptions();
 render();
@@ -1643,6 +1676,12 @@ async function startSync() {
     await pushNow();
   }
   localStorage.setItem('pap-sync-uid', user.uid);
+  attachSnapshot();
+}
+
+/* The live listener, its own function because startSync is not its only caller:
+   once the error callback drops it, the next successful pushNow() re-attaches. */
+function attachSnapshot() {
   unsub = F.onSnapshot(docRef(), (s) => {
     if (s.metadata.hasPendingWrites || !s.exists()) return;
     const r = s.data();
@@ -1693,6 +1732,10 @@ const forCloud = (v) => JSON.parse(JSON.stringify(v));
 async function pushNow() {
   if (!user) return;
   await F.setDoc(docRef(), { items: forCloud(window.paptrackGet()), updatedAt: localTs() || Date.now() });
+  /* A dropped listener is re-attached on the same success that clears the
+     warning — without this, "Syncing again" would be true of pushes while
+     other devices' updates were still arriving nowhere. */
+  if (!unsub) attachSnapshot();
   /* The only thing that clears the warning — which is why there's no retry button:
      the next save recovers the state on its own. */
   clearSyncError();
