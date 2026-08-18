@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="midnight">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAPTrack — Privacy Policy</title>
+<link rel="icon" href="favicon.ico?v=1">
+<script>
+  /* The same pre-paint boot as index.html: honour the saved theme, so this page
+     doesn't open midnight on someone who chose Light. Keep the list in step
+     with the app's. */
+  try {
+    var t = localStorage.getItem('pap-theme');
+    var ok = ['light','dark','midnight','sepia'];
+    document.documentElement.setAttribute('data-theme',
+      ok.indexOf(t) === -1 ? 'midnight' : t);
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="theme.css">
+<style>
+  body { margin: 0; background: var(--bg); color: var(--text-primary);
+         font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 44px 20px 80px; }
+  h1 { font-size: 22px; margin: 0 0 2px; }
+  .meta { color: var(--text-muted); font-size: 13px; margin: 0 0 26px; }
+  h2 { font-size: 17px; margin: 30px 0 8px; }
+  p, li { color: var(--text-secondary); }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--focus-border); outline-offset: 2px; border-radius: 3px; }
+  .card { background: var(--surface); border: 1px solid var(--border);
+          border-radius: 12px; padding: 16px 20px; margin: 14px 0; }
+  .card p { margin: 0; }
+  .card strong { color: var(--text-primary); }
+  ul { padding-left: 20px; }
+  .back { display: inline-block; margin-bottom: 26px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Back to PAPTrack</a>
+  <h1>PAPTrack — Privacy Policy</h1>
+  <p class="meta">Effective August 18, 2026</p>
+
+  <p>PAPTrack is built to work entirely in your browser. This page explains exactly what data
+  exists, where it goes, and who can see it. It covers the web app at
+  eagleadams86.github.io/paptrack; the iOS app has
+  <a href="https://eagleadams86.github.io/paptrack-support/privacy.html">its own policy</a>.</p>
+
+  <h2>What PAPTrack Stores</h2>
+  <p>The only data the app holds is what you enter about your CPAP supplies: the item names
+  you choose, their cleaning and replacement cycles in days, the dates you last cleaned or
+  replaced each one, how many spares you have and the level at which you want to reorder —
+  plus your preferences (theme). There is no account, no profile and no usage tracking
+  required to use the app, and nothing about your therapy, your machine's data or your health
+  records is collected: PAPTrack never reads a CPAP device or an adherence report.</p>
+
+  <h2>Where That Data Lives</h2>
+  <div class="card">
+    <p><strong>In your browser (always).</strong> Everything is stored in your browser's
+    local storage on your own device. This is the only copy that exists if you never sign in.
+    Clearing the site's browser data deletes it.</p>
+  </div>
+  <div class="card">
+    <p><strong>Google sign-in / Firestore (optional, off until you choose it).</strong>
+    If you tap "Sign in to sync", your supply list is stored in a Firebase/Firestore database
+    operated by the developer so the same list can appear on your other devices, and Firebase
+    Authentication records your Google account's email address and display name. Access rules
+    restrict every account to its own data — other signed-in users cannot read yours. This
+    only happens if you sign in; the app never does it on its own.</p>
+  </div>
+  <div class="card">
+    <p><strong>Backups and reminders stay on your device.</strong> A backup file downloads
+    straight to your device and is never uploaded anywhere. A calendar reminder is built in
+    the page and handed to your own calendar app — no server is involved in either.</p>
+  </div>
+
+  <h2>What PAPTrack Does Not Do</h2>
+  <ul>
+    <li>No analytics or usage-tracking scripts</li>
+    <li>No advertising or ad networks</li>
+    <li>No selling or sharing data with third parties</li>
+    <li>No third-party code at all beyond Google's own sign-in and Firebase clients, and
+        those load only when you choose to sign in</li>
+  </ul>
+
+  <h2>Your Choices</h2>
+  <p>You can edit or delete anything in the app at any time — "Start again", inside the Back
+  up dialog, removes everything at once. Signing out stops all syncing and leaves the local
+  copy in charge. To have your synced copy deleted from the developer's Firestore database,
+  email <a href="mailto:eagleadams86@gmail.com">eagleadams86@gmail.com</a> and it will be
+  removed.</p>
+
+  <h2>Changes to This Policy</h2>
+  <p>If this policy changes, the updated version will be posted here with a new effective
+  date.</p>
+
+  <h2>Contact</h2>
+  <p><a href="mailto:eagleadams86@gmail.com">eagleadams86@gmail.com</a></p>
+</div>
+</body>
+</html>

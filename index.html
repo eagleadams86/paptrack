@@ -7,8 +7,8 @@
      opened via file://). 'unsafe-inline' is unavoidable: the app is inline script
      and style by design, with no build step to generate hashes. The real value is
      the host allowlists — script only from this page and Firebase's CDN, network
-     calls only to the Firebase endpoints sync actually uses plus the GitHub API
-     (changelog), frames only from Google's sign-in and this app's Firebase auth
+     calls only to the Firebase endpoints sync actually uses, frames only from
+     Google's sign-in and this app's Firebase auth
      helper. form-action is 'self' rather than 'none' because the add/edit form
      submits with method="dialog", which some browsers have historically checked
      against form-action; 'self' keeps it working everywhere while still blocking
@@ -20,7 +20,7 @@
      foot of the file). firebaseapp.com and apis.google.com are deliberately NOT
      here: they served Firebase's hosted popup, which this app no longer uses —
      the same as the three sibling web apps. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://api.github.com https://accounts.google.com; frame-src https://accounts.google.com; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; base-uri 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PAPTrack — CPAP supply, cleaning & reorder tracker</title>
 <meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server of ours — your data stays on this device unless you sign in to sync.">
@@ -313,6 +313,9 @@
      starts flush with the note above it. */
   footer .links a { color: var(--accent); padding: 6px 10px 6px 0; min-height: 32px;
     display: inline-flex; align-items: center; }
+  footer .copyright { margin-top: 4px; }
+  footer .copyright a { color: var(--text-muted); text-decoration: underline; }
+  footer .copyright a:hover { color: var(--text-secondary); }
   /* Padded out to clear the 24×24 minimum target size — these are the only route to a
      backup, so they need to be comfortably tappable rather than hairline-thin links. */
   footer button {
@@ -412,7 +415,13 @@
 
   <footer>
     <div id="privacyNote">🔒 100% private — everything is stored only in this browser. No account, no server, works offline.</div>
-    <div class="links"><a href="https://github.com/eagleadams86/paptrack" target="_blank" rel="noopener noreferrer">How it works</a></div>
+    <div class="links"><a href="privacy.html">Privacy policy</a>
+      <a href="https://github.com/eagleadams86/paptrack" target="_blank" rel="noopener noreferrer">How it works</a></div>
+    <!-- Authorship line, mirroring the sibling apps. Its own element, not part of
+         #privacyNote, whose textContent the sync code rewrites. -->
+    <div class="copyright">&copy; 2026 Charles Adams — an independent personal project,
+      <a href="https://github.com/eagleadams86/paptrack/blob/main/LICENSE"
+         target="_blank" rel="noopener noreferrer">MIT licensed</a>.</div>
     <div class="insurance">💡 <strong>Resupply tip:</strong> most insurance carriers require PAP adherence data before covering replacement supplies, and coverage varies by plan (copays and deductibles apply). Using distilled water and emptying the humidifier chamber every morning extends its life.</div>
   </footer>
 </div>
@@ -562,53 +571,11 @@
   </div>
 </dialog>
 
-<details class="changelog" id="cl-box">
-  <summary>Recent Changes</summary>
-  <ol id="cl-list"><li>Loading&hellip;</li></ol>
-</details>
 
 <style>
-.changelog{max-width:760px;margin:8px auto 0;padding:0 20px 96px;font-size:12.5px;color:var(--text-muted)}
 /* No opacity dimming here — it stacked on top of an already-muted colour and pushed the
    summary and dates down to ~2:1 in the light palettes. Colour alone carries the hierarchy. */
-.changelog summary{cursor:pointer;user-select:none;padding:4px 0}
-.changelog summary:hover{color:var(--text-secondary)}
-.changelog ol{list-style:none;margin:10px 0 0;padding:0}
-.changelog li{display:flex;gap:10px;padding:3px 0;align-items:baseline}
-.cl-date{white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0}
-.changelog a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--border)}
-.changelog a:hover{color:var(--text-primary)}
 </style>
-<script>
-/* "Recent changes": on first open, fetch this file's last 10 commit subjects from
-   the GitHub API. Commit subjects are user-facing here — see CLAUDE.md. */
-(function(){
-  var box=document.getElementById('cl-box'),loaded=false;
-  box.addEventListener('toggle',function(){
-    if(!box.open||loaded)return;loaded=true;
-    var list=document.getElementById('cl-list');
-    fetch('https://api.github.com/repos/eagleadams86/paptrack/commits?path=index.html&per_page=10')
-      .then(function(r){if(!r.ok)throw new Error('http');return r.json();})
-      .then(function(cs){
-        list.innerHTML='';
-        if(!cs.length){list.innerHTML='<li>No changes recorded yet.</li>';return;}
-        cs.forEach(function(c){
-          var li=document.createElement('li');
-          var d=document.createElement('span');d.className='cl-date';
-          d.textContent=new Date(c.commit.author.date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
-          // Only accept a real github.com https link — never trust a URL from
-          // the API blindly, or a javascript: href would run on click.
-          var url=String(c.html_url||'');
-          var a=document.createElement(/^https:\/\/github\.com\//.test(url)?'a':'span');
-          if(a.tagName==='A'){a.href=url;a.target='_blank';a.rel='noopener noreferrer';}
-          a.textContent=c.commit.message.split('\n')[0];
-          li.appendChild(d);li.appendChild(a);list.appendChild(li);
-        });
-      })
-      .catch(function(){list.innerHTML='<li>Changelog unavailable right now (offline?).</li>';});
-  });
-})();
-</script>
 
 <script>
 'use strict';

@@ -144,6 +144,14 @@ The suite also runs on every push: [`.github/workflows/tests.yml`](.github/workf
 
 ---
 
-## Recent Changes Feed
+## Privacy Policy
 
-The in-app "Recent changes" panel fetches this repo's last 10 commits for `index.html` from the GitHub API. **Commit subjects are user-facing** — write them in plain English a non-developer can read (what changed and why it matters, not implementation detail).
+[`privacy.html`](privacy.html) is the web app's privacy policy, linked from the footer — what
+the app stores, what the optional Google sign-in puts in Firestore, and how to have a synced
+copy deleted. It exists because other people can sign in with their own Google accounts. The
+iOS app has its own policy in the [paptrack-support](https://github.com/eagleadams86/paptrack-support)
+repo; if what either app stores changes, update both in the same commit.
+
+## Commit Messages
+
+Commit subject lines are written in plain English a non-developer can read (what changed and why it matters, not implementation detail). The in-app "Recent changes" panel that listed them was removed in August 2026, along with the GitHub API entry in the page's CSP.
