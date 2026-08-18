@@ -4,7 +4,7 @@
 
 PAPTrack keeps CPAP supplies on schedule three ways at once: **cleaning** (daily/weekly reminders), **replacement** (countdowns per the standard DME schedule), and **inventory** (spares on hand with reorder flags). Built from a supplier's "clean & replace your equipment" flyer.
 
-This is the **web version** — the whole app in a single self-contained `index.html`. Open it directly in a browser (`file://` works) or use the live link above. No build step, and no account is ever required (an optional Google sign-in adds cross-device sync — see below).
+This is the **web version** — `index.html` plus `theme.css` (the shared palette, copied from the private theme pack so every app in the family reads the same file). Use the live link above, or serve the folder locally; the two files have to sit together, so opening the HTML straight off disk without `theme.css` beside it gives an unstyled page. No build step, and no account is ever required (an optional Google sign-in adds cross-device sync — see below).
 
 ### The PAPTrack Family
 
@@ -119,7 +119,8 @@ A remedy that destroys data is never the guess.
 
 ```
 GitHub Pages (static hosting, this repo, main branch)
-    └── index.html — single file; loads the Firebase SDK from gstatic.com
+    ├── index.html — the app; loads the Firebase SDK from gstatic.com
+    └── theme.css — shared palette, copied from the private theme pack
             ├── all state ──► browser localStorage (source of truth, works offline)
             └── signed in ──► Firestore doc paptrack/{uid} (newer-wins by updatedAt,
                               with the empty-never-beats-data guard; live onSnapshot

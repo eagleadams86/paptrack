@@ -57,53 +57,49 @@
     document.documentElement.setAttribute('data-theme', t);
   })();
 </script>
+<!-- The palette is the theme pack's generated file, LINKED. It must come before
+     the app's own <style>, which overrides --shadow and adds --ring. -->
+<link rel="stylesheet" href="theme.css">
 <style>
-  /* Themes — values transcribed from the unified theme pack (tokens.json in the
-     private claude-theme-pack repo, the source of truth for every app's palette;
-     this app keeps them inline because it must work via file://). Token mapping:
-     page←bg, surface←surface, chip-bg←surfaceAlt, ink←textPrimary, ink-2←textSecondary,
-     muted←textMuted, hairline←border, good/warning/serious/critical←ok/warn/serious/err.
-     The pack's gate verifies every one of these at WCAG AA 4.5:1 on page, surface AND
-     chip-bg — don't retune values here; change the pack and re-transcribe. Midnight is
-     the default; the :root block must stay first so the others can override it. */
-  :root, [data-theme="midnight"] {
-    --page: #0a0e1a; --surface: #121829; --ink: #e7eaf6; --ink-2: #aab2d0; --muted: #838cab;
-    --hairline: #262f4a; --ring: rgba(129,140,248,0.28);
-    --accent: #818cf8; --accent-ink: #0a0e1a;
-    --good: #72fe84; --warning: #efbe39; --serious: #f79b5c; --critical: #fb7874;
-    --good-bg: #1e3635; --warning-bg: #322c1b;
-    --serious-bg: #32241b; --critical-bg: #321b1b;
-    --chip-bg: #1b2238; --shadow: 0 1px 3px rgba(0,0,0,0.5);
-  }
-  /* Dark — neutral dark with a blue/slate tint (formerly called Slate) */
-  [data-theme="dark"] {
-    --page: #13151b; --surface: #1c1f27; --ink: #eef0f5; --ink-2: #adb1bd; --muted: #9396a3;
-    --hairline: #2d313b; --ring: rgba(238,240,245,0.16);
-    --accent: #eef0f5; --accent-ink: #13151b;
-    --good: #72fe84; --warning: #efbe39; --serious: #f79b5c; --critical: #fb7874;
-    --good-bg: #273c33; --warning-bg: #322c1b;
-    --serious-bg: #32241b; --critical-bg: #321b1b;
-    --chip-bg: #262a33; --shadow: 0 1px 3px rgba(0,0,0,0.5);
-  }
-  [data-theme="light"] {
-    --page: #f5f5f3; --surface: #ffffff; --ink: #111110; --ink-2: #555551; --muted: #656562;
-    --hairline: #e0e0dd; --ring: rgba(38,109,195,0.30);
-    --accent: #266dc3; --accent-ink: #ffffff;
-    --good: #0b7a67; --warning: #7e6a07; --serious: #995c33; --critical: #8f1e2a;
-    --good-bg: #bcfee8; --warning-bg: #fff0b2;
-    --serious-bg: #fff1e8; --critical-bg: #ffc9bf;
-    --chip-bg: #f0f0ee; --shadow: 0 1px 3px rgba(17,17,16,0.06), 0 4px 14px rgba(17,17,16,0.05);
-  }
-  /* Sepia — warm paper light theme */
-  [data-theme="sepia"] {
-    --page: #f3ead7; --surface: #fbf5e7; --ink: #3a3020; --ink-2: #5e5039; --muted: #6a5e46;
-    --hairline: #e0d3b4; --ring: rgba(58,48,32,0.14);
-    --accent: #3a3020; --accent-ink: #fbf5e7;
-    --good: #087256; --warning: #746206; --serious: #915430; --critical: #8b232d;
-    --good-bg: #bcfee8; --warning-bg: #fff0b2;
-    --serious-bg: #fee3d0; --critical-bg: #ffc9bf;
-    --chip-bg: #eee2c9; --shadow: 0 1px 3px rgba(58,48,32,0.08), 0 4px 14px rgba(58,48,32,0.06);
-  }
+  /* ── Palette ──────────────────────────────────────────────────────────────
+     LINKED from `theme.css`, copied byte-for-byte out of the private
+     claude-theme-pack repo — the source of truth for every app's palette, and
+     the same file Financial Plan, Sprint Velocity, Flow Metrics, the lottery
+     apps and Golf Handicap now read.
+
+     Until 2026-08-18 the values were TRANSCRIBED into this block, under the
+     app's own names (--bg, --text-primary, --border, --ok/--warn/--err),
+     so that index.html would stand alone via file://. Both halves of that were
+     reversed on the user's call: the file is linked, and every token now uses
+     the PACK'S name, so this app and the pack can be diffed line for line
+     instead of through a mapping table kept in a comment. The mapping applied,
+     for anyone reading an old commit: page→bg, ink→text-primary,
+     ink-2→text-secondary, muted→text-muted, hairline→border,
+     accent-ink→on-accent, chip-bg→surface-alt, good→ok, warning→warn,
+     critical→err, and each of their -bg partners. --serious/--serious-bg were
+     defined here and never used; the pack supplies them now.
+
+     THE COST, so nobody rediscovers it: **index.html is no longer
+     self-contained.** `theme.css` has to sit beside it, and opening the HTML
+     off disk without it gives an unstyled page. Don't re-inline the palette to
+     "restore" the single file — the alignment is the point.
+
+     Never retune a colour here or there: change the pack's tokens.json, run its
+     check_contrast.py gate, rebuild, and re-copy into every app.
+  ─────────────────────────────────────────────────────────────────────────── */
+  /* The two this app owns. --ring has no pack equivalent. --shadow deliberately
+     OVERRIDES the pack's: a tighter single shadow, which is what this app's
+     cards have always used — a pre-existing divergence, kept on purpose and
+     kept visible by sitting here rather than being silently inherited away. */
+  :root, [data-theme="midnight"] { --ring: rgba(129,140,248,0.28);
+    --shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  [data-theme="dark"] { --ring: rgba(238,240,245,0.16);
+    --shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  [data-theme="light"] { --ring: rgba(38,109,195,0.30);
+    --shadow: 0 1px 3px rgba(17,17,16,0.06), 0 4px 14px rgba(17,17,16,0.05); }
+  [data-theme="sepia"] { --ring: rgba(58,48,32,0.14);
+    --shadow: 0 1px 3px rgba(58,48,32,0.08), 0 4px 14px rgba(58,48,32,0.06); }
+
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   /* Visible to screen readers only — carries the text equivalents for content that is
@@ -114,7 +110,7 @@
   }
   html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; background: var(--page); color: var(--ink);
+    margin: 0; background: var(--bg); color: var(--text-primary);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     line-height: 1.45;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -127,18 +123,18 @@
      drop to a line of their own rather than being pushed off the right edge. */
   header.top { display: flex; align-items: center; gap: 12px; padding: 6px 0 2px; flex-wrap: wrap; }
   .logo { width: 40px; height: 40px; border-radius: 11px; display: block; flex: none;
-          border: 1px solid var(--hairline); }
+          border: 1px solid var(--border); }
   .title h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
-  .title p { margin: 0; font-size: 0.8rem; color: var(--ink-2); }
+  .title p { margin: 0; font-size: 0.8rem; color: var(--text-secondary); }
   /* margin-left:auto rather than a flexible spacer: a spacer would sit on the
      first line and strand the buttons at the left edge of the second. */
   .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
                  justify-content: flex-end; margin-left: auto; }
   .theme-sel {
-    border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
     border-radius: 12px; height: 40px; padding: 0 10px; font-size: 0.85rem; cursor: pointer;
   }
-  .theme-sel:hover { border-color: var(--muted); }
+  .theme-sel:hover { border-color: var(--text-muted); }
   .theme-sel:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
 
   /* ---- Stat tiles ---- */
@@ -146,50 +142,50 @@
      each a category glyph + label, a count, and an emoji sub-line. Mirrors the iOS app. */
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
   .stat {
-    background: var(--surface); border: 1px solid var(--hairline); border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     padding: 10px; box-shadow: var(--shadow);
     display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
   }
-  .stat .label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
-  .stat .value { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
-  .stat .sub { font-size: 0.75rem; color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat .label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
+  .stat .value { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
+  .stat .sub { font-size: 0.75rem; color: var(--text-secondary); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- Toolbar ---- */
   .toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
   .search {
-    width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--hairline);
-    background: var(--surface); color: var(--ink); font-size: 0.95rem;
+    width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-primary); font-size: 0.95rem;
   }
   .search:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
   .filter-block { display: flex; flex-direction: column; gap: 4px; }
-  .filters-cap { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .filters-cap { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
   /* Three chips stretched full-width so the row never scrolls (matches iOS). */
   .filters { display: flex; gap: 6px; }
   .filter-chip {
-    flex: 1 1 0; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-2);
+    flex: 1 1 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
     padding: 6px 8px; border-radius: 12px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;
     text-align: center; overflow: hidden; text-overflow: ellipsis;
   }
-  .filter-chip[aria-pressed="true"] { background: var(--ink); color: var(--page); border-color: var(--ink); font-weight: 600; }
+  .filter-chip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); font-weight: 600; }
   .cleanall { align-self: flex-start; }
 
   /* ---- Cards ---- */
   .list { display: flex; flex-direction: column; gap: 12px; }
   .card {
-    background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
     padding: 14px 14px 12px; box-shadow: var(--shadow);
   }
   .card h3 { margin: 0; font-size: 1.02rem; }
-  .card .notes { font-size: 0.85rem; color: var(--ink-2); margin: 4px 0 0; }
+  .card .notes { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0; }
   /* 2×2 quadrant grid — cleaning · replacing · spares · manage — on chip-bg tiles, matching
      the iOS card. align-items:stretch keeps the two tiles in a row the same height. */
   .quadrants { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; align-items: stretch; }
   .quad {
-    background: var(--chip-bg); border-radius: 12px; padding: 10px;
+    background: var(--surface-alt); border-radius: 12px; padding: 10px;
     display: flex; flex-direction: column; gap: 8px;
   }
-  .quad-h { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-  .quad-line { font-size: 0.8rem; color: var(--ink-2); }
+  .quad-h { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .quad-line { font-size: 0.8rem; color: var(--text-secondary); }
   /* The 1.5px border is the badge's real status signal, not trim. The tint fills are pale
      washes built to sit behind text, and they barely differ from each other once red-green
      deficiency flattens them — 8.2 apart on the dark themes, 14.2 on the light ones, against
@@ -199,50 +195,50 @@
      Non-text contrast against the card runs 5.3-13.7, well over the 3:1 needed. */
   .badge {
     display: flex; align-items: flex-start; gap: 6px; font-size: 0.78rem; line-height: 16px; font-weight: 600;
-    padding: 6px 10px; border-radius: 14px; width: 100%; color: var(--ink);
+    padding: 6px 10px; border-radius: 14px; width: 100%; color: var(--text-primary);
     border: 1.5px solid transparent;
   }
   /* Center the dot on the first text line: (lineHeight − dotSize) / 2 = (16 − 8) / 2 = 4px.
      The border does not affect this — it offsets the dot and the text equally. */
   .badge .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; margin-top: 4px; }
-  .b-good { background: var(--good-bg); border-color: var(--good); } .b-good .dot { background: var(--good); }
-  .b-warning { background: var(--warning-bg); border-color: var(--warning); } .b-warning .dot { background: var(--warning); }
+  .b-good { background: var(--ok-bg); border-color: var(--ok); } .b-good .dot { background: var(--ok); }
+  .b-warning { background: var(--warn-bg); border-color: var(--warn); } .b-warning .dot { background: var(--warn); }
   /* "Serious" and "critical" deliberately share the red. Four severities do not fit: once the
      red-green axis is gone there is room for about three levels, and forcing a fourth put two
      of them 3 apart. Charles chose to merge them rather than keep a distinction he could not
      see. severity() still returns 'serious' as a separate tier, so the split can be restored
      by giving this rule its own colour again — the data never stopped carrying it. */
-  .b-serious, .b-critical { background: var(--critical-bg); border-color: var(--critical); }
-  .b-serious .dot, .b-critical .dot { background: var(--critical); }
-  .b-neutral { background: var(--chip-bg); border-color: var(--hairline); } .b-neutral .dot { background: var(--muted); }
+  .b-serious, .b-critical { background: var(--err-bg); border-color: var(--err); }
+  .b-serious .dot, .b-critical .dot { background: var(--err); }
+  .b-neutral { background: var(--surface-alt); border-color: var(--border); } .b-neutral .dot { background: var(--text-muted); }
   .stock { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .stock button {
-    width: 30px; height: 30px; border-radius: 12px; border: 1px solid var(--hairline);
-    background: var(--surface); color: var(--ink); font-size: 1rem; cursor: pointer; line-height: 1;
+    width: 30px; height: 30px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-primary); font-size: 1rem; cursor: pointer; line-height: 1;
   }
   .stock .count { font-weight: 700; min-width: 1.6ch; text-align: center; }
   .act {
-    border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
     padding: 8px 12px; border-radius: 12px; font-size: 0.85rem; cursor: pointer;
   }
-  .act:hover { border-color: var(--muted); }
+  .act:hover { border-color: var(--text-muted); }
   .quad .act { width: 100%; text-align: center; font-size: 0.82rem; }
   /* Destructive buttons. Same shape as every other button — only the colour differs,
-     from the existing --critical token, so nothing here diverges from the theme pack.
+     from the existing --err token, so nothing here diverges from the theme pack.
      Mirrored in Sprint Predictability, Flow Metrics, Money Map and Golf Handicap. */
-  .act.danger { color: var(--critical); border-color: var(--critical); }
-  .act.danger:hover { background: var(--critical-bg); border-color: var(--critical); }
+  .act.danger { color: var(--err); border-color: var(--err); }
+  .act.danger:hover { background: var(--err-bg); border-color: var(--err); }
 
   /* ---- Empty state ---- */
-  .empty { text-align: center; padding: 40px 12px; color: var(--ink-2); }
-  .empty .big { width: 72px; height: 72px; border-radius: 18px; display: inline-block; border: 1px solid var(--hairline); }
-  .empty h2 { color: var(--ink); margin: 8px 0 6px; }
+  .empty { text-align: center; padding: 40px 12px; color: var(--text-secondary); }
+  .empty .big { width: 72px; height: 72px; border-radius: 18px; display: inline-block; border: 1px solid var(--border); }
+  .empty h2 { color: var(--text-primary); margin: 8px 0 6px; }
   .empty p { font-size: 0.9rem; max-width: 44ch; margin: 0 auto 16px; }
   .empty .kits { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
   /* ---- Buttons / FAB ---- */
   .btn {
-    background: var(--accent); color: var(--accent-ink); border: none; font-weight: 700;
+    background: var(--accent); color: var(--on-accent); border: none; font-weight: 700;
     padding: 12px 18px; border-radius: 999px; font-size: 0.95rem; cursor: pointer;
   }
   .fab {
@@ -252,22 +248,22 @@
 
   /* ---- Dialog / form ---- */
   dialog {
-    border: 1px solid var(--hairline); border-radius: 18px; background: var(--page); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 18px; background: var(--bg); color: var(--text-primary);
     width: min(480px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
   }
   dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
   dialog h2 { margin: 0 0 12px; font-size: 1.1rem; }
   .field { margin-bottom: 12px; }
-  .field label { display: block; font-size: 0.78rem; color: var(--ink-2); margin-bottom: 4px; font-weight: 600; }
+  .field label { display: block; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
   .field input, .field select, .sec-card > input, .sec-card > select {
-    width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--hairline);
-    background: var(--page); color: var(--ink); font-size: 0.95rem;
+    width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text-primary); font-size: 0.95rem;
   }
   .field input:focus, .field select:focus,
   .sec-card > input:focus, .sec-card > select:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .quick button {
-    border: 1px solid var(--hairline); background: var(--chip-bg); color: var(--ink-2);
+    border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-secondary);
     padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; cursor: pointer;
   }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -276,27 +272,27 @@
      rounded card holding the fields, and a muted footer hint below it. */
   .formsec { margin-bottom: 16px; }
   .formsec .sec-h {
-    font-size: 0.95rem; color: var(--ink); font-weight: 700; margin: 0 0 8px; padding-left: 2px;
+    font-size: 0.95rem; color: var(--text-primary); font-weight: 700; margin: 0 0 8px; padding-left: 2px;
   }
   .sec-card {
-    background: var(--surface); border: 1px solid var(--hairline);
+    background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; padding: 12px;
   }
   .sec-card .field:last-child { margin-bottom: 0; }
-  .sec-foot { font-size: 0.74rem; color: var(--muted); margin: 7px 0 0; padding-left: 2px; }
+  .sec-foot { font-size: 0.74rem; color: var(--text-muted); margin: 7px 0 0; padding-left: 2px; }
   .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
   /* ---- Back up & restore ---- */
-  dialog p.hint { font-size: 0.82rem; color: var(--ink-2); margin: 0 0 12px; }
+  dialog p.hint { font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 12px; }
   .datarow { display: flex; gap: 10px; flex-wrap: wrap; }
   /* "Start again" inside the backup dialog. Folded away deliberately: the one
      irreversible action in the app should take a deliberate open, not sit a
      mis-click away from the export. Same pattern in the sibling apps. */
-  details.danger-zone { margin-top: 16px; border-top: 1px solid var(--hairline); padding-top: 12px; }
+  details.danger-zone { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
   details.danger-zone > summary {
-    cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--ink-2);
+    cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);
   }
-  details.danger-zone > summary:hover { color: var(--ink); }
-  .warn { color: var(--critical); font-size: 0.82rem; margin: 0 0 12px; }
+  details.danger-zone > summary:hover { color: var(--text-primary); }
+  .warn { color: var(--err); font-size: 0.82rem; margin: 0 0 12px; }
   .warn:empty { display: none; }
   /* The delete-all footer holds three buttons, and on a phone they don't fit
      across one line: the safety net goes on a row of its own rather than
@@ -308,7 +304,7 @@
   }
 
   /* ---- Footer ---- */
-  footer { margin-top: 28px; font-size: 0.78rem; color: var(--muted); text-align: center; }
+  footer { margin-top: 28px; font-size: 0.78rem; color: var(--text-muted); text-align: center; }
   footer .links { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
   /* Padded out to clear the 24×24 minimum target size — these are the only route to a
      backup, so they need to be comfortably tappable rather than hairline-thin links. */
@@ -316,16 +312,16 @@
     background: none; border: none; color: var(--accent); font-size: 0.82rem; cursor: pointer;
     text-decoration: underline; padding: 6px 10px; border-radius: 8px; min-height: 32px;
   }
-  footer button:hover { background: var(--chip-bg); }
+  footer button:hover { background: var(--surface-alt); }
   .insurance {
-    margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--hairline); border-radius: 12px;
-    font-size: 0.78rem; color: var(--ink-2); text-align: left;
+    margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px;
+    font-size: 0.78rem; color: var(--text-secondary); text-align: left;
   }
 
   /* ---- Toast ---- */
   .toast {
     position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-    background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 999px;
+    background: var(--text-primary); color: var(--bg); padding: 10px 16px; border-radius: 999px;
     font-size: 0.85rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
     max-width: calc(100vw - 40px); text-align: center;
   }
@@ -551,7 +547,7 @@
 
 <dialog id="syncChoiceDialog" aria-labelledby="syncChoiceTitle">
   <h2 id="syncChoiceTitle">Which Data Do You Want to Keep?</h2>
-  <p id="syncChoiceBody" style="color:var(--ink-2); font-size:0.88rem; margin:0 0 16px;"></p>
+  <p id="syncChoiceBody" style="color:var(--text-secondary); font-size:0.88rem; margin:0 0 16px;"></p>
   <div class="formfoot">
     <button type="button" class="act" id="syncKeepDeviceBtn">Keep this device</button>
     <button type="button" class="btn" id="syncKeepGoogleBtn">Keep Google's data</button>
@@ -564,16 +560,16 @@
 </details>
 
 <style>
-.changelog{max-width:760px;margin:8px auto 0;padding:0 20px 96px;font-size:12.5px;color:var(--muted)}
+.changelog{max-width:760px;margin:8px auto 0;padding:0 20px 96px;font-size:12.5px;color:var(--text-muted)}
 /* No opacity dimming here — it stacked on top of an already-muted colour and pushed the
    summary and dates down to ~2:1 in the light palettes. Colour alone carries the hierarchy. */
 .changelog summary{cursor:pointer;user-select:none;padding:4px 0}
-.changelog summary:hover{color:var(--ink-2)}
+.changelog summary:hover{color:var(--text-secondary)}
 .changelog ol{list-style:none;margin:10px 0 0;padding:0}
 .changelog li{display:flex;gap:10px;padding:3px 0;align-items:baseline}
 .cl-date{white-space:nowrap;font-variant-numeric:tabular-nums;flex-shrink:0}
-.changelog a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--hairline)}
-.changelog a:hover{color:var(--ink)}
+.changelog a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--border)}
+.changelog a:hover{color:var(--text-primary)}
 </style>
 <script>
 /* "Recent changes": on first open, fetch this file's last 10 commit subjects from
