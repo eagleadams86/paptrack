@@ -11,7 +11,7 @@ This is the **web version** — the whole app in a single self-contained `index.
 | Platform | Repo |
 |----------|------|
 | 🌐 Web (this repo) | [eagleadams86/paptrack](https://github.com/eagleadams86/paptrack) |
-| 🍎 iOS | [eagleadams86/paptrack-ios](https://github.com/eagleadams86/paptrack-ios) |
+| 🍎 iOS | [eagleadams86/paptrack-ios](https://github.com/eagleadams86/paptrack-ios) — [on the App Store](https://apps.apple.com/us/app/paptrack-cpap-supply-tracker/id6793314905) |
 | 🤖 Android | [eagleadams86/paptrack-android](https://github.com/eagleadams86/paptrack-android) |
 | 🛟 Support & privacy | [eagleadams86/paptrack-support](https://github.com/eagleadams86/paptrack-support) |
 
