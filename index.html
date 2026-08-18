@@ -87,10 +87,10 @@
      Never retune a colour here or there: change the pack's tokens.json, run its
      check_contrast.py gate, rebuild, and re-copy into every app.
   ─────────────────────────────────────────────────────────────────────────── */
-  /* The two this app owns. --ring has no pack equivalent. --shadow deliberately
-     OVERRIDES the pack's: a tighter single shadow, which is what this app's
-     cards have always used — a pre-existing divergence, kept on purpose and
-     kept visible by sitting here rather than being silently inherited away. */
+  /* The two this app owns. NEITHER is a pack token — `--shadow` in particular
+     is not in the pack at all, so these per-theme shadows are an ADDITION
+     rather than an override of anything, and there is nothing here to diverge
+     from. Flow Metrics and Financial Plan add their own the same way. */
   :root, [data-theme="midnight"] { --ring: rgba(129,140,248,0.28);
     --shadow: 0 1px 3px rgba(0,0,0,0.5); }
   [data-theme="dark"] { --ring: rgba(238,240,245,0.16);
