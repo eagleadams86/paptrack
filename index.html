@@ -304,11 +304,14 @@
   }
 
   /* ---- Footer ---- */
-  footer { margin-top: 28px; font-size: 0.78rem; color: var(--text-muted); text-align: center; }
-  footer .links { margin-top: 8px; display: flex; gap: 8px; justify-content: center; }
+  /* Left-aligned, like the resupply tip below it and every sibling app's footer — the
+     note wraps to two lines on a phone, and centred wrapped text has no edge to read down. */
+  footer { margin-top: 28px; font-size: 0.78rem; color: var(--text-muted); text-align: left; }
+  footer .links { margin-top: 8px; display: flex; gap: 8px; }
   /* Same padded target as the buttons below — a hairline footer link is no easier
-     to hit than a hairline footer button. */
-  footer .links a { color: var(--accent); padding: 6px 10px; min-height: 32px;
+     to hit than a hairline footer button. The padding is right-only so the link's text
+     starts flush with the note above it. */
+  footer .links a { color: var(--accent); padding: 6px 10px 6px 0; min-height: 32px;
     display: inline-flex; align-items: center; }
   /* Padded out to clear the 24×24 minimum target size — these are the only route to a
      backup, so they need to be comfortably tappable rather than hairline-thin links. */
