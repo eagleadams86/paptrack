@@ -20,7 +20,9 @@
      by the iOS and Android suites). Loads the real app in a hidden same-origin
      iframe and calls its functions directly, so what's tested is what ships.
      Serve over http://localhost (python3 -m http.server 8011); file:// iframes
-     are blocked in some browsers. Read-only: nothing here writes localStorage.
+     are blocked in some browsers. Leaves nothing behind: the one test that must
+     write localStorage — planting a future-schema copy to prove the halt fires —
+     backs up both keys first and restores them in a finally.
 
      The iframe boots the real app, though, which is not nothing: on an origin
      that has signed in, the sync module would start a live Firestore session
@@ -417,7 +419,8 @@ t('paptrackAdopt stores the newer copy verbatim, then halts', () => {
   ok(store > guard && halt > store,
     'the newer copy must be stored VERBATIM before the halt — normalising would lose its fields');
   ok(norm > -1 && halt < norm, 'and the halt must fire before normalizeItems sees it');
-  /* The schema has to actually reach it: three call sites in the sync module. */
+  /* The schema has to actually reach it: four call sites in the sync module
+     (three in startSync, one in the live listener). */
   const calls = APP_SRC.match(/paptrackAdopt\([^)]*\)/g).filter((c) => /schema/.test(c));
   ok(calls.length >= 4, 'every adopt call site must pass the document’s schema, got ' + calls.length);
 });
@@ -446,6 +449,42 @@ t('restoring a backup from a newer build is refused, without halting', () => {
   ok(/version: SCHEMA/.test(APP_SRC), 'and the backup it writes must stamp the real number');
 });
 
+/* ── Sync wiring ────────────────────────────────────────────────────────────
+   The sync module is a <script type="module">, so nothing in it can be called
+   from here — these are SOURCE pins, like the schema-halt group's. Both guard
+   real shipped bugs, found in the 2026-08-18 audit. */
+group('Sync wiring — the live listener and the sign-in push gate');
+
+t('every attachSnapshot() call carries the !unsub guard', () => {
+  /* startSync's push paths already attach the listener inside pushNow(). An
+     unguarded second attach overwrites `unsub` and leaks a listener nothing
+     can ever detach: doubled reads on every signed-in load, and a spurious
+     "Not syncing" toast at sign-out when the orphan errors. This shipped for
+     a day after the 08-17 re-attach fix — the guard is the fix. */
+  const code = stripComments(APP_SRC);
+  const calls = (code.match(/attachSnapshot\(\);/g) || []).length;
+  const guarded = (code.match(/if \(!unsub\) attachSnapshot\(\);/g) || []).length;
+  ok(calls >= 2, 'expected the startSync and pushNow call sites, got ' + calls);
+  eq(guarded, calls, 'every attachSnapshot() call must be guarded by !unsub');
+});
+
+t('a push during sign-in reconciliation is deferred, then still sent', () => {
+  /* An edit in the window between sign-in and the which-copy decision must not
+     setDoc over the cloud copy the dialog is offering — and must not be lost
+     either. The gate closes on auth change, defers instead of scheduling, and
+     reconciliationDone() lifts it on success AND failure (finally), sending
+     the deferred edit. */
+  const gate = /if \(!reconciled\) \{ pendingLocalPush = true; return; \}/g;
+  eq((APP_SRC.match(gate) || []).length, 2,
+    'both cloudPush and cloudFlush must defer while reconciliation is in flight');
+  ok(/reconciled = false; pendingLocalPush = false;/.test(APP_SRC),
+    'the gate must close again on every auth change');
+  ok(/startSync\(\)\.catch\(setSyncError\)\.finally\(reconciliationDone\)/.test(APP_SRC),
+    'reconciliation must end — success or failure — by lifting the gate');
+  ok(/if \(pendingLocalPush\) \{ pendingLocalPush = false; window\.cloudPush\(\); \}/.test(APP_SRC),
+    'and an edit deferred behind it must be pushed once it lifts');
+});
+
 /* ── Runner ───────────────────────────────────────────────────────────────── */
 
 /* The localhost gate. Booting the app is itself the side effect worth guarding:
@@ -454,9 +493,11 @@ t('restoring a backup from a newer build is refused, without halting', () => {
    device cleared its supplies" dialog — inside a frame nobody can see. So the
    check comes before the iframe exists, not inside its load handler.
 
-   '' covers file://, which has no host: the suite can't run there either way
-   (file:// iframes are blocked) and its storage is a throwaway opaque origin, so
-   it falls through to the ordinary "serve it over localhost" advice. */
+   file:// has no hostname, and its '' is deliberately NOT in this list. It
+   used to be, and that sent file:// down the iframe branch — where the frame
+   silently fails to load (browsers block file:// iframes) and the suite blamed
+   the app. Left out, file:// falls through to the else below, whose file://
+   wording is the advice that actually fixes it. */
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
 if (LOCAL_HOSTS.includes(location.hostname)) {

@@ -12,6 +12,7 @@
      with the app's. */
   try {
     var t = localStorage.getItem('pap-theme');
+    if (t === 'slate') t = 'dark'; // Slate was renamed Dark when the themes unified (Aug 2026)
     var ok = ['light','dark','midnight','sepia'];
     document.documentElement.setAttribute('data-theme',
       ok.indexOf(t) === -1 ? 'midnight' : t);

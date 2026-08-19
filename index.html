@@ -1542,6 +1542,15 @@ if (FIREBASE_CONFIG && !inTestHarness && !window.papHalted) {
 
 let A, F, auth, db, user = null, unsub = null, pushTimer = null, tokenClient = null;
 
+/* True once startSync() has settled which copy wins for this session. Until it
+   is, a debounced push must not run: setDoc would overwrite the cloud document
+   while the getDoc — or the which-copy dialog — is still deciding whether that
+   very copy is the one to keep, and "Keep Google's data" would then adopt a
+   snapshot the cloud no longer holds. An edit made in that window isn't lost:
+   it sets pendingLocalPush, and reconciliationDone() sends it the moment the
+   gate lifts. */
+let reconciled = false, pendingLocalPush = false;
+
 /* The classic script above can't see `user` (this is a module), and the
    delete-all dialog has to tell the truth about whether deleting reaches the
    user's other devices. Same hook as Golf Handicap's ghSignedIn. */
@@ -1600,9 +1609,14 @@ async function init() {
     /* A fresh session starts clean: signing out and back in is the remedy this
        app suggests for half of the causes, so a stale warning must not survive it. */
     syncError = null;
+    reconciled = false; pendingLocalPush = false;
     updateUI();
     if (unsub) { unsub(); unsub = null; }
-    if (u) startSync().catch(setSyncError);
+    /* finally, not then: a failed reconciliation must lift the push gate too,
+       or an offline sign-in would leave every later edit deferred forever and
+       the "next change will try again" promise in the error copy would be a
+       lie. Pushing after a failure is exactly what this code always did. */
+    if (u) startSync().catch(setSyncError).finally(reconciliationDone);
   });
   /* Built once, reused for every sign-in. requestAccessToken() must be called
      from inside the click handler or the browser treats the popup as
@@ -1820,7 +1834,13 @@ async function startSync() {
     await pushNow();
   }
   localStorage.setItem('pap-sync-uid', user.uid);
-  attachSnapshot();
+  /* Guarded like pushNow's re-attach, and the guard is load-bearing: every push
+     path above already attached the listener inside pushNow(), so an unguarded
+     attach here would open a SECOND onSnapshot and overwrite `unsub` — leaking
+     a listener nothing could ever detach. That doubled reads on every signed-in
+     load, and at sign-out the orphan erred (permission-denied) into a spurious
+     "Not syncing" toast. Shipped for a day after the 08-17 re-attach fix. */
+  if (!unsub) attachSnapshot();
 }
 
 /* The live listener, its own function because startSync is not its only caller:
@@ -1890,18 +1910,31 @@ async function pushNow() {
   clearSyncError();
 }
 
-/* Called by save() on every local change; debounced so rapid edits batch up. */
+/* Lifts the sign-in push gate — called (via .finally) whether startSync
+   succeeded or threw — and sends any edit that arrived while it was closed. */
+function reconciliationDone() {
+  reconciled = true;
+  if (pendingLocalPush) { pendingLocalPush = false; window.cloudPush(); }
+}
+
+/* Called by save() on every local change; debounced so rapid edits batch up.
+   Deferred, not dropped, while reconciliation is still in flight — see the
+   note on `reconciled` above. */
 window.cloudPush = () => {
   if (!user) return;
+  if (!reconciled) { pendingLocalPush = true; return; }
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => { pushTimer = null; pushNow().catch(setSyncError); }, 1200);
 };
 
 /* Skips the debounce. "Delete all data" calls this so the cleared list reaches
    the cloud before the tab can be closed — otherwise the next sign-in would pour
-   everything straight back. */
+   everything straight back. Behind the same reconciliation gate: mid-decision,
+   even a delete must not clobber the copy the dialog is offering — it is sent
+   as the deferred push the moment the decision lands. */
 window.cloudFlush = () => {
   if (!user) return;
+  if (!reconciled) { pendingLocalPush = true; return; }
   clearTimeout(pushTimer);
   pushTimer = null;
   pushNow().catch(setSyncError);
