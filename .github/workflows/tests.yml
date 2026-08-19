@@ -37,7 +37,12 @@ jobs:
           const browser = await chromium.launch();
           const page = await browser.newPage();
           const errors = [];
-          page.on('pageerror', (e) => errors.push(String(e)));
+          /* One expected error, and only one: the newer-build group boots a
+             second copy of the app against a planted future document to prove
+             the version halt fires, and that halt works by THROWING. Anything
+             else reaching here is a real uncaught error and still fails. */
+          const PROVOKED = /^Error: pap: saved data schema \d+ is newer than this build \(\d+\)$/;
+          page.on('pageerror', (e) => { if (!PROVOKED.test(String(e))) errors.push(String(e)); });
           await page.goto('http://localhost:8011/tests.html');
           await page.waitForFunction(
             () => !/^Loading/.test(document.getElementById('summary').textContent),

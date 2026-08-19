@@ -2,7 +2,15 @@
 <html lang="en" data-theme="midnight">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self'; connect-src https://api.github.com; frame-src 'self'; base-uri 'none'; form-action 'none'">
+<!-- Every page on the shared origin ships a CSP (the family security rule) —
+     this one is published on GitHub Pages beside the app, so it is as much a
+     page on the origin as index.html is. connect-src 'self' is for reading
+     index.html and sw.js as text (the paths that halt the app cannot be run
+     live), api.github.com for the CI-scorecard line, and frame-src 'self' for
+     the harness iframe, whose content is then governed by index.html's own CSP.
+     `style-src 'self'` is what lets theme.css load, so this page wears the same
+     palette as the app. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self' https://api.github.com; frame-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PAPTrack — Tests</title>
 <style>
@@ -192,6 +200,252 @@ t('agoLabel reads future dates as "in N days", not negative history', () => {
   eq(w.agoLabel(iso(-1)), 'yesterday');
 });
 
+/* ── Offline: the service worker ────────────────────────────────────────────
+   Read as TEXT rather than exercised as a live worker, and that is the point
+   rather than a shortcut: the registration is frame-guarded, so this suite
+   never installs one — a suite that did would be testing whatever that worker
+   had cached instead of the files on disk.
+
+   What is worth asserting is the SHAPE of the thing. Cache Storage is keyed by
+   ORIGIN and shared with every sibling app, so "only files already public in
+   this repo, ever" is the promise holding this up. */
+group('Offline — the service worker');
+
+let SW_SRC = '', KILL_SRC = '', APP_SRC = '';
+/* Read off the app rather than repeated here, so a bump moves both together. */
+const SCHEMA_KEY_NAME = 'pap-schema';
+let APP_SCHEMA = 1;
+const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+t('sw.js, its kill switch and the app all read back as text', async () => {
+  const [a, b, c] = await Promise.all([fetch('sw.js'), fetch('sw-kill.js'), fetch('index.html')]);
+  ok(a.ok, 'sw.js is missing');
+  ok(b.ok, 'sw-kill.js is missing — the escape hatch has to exist BEFORE it is needed');
+  ok(c.ok, 'index.html is missing');
+  SW_SRC = await a.text(); KILL_SRC = await b.text(); APP_SRC = await c.text();
+  APP_SCHEMA = Number((APP_SRC.match(/const SCHEMA = (\d+);/) || [])[1]);
+  ok(Number.isFinite(APP_SCHEMA), 'could not read SCHEMA out of index.html');
+});
+
+t('the cache list holds only files that are already public', () => {
+  const m = SW_SRC.match(/const SHELL = \[([\s\S]*?)\]/);
+  ok(m, 'could not find the SHELL list in sw.js');
+  const shell = [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]).sort();
+  /* Exact equality, not "contains". A new entry has to be added here too, which
+     is the moment to ask whether the file is genuinely public. */
+  eq(shell, ['./', 'favicon.ico', 'privacy.html', 'theme.css'], 'the offline shell list changed');
+  for (const entry of shell)
+    for (const pat of [/^tests\.html$/, /\.py$/, /CLAUDE/i, /README/i, /backup/i])
+      ok(!pat.test(entry), `"${entry}" is on the shell list but must never be cached`);
+});
+
+t('the worker touches nothing cross-origin, and has no eval', () => {
+  const code = stripComments(SW_SRC);
+  ok(!/https?:\/\//.test(code), 'sw.js names an off-origin URL in executable code');
+  /* A worker on Pages runs with NO CSP at all, so these are not merely untidy. */
+  for (const bad of ['eval(', 'importScripts(', 'new Function('])
+    ok(!code.includes(bad), `sw.js uses ${bad} — it runs with no CSP, so it must not`);
+});
+
+t('the worker deletes only its own caches', () => {
+  const code = stripComments(SW_SRC);
+  ok(/startsWith\(PREFIX\)/.test(code), 'activate must guard caches.delete with the prefix');
+  ok(/const PREFIX = 'pap-shell-';/.test(SW_SRC), 'and the prefix must be this app’s');
+});
+
+t('the worker is network-first, so cached code needs a failed network', () => {
+  const code = stripComments(SW_SRC);
+  ok(/Promise\.race/.test(code) && /cache\.match/.test(code), 'expected the network-first race');
+  ok(!/caches\.match\(req\)\s*\.then\(\s*\(?r\)?\s*=>\s*r\s*\|\|/.test(code),
+    'this looks cache-first — the whole design rests on network-first');
+  ok(/!res\.ok && cached/.test(code),
+    'a same-origin error reply with a cached copy in hand must serve the cache');
+});
+
+t('a missing shell file can be repaired without a new worker version', () => {
+  const code = stripComments(SW_SRC);
+  /* install fires ONCE per script version, so an evicted cache would never be
+     rebuilt if install were the only thing that filled it. */
+  ok(/addEventListener\(\s*'message'/.test(code) && /'shell-check'/.test(code),
+    'the worker must accept a shell-check message');
+  ok(/if \(reg\.active\) reg\.active\.postMessage\(\{ type: 'shell-check' \}\)/.test(APP_SRC),
+    'and the page must ask for one on load');
+  ok(!/addAll/.test(code), 'addAll rejects the whole precache on a single 404, silently');
+  ok(/e\.data\.type !== 'shell-check'\) return;/.test(code),
+    'the message handler must reject anything but shell-check');
+  ok(!/e\.data\.(url|urls|path|cache|key)/.test(code),
+    'and must never read a URL or cache name out of a message');
+});
+
+t('the kill switch stays a pure uninstaller', () => {
+  const code = stripComments(KILL_SRC);
+  ok(/unregister\(\)/.test(code), 'sw-kill.js must unregister itself');
+  ok(!/addEventListener\(\s*'fetch'/.test(code), 'and intercept nothing — inert is the point');
+  ok(!/cache\.put|addAll/.test(code), 'and never cache anything');
+  ok(/startsWith\('pap-shell-'\)/.test(code), 'and clear only this app’s caches');
+});
+
+t('the page declares worker-src and guards registration three ways', () => {
+  const csp = (APP_SRC.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/) || [])[1] || '';
+  ok(/worker-src 'self'/.test(csp),
+    "the CSP must spell out worker-src 'self', not lean on the fallback chain");
+  ok(!/worker-src[^;]*https?:/.test(csp), 'and admit no off-origin host there');
+  ok(/window\.top !== window\.self/.test(APP_SRC),
+    'registration must skip frames, or this suite would install a worker on itself');
+  ok(/if \(window\.papHalted\) return;/.test(APP_SRC),
+    'a page halted on newer data must install nothing');
+  ok(/window\.addEventListener\('load', function \(\) \{/.test(APP_SRC),
+    'and wait for load rather than compete with first paint');
+});
+
+/* ── A copy from a newer build ──────────────────────────────────────────────
+   The braces to the worker's belt. normalizeItem() rebuilds every item from the
+   fields it knows and drops the rest — right for a damaged backup, silently
+   destructive for a copy written by a newer build, because the stripped copy
+   goes back to the cloud on the next save and on to the phone apps.
+
+   The halt is pinned as SOURCE rather than run: it draws a card over the whole
+   frame and THROWS, which would take the rest of the suite with it. */
+group('A copy from a newer build');
+
+t('the marker rides in its own key, not inside the shared item list', () => {
+  /* `pap-items` is a bare array, and the same data lives in a Firestore
+     document the iPhone and Android apps read and write. Wrapping it to make
+     room for a number would be a cross-platform format change. */
+  ok(/const SCHEMA_KEY = 'pap-schema';/.test(APP_SRC), 'the marker needs its own localStorage key');
+  ok(/localStorage\.setItem\(SCHEMA_KEY, String\(SCHEMA\)\)/.test(APP_SRC),
+    'save() must stamp the marker beside the items');
+  const save = APP_SRC.slice(APP_SRC.indexOf('function save()'), APP_SRC.indexOf('function uid()'));
+  const items = save.indexOf('setItem(STORAGE_KEY');
+  const marker = save.indexOf('setItem(SCHEMA_KEY');
+  ok(items > -1 && marker > items,
+    'the two writes must sit in the same try, so they cannot drift apart');
+});
+
+t('the cloud document carries the marker additively, for the phone apps', () => {
+  /* The native apps read this document key by key and ignore what they do not
+     know; when they write it back without the field it reads as 1 — older,
+     never newer — so a phone write can never trip another device's halt. */
+  ok(/schema: PAP_SCHEMA/.test(APP_SRC), 'pushNow must write the schema field');
+  ok(/const PAP_SCHEMA = 1;/.test(APP_SRC),
+    'the sync module keeps its own copy — it cannot see the classic script’s consts');
+  const appSchema = (APP_SRC.match(/const SCHEMA = (\d+);/) || [])[1];
+  const modSchema = (APP_SRC.match(/const PAP_SCHEMA = (\d+);/) || [])[1];
+  eq(modSchema, appSchema, 'the two constants must agree, or the document lies about its shape');
+});
+
+t('the halt fires above the current version and not at or below it', () => {
+  const S = Number((APP_SRC.match(/const SCHEMA = (\d+);/) || [])[1]);
+  const halts = (v) => Number(v || 1) > S;
+  ok(!halts(S), 'must not halt on data this build wrote');
+  ok(!halts(undefined), 'a document with no marker at all is old, not new — the phone apps write none');
+  ok(halts(S + 1), 'must halt on data from a newer build');
+});
+
+t('the halt stops every write path, including sync', () => {
+  /* There is no share-view flag here to reuse, so the halt sets its own — and
+     it is only as good as everything that writes checking it. */
+  ok(/if \(halted\) return;/.test(APP_SRC), 'save() must be a no-op once halted');
+  ok(/!inTestHarness && !window\.papHalted/.test(APP_SRC),
+    'the sync module must refuse to start once halted');
+  ok(/window\.papHalted = true;/.test(APP_SRC), 'and the halt must set the flag the module reads');
+});
+
+t('a planted future document really does halt a fresh copy of the app', async () => {
+  /* Booted for real, not pinned as source, because this is the one thing source
+     inspection cannot see: the halt sets `let halted`, and with that declaration
+     below the boot check the whole thing threw a temporal-dead-zone
+     ReferenceError and left a BLANK PAGE instead of the card. Every string-level
+     test still passed. So: plant a document from the future, load a second
+     hidden copy of the app, and look at what it actually did. */
+  const bkItems = localStorage.getItem('pap-items');
+  const bkSchema = localStorage.getItem(SCHEMA_KEY_NAME);
+  localStorage.setItem('pap-items', JSON.stringify(
+    [{ id: 'future1', name: 'Mask', replaceDays: 90, lastReplaced: '2026-08-01' }]));
+  localStorage.setItem(SCHEMA_KEY_NAME, String(APP_SCHEMA + 1));
+  const f2 = document.createElement('iframe');
+  f2.setAttribute('data-pap-tests', '');
+  f2.setAttribute('aria-hidden', 'true');
+  f2.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;border:0;left:-9999px';
+  try {
+    await new Promise((resolve) => { f2.onload = resolve; f2.src = 'index.html'; document.body.appendChild(f2); });
+    const w2 = f2.contentWindow;
+    ok(w2.papHalted === true, 'the halt must set papHalted — a throw on the way there leaves it undefined');
+    ok(typeof w2.paptrackAdopt === 'undefined',
+      'the script must abort: nothing after the halt may initialise');
+    const card = w2.document.querySelector('div[style*="z-index:99999"]');
+    ok(!!card, 'a card must be drawn over the app rather than a blank page');
+    ok(!!card && /Newer Version/.test(card.textContent), 'and it must say why');
+    ok(!!card && !!card.querySelector('button'), 'with a Reload button on it');
+    const after = JSON.parse(localStorage.getItem('pap-items'));
+    eq(after[0].id, 'future1', 'and the newer document must be left exactly as it was');
+    eq(localStorage.getItem(SCHEMA_KEY_NAME), String(APP_SCHEMA + 1), 'marker included');
+  } finally {
+    f2.remove();
+    if (bkItems === null) localStorage.removeItem('pap-items'); else localStorage.setItem('pap-items', bkItems);
+    if (bkSchema === null) localStorage.removeItem(SCHEMA_KEY_NAME); else localStorage.setItem(SCHEMA_KEY_NAME, bkSchema);
+  }
+});
+
+t('the halt flag is declared before the check that can call it', () => {
+  /* The pin for the bug above, so a future edit that moves the declaration back
+     down fails here rather than in a browser. */
+  const flag = APP_SRC.indexOf('let halted = false;');
+  const check = APP_SRC.indexOf('if (savedSchema > SCHEMA) haltForNewerData(savedSchema)');
+  ok(flag > -1 && check > -1, 'the flag or the check has moved — recheck this test');
+  ok(flag < check, '`let halted` must be initialised before anything can call the halt');
+});
+
+t('the boot check runs above every listener, and outside load()', () => {
+  const guard = APP_SRC.indexOf('if (savedSchema > SCHEMA) haltForNewerData(savedSchema)');
+  const loadFn = APP_SRC.indexOf('function load() {');
+  const firstListener = APP_SRC.indexOf("addEventListener('click'");
+  ok(guard > -1, 'the boot check must call haltForNewerData');
+  ok(guard < loadFn, 'and must not live inside load(), whose catch returns an empty list');
+  ok(firstListener === -1 || guard < firstListener,
+    'the check must run before any handler is attached — the halt works by throwing');
+});
+
+t('paptrackAdopt stores the newer copy verbatim, then halts', () => {
+  const at = APP_SRC.indexOf('window.paptrackAdopt =');
+  const body = APP_SRC.slice(at, at + 2200);
+  const guard = body.search(/Number\(schema \|\| 1\) > SCHEMA/);
+  const store = body.indexOf('JSON.stringify(newItems)');
+  const halt = body.indexOf('haltForNewerData(schema)');
+  const norm = body.indexOf('items = normalizeItems(newItems)');
+  ok(guard > -1, 'paptrackAdopt must refuse a document newer than this build');
+  ok(store > guard && halt > store,
+    'the newer copy must be stored VERBATIM before the halt — normalising would lose its fields');
+  ok(norm > -1 && halt < norm, 'and the halt must fire before normalizeItems sees it');
+  /* The schema has to actually reach it: three call sites in the sync module. */
+  const calls = APP_SRC.match(/paptrackAdopt\([^)]*\)/g).filter((c) => /schema/.test(c));
+  ok(calls.length >= 4, 'every adopt call site must pass the document’s schema, got ' + calls.length);
+});
+
+t('another tab running a newer build is refused too', () => {
+  /* Two tabs can be on different builds — one from the offline cache, one
+     fetched fresh — so a newer copy arrives from next door as easily as from
+     the cloud. Nothing is stored: that tab already holds the newest. */
+  const at = APP_SRC.indexOf("addEventListener('storage'");
+  const body = APP_SRC.slice(at, at + 1400);
+  ok(/Number\(localStorage\.getItem\(SCHEMA_KEY\) \|\| 1\) > SCHEMA/.test(body),
+    'the storage listener must check the marker beside the items it was handed');
+  ok(body.indexOf('haltForNewerData') < body.indexOf('normalizeItems'),
+    'and halt before normalizeItems strips it');
+});
+
+t('restoring a backup from a newer build is refused, without halting', () => {
+  /* The backup file has carried a `version` since long before it was read. */
+  const at = APP_SRC.indexOf('const parsed = JSON.parse(await file.text())');
+  const body = APP_SRC.slice(at, at + 1600);
+  const refuse = body.search(/Number\(\(parsed && parsed\.version\) \|\| 1\) > SCHEMA/);
+  const norm = body.indexOf('normalizeItems(raw)');
+  ok(refuse > -1, 'the restore handler must refuse a newer backup');
+  ok(norm > -1 && refuse < norm, 'before normalizeItems strips what makes it newer');
+  ok(!/haltForNewerData/.test(body), 'and must not stop the app the user is using');
+  ok(/version: SCHEMA/.test(APP_SRC), 'and the backup it writes must stamp the real number');
+});
+
 /* ── Runner ───────────────────────────────────────────────────────────────── */
 
 /* The localhost gate. Booting the app is itself the side effect worth guarding:
@@ -295,7 +549,7 @@ function showLatestRun() {
     .catch(() => { td.textContent = 'Could not reach GitHub to check the latest CI run.'; });
 }
 
-function run() {
+async function run() {
   w = document.getElementById('app').contentWindow;
   /* A frame that never got the app is a SETUP problem — the folder isn't being
      served, so index.html came back 404 — and without this every test throws
@@ -329,7 +583,11 @@ function run() {
     const name = document.createElement('td'); name.textContent = item.name;
     const msg = document.createElement('td'); msg.className = 'msg';
     try {
-      item.fn();
+      /* Awaited, so a test may be async — the offline group's first test is,
+         because it reads sw.js and index.html off the server. A sync test
+         resolves immediately, and running one at a time keeps the rows in
+         declaration order either way. */
+      await item.fn();
       tr.className = 'pass'; st.textContent = '✓'; pass++;
     } catch (e) {
       tr.className = 'fail'; st.textContent = '✕'; msg.textContent = e.message; fail++;

@@ -70,3 +70,110 @@ This is a real, shipped product — the flagship web build alongside the native 
 
 - **`privacy.html` is the web app's privacy policy** (static page, same midnight shell as the sibling apps, linked from the footer beside the copyright line). Added 2026-08-18 — other people can sign in with their own Google accounts, so it exists for them: what Firestore holds, that rules confine each account to its own data, and the deletion contact. The iOS app's policy lives in the paptrack-support repo; if what either app stores changes, update both in the same commit.
 - Write commit subject lines in plain English a non-developer can read (what changed and why it matters, not implementation detail). The in-app "Recent changes" section that made them user-facing was removed 2026-08-18, across the whole app family, and the GitHub API went out of the CSP with it.
+- **There IS a service worker, and it was refused for a long time.** The three
+  objections were right to be made; two turned out to be answerable by design
+  rather than by abstention, and the third is what the whole thing is built
+  around. Recorded because the next person to touch this needs the reasoning:
+  - *"A resident process on the shared origin."* Bounded. A worker's scope
+    cannot exceed its own directory without the `Service-Worker-Allowed` header,
+    and GitHub Pages cannot send headers — so this one structurally cannot see
+    any sibling app. Locally, where the app is served from the
+    root, it does control `tests.html`; the allowlist is what makes that
+    harmless, not the scope.
+  - *"Caches are ORIGIN-wide, not per app."* True, and it does not go away — any
+    page on the origin can read this cache, and the sibling workers share the
+    store. The answer is the rule in `sw.js`: **only files already public in
+    this repo are ever cached** (`./`, `theme.css`, `privacy.html`,
+    `favicon.ico`; the tab and touch icons are data URIs in the markup and need
+    no entry). Nothing in there is anything an attacker
+    could not read straight off GitHub, and the data stays in localStorage,
+    which every page on the origin could already reach. It cuts the other way
+    too — `activate` must only ever delete caches with this app's `pap-shell-`
+    prefix, or it wipes a sibling's.
+  - *"A caching bug serves stale code to an app whose data shape moves."* Still
+    the real risk. **The worker is network-first for everything**: you can only
+    be served cached code on a visit where the network did not answer. The
+    braces to that belt is `SCHEMA` / `haltForNewerData()` above — a saved copy
+    from a newer build is refused rather than run through normalizeItem(),
+    which rebuilds every item without the fields that build added.
+- **The page's CSP does not apply to the worker.** It takes its policy from its
+  own script's HTTP response headers, and Pages cannot set headers, so `sw.js`
+  runs with **no CSP at all**, permanently installed. Hence: tiny, no `eval`, no
+  `importScripts`, no dynamic import, no cross-origin URL anywhere in it — and
+  hence `worker-src 'self'` spelled out in the page CSP rather than left to the
+  `worker-src → child-src → script-src` fallback chain, which would inherit
+  script-src's gstatic and accounts.google.com hosts.
+- **`sw-kill.js` is the escape hatch, and it exists BEFORE it is needed.** A bad
+  page is fixed by pushing a new one; a bad worker is resident and can keep
+  serving itself. `cp sw-kill.js sw.js`, commit, push — every installed copy
+  then clears this app's caches, unregisters itself and reloads its windows.
+- **Two traps, both of which fail silently:** `cache.addAll` is all-or-nothing
+  (one 404 rejects the whole precache, install fails, and there is no offline at
+  all while the app looks perfectly healthy online); and **`install` fires once
+  per script version**, so if the cache is later evicted nothing rebuilds it and
+  offline decays to "whatever the last online visit happened to request". Hence
+  `topUp()`, fetching entries one by one, pinged by the page on every load via a
+  `shell-check` message — the repair must be able to run without a new worker
+  version to hang it on.
+- **`shellKey()` matches on the PATH, not the URL**, because the markup asks for
+  `favicon.ico?v=1`: keyed on the full URL, the precached favicon would never be
+  the entry that answers. `index.html` folds onto `./` for the same reason.
+- Registration is guarded three ways, all load-bearing: **not in a frame** (or a
+  `tests.html` run would install a worker and then test whatever it had cached),
+  **not under `window.papHalted`** — this app has no share view to reuse as a
+  flag, so the halt sets its own, and the check matters because the halt's
+  `throw` cannot reach a separate script block — and **on `load`**.
+- **Testing it locally will mislead you.** The browser holds its own copy of
+  `sw.js`, and a byte-identical script fires no `install`, so edits appear to do
+  nothing and an emptied cache appears not to refill. `await reg.update()`
+  before judging any of it. Related: a suite run against a registered dev worker
+  is testing the cache, not the disk — unregister it on localhost before
+  trusting a green run.
+- The scope is `./`, never absolute: on the local server the app is at the root,
+  not under `/paptrack/`, and an absolute scope is simply invalid there.
+
+## The Schema Halt (`SCHEMA` / `haltForNewerData`)
+
+- **The app refuses to open a saved copy written by a NEWER build**, rather than
+  running it through `normalizeItem()` — which rebuilds every item from the fields
+  it knows and drops the rest. Right for a damaged backup; silently destructive
+  for a copy from a newer build, because the stripped copy goes back to the cloud
+  on the next save and on to the phone apps. The offline worker is what made this
+  likely rather than theoretical.
+- **The marker rides in its OWN key, not inside the data, and that is a
+  cross-platform decision.** `pap-items` is a bare ARRAY, and the same data lives
+  in the Firestore document the iPhone and Android apps read and write
+  (`paptrack/{uid}`, shaped `{ items, updatedAt }`). Wrapping the array to make
+  room for a number would be a format change across three codebases for one
+  field. So: localStorage gets `pap-schema` beside `pap-items` (both written in
+  the same `try`, so they cannot drift), and the cloud document gets an additive
+  `schema` field.
+- **A document from a phone carries no `schema` at all, which reads as 1** —
+  older, never newer — so a native write can never trip another device's halt,
+  and the native apps needed no change to ship this. **But the convention only
+  holds if every client keeps it: if the iOS or Android app ever adds a stored
+  field, it has to write a higher `schema` too**, or this page will go on quietly
+  normalising that field away. Not yet done, and worth doing when either app next
+  touches its stored shape.
+- **The sync module keeps its own `PAP_SCHEMA`** because a `<script type="module">`
+  cannot see the classic script's `const`s. Two constants that must agree is
+  exactly what drifts silently, so tests.html pins them equal.
+- **Four boundaries**: the boot check and `paptrackAdopt()` halt (adopt storing
+  the newer document verbatim first — it is the newest copy there is); the
+  `storage` listener halts too, because two TABS can be on different builds, one
+  from the cache and one fetched fresh; and Restore refuses a newer backup file
+  with a toast **without** halting, since nothing has arrived and what's on
+  screen is still good.
+- **There is no share view here to reuse as the no-write flag**, unlike the
+  sibling apps, so the halt sets its own `halted` — checked by `save()` (the
+  single write path) and by the sync module before it initialises.
+- **`let halted` is declared ABOVE the boot check, and that is load-bearing.** It
+  sat beside `haltForNewerData()` at first, below the check that calls it, so the
+  halt threw a temporal-dead-zone `ReferenceError` on `halted = true` the instant
+  it fired: the app stopped — correctly — but showed a BLANK PAGE instead of the
+  card saying why, and `papHalted` was never set. Every source-pinned test
+  passed. It was caught only by booting a real copy against a planted future
+  document, which tests.html now does on every run.
+- **Bump `SCHEMA` in the same commit that adds or repurposes a stored field, and
+  teach `normalizeItem()` the field in that same commit** — a bump without it
+  protects a field the boundary strips anyway.

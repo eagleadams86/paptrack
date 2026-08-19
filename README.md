@@ -121,7 +121,9 @@ A remedy that destroys data is never the guess.
 ```
 GitHub Pages (static hosting, this repo, main branch)
     ├── index.html — the app; loads the Firebase SDK from gstatic.com
-    └── theme.css — shared palette, copied from the private theme pack
+    ├── theme.css — shared palette, copied from the private theme pack
+    ├── sw.js     — service worker: keeps the app on your device for offline
+    └── sw-kill.js — the escape hatch, if sw.js ever needs uninstalling
             ├── all state ──► browser localStorage (source of truth, works offline)
             └── signed in ──► Firestore doc paptrack/{uid} (newer-wins by updatedAt,
                               with the empty-never-beats-data guard; live onSnapshot
@@ -141,6 +143,35 @@ There is no server of our own — the only backend is the optional Firebase (aut
 ![tests](https://github.com/eagleadams86/paptrack/actions/workflows/tests.yml/badge.svg)
 
 The suite also runs on every push: [`.github/workflows/tests.yml`](.github/workflows/tests.yml) serves the folder, opens `tests.html` in headless Chromium and fails the build if the summary goes red or the page throws — same workflow as the rest of the app family.
+
+---
+
+## Working Offline
+
+The app keeps a copy of itself on your device, so it opens with no network at all. Your
+supplies were always local, so once the page loads everything works: marking things cleaned
+or replaced, the countdowns, the calendar export, backups. Sync is the one thing that can't —
+it needs the network by definition, and picks up again on its own when you're back.
+
+What's kept is only the app's own public files — the page, the stylesheet, the privacy policy
+and the icon, the same files anyone can read on GitHub. **Nothing of yours is ever put
+there**, which matters more than it sounds: every one of these apps shares a single browser
+origin, so that cache is not private to this app.
+
+The network is always tried **first**, and the stored copy is used only when it genuinely
+doesn't answer (or takes more than five seconds), so you can't be left on an old version
+while you're online.
+
+**If one device is behind** — every saved copy now carries the data format the app that wrote
+it understood. A copy written by a *newer* version than the one you're running won't be
+opened: you get a card saying so, nothing is changed or deleted, and reloading picks up the
+current version. A backup file from a newer version is refused the same way, without
+stopping the app you're using. Copies written by the iPhone and Android apps carry no marker
+at all, which reads as "not newer", so they are never affected by this.
+
+`sw-kill.js` sits in the repo unused, as an escape hatch: copying it over `sw.js` and pushing
+makes every installed copy uninstall itself and go back to being an ordinary online-only
+page.
 
 ---
 

@@ -20,7 +20,7 @@
      foot of the file). firebaseapp.com and apis.google.com are deliberately NOT
      here: they served Firebase's hosted popup, which this app no longer uses —
      the same as the three sibling web apps. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://accounts.google.com; worker-src 'self'; frame-src https://accounts.google.com; base-uri 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PAPTrack — CPAP supply, cleaning & reorder tracker</title>
 <meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server of ours — your data stays on this device unless you sign in to sync.">
@@ -580,6 +580,36 @@
 <script>
 'use strict';
 const STORAGE_KEY = 'pap-items';
+/* The data format number, and what makes stale code safe.
+   ==========================================================================
+   normalizeItem() rebuilds every item from the fields it knows and drops the
+   rest. That is exactly right for a damaged backup and exactly wrong for a copy
+   written by a NEWER build: an older tab would strip the fields it has never
+   heard of, render what was left, and push the stripped copy back to the cloud
+   on the next save — losing another device's work with nothing on screen to say
+   so. There is nothing to migrate towards, so refusing to open it is the only
+   safe answer. Offline caching is what made this likely rather than theoretical:
+   you can be running yesterday's cached code while sync hands you a document
+   today's build wrote on another device.
+
+   IT RIDES IN ITS OWN KEY, not inside the saved data, and that is deliberate.
+   `pap-items` is a bare ARRAY, and it is not only this page's: the iPhone and
+   Android apps sync the same Firestore document (`paptrack/{uid}`, shaped
+   `{ items, updatedAt }`). Wrapping the array in an object to make room for a
+   marker would be a cross-platform format change for the sake of one number.
+   So localStorage gets a separate `pap-schema` key, and the cloud document gets
+   an additive `schema` FIELD alongside `items` — which the native apps neither
+   read nor write, so their documents simply arrive without it and are treated
+   as schema 1, which is what they are.
+
+   THE CONVENTION ONLY HOLDS IF EVERY CLIENT KEEPS IT. Bump this whenever a
+   stored field is added, renamed or repurposed — and teach normalizeItem() the
+   field in the same commit, or the boundary strips the very thing the bump
+   exists to protect. **If the iOS or Android app ever adds a stored field, it
+   has to write a higher `schema` too**, or this page will keep quietly
+   normalising the new field away. */
+const SCHEMA = 1;
+const SCHEMA_KEY = 'pap-schema';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /* Capitalizes just the first letter — used on the lowercase schedule labels for display. */
@@ -601,6 +631,98 @@ const KITS = {
   full:  ['mask', 'headgear', 'tubing', 'filters', 'ffcushion', 'humid'],
   nasal: ['mask', 'headgear', 'tubing', 'filters', 'nasal', 'humid'],
 };
+
+/* ── The copy-from-the-future check ─────────────────────────────────────────
+   At the top level and above every listener, because the halt works by
+   throwing: everything after it in this script block is skipped, so an app
+   stopped here has no handler attached to it at all. Deliberately not inside
+   load(), whose catch returns [] — the right answer to corrupt JSON and a
+   catastrophic one here, since an empty list the app then saves overwrites the
+   good copy with nothing. */
+/* Declared BEFORE the check below, not beside the function that sets it. A
+   `let` is in its temporal dead zone until its declaration runs, so with this
+   line further down, haltForNewerData() threw a ReferenceError on `halted = true`
+   the moment it fired — the app stopped, correctly, but with a blank page
+   instead of the card explaining why. Caught by booting a real copy against a
+   planted future document; the source-pinned tests all passed. */
+let halted = false;
+
+const savedSchema = Number(localStorage.getItem(SCHEMA_KEY) || 1);
+if (savedSchema > SCHEMA) haltForNewerData(savedSchema);
+
+/* Stop the app dead, with the saved copy untouched, and say why.
+   Called only for data written by a newer build: from the check above, from
+   paptrackAdopt() when sync hands one over mid-session, and from the storage
+   listener when another tab of this browser writes one.
+
+   Unlike the sibling apps there is no share-view flag here to reuse as the
+   write chokepoint, so it sets its own — `halted`, checked by save() and by the
+   sync module before it initialises. It draws the message with textContent
+   (the number came out of storage, and data is data, not markup) and THROWS, so
+   nothing after it initialises. */
+function haltForNewerData(found) {
+  halted = true;
+  window.papHalted = true;
+  const wrap = document.createElement('div');
+  wrap.setAttribute('style', 'position:fixed;inset:0;z-index:99999;display:flex;'
+    + 'align-items:center;justify-content:center;padding:24px;'
+    + 'background:var(--bg,#0a0e1a);color:var(--text-primary,#e7eaf6);'
+    + 'font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif');
+  const card = document.createElement('div');
+  card.setAttribute('style', 'max-width:34em;border:1px solid var(--border,#262f4a);'
+    + 'border-radius:12px;padding:24px 26px;background:var(--surface,#121829)');
+  const h = document.createElement('h1');
+  h.setAttribute('style', 'margin:0 0 12px;font-size:20px');
+  h.textContent = 'This Data Was Saved by a Newer Version';
+  const p1 = document.createElement('p');
+  p1.setAttribute('style', 'margin:0 0 12px');
+  p1.textContent = 'Your saved supplies use format ' + String(found)
+    + ', and the copy of the app running here only understands ' + String(SCHEMA)
+    + '. Opening them with this older code would quietly drop the parts it '
+    + 'doesn\u2019t know about, so it has stopped instead.';
+  const p2 = document.createElement('p');
+  p2.setAttribute('style', 'margin:0 0 12px');
+  p2.textContent = 'Nothing has been changed or deleted \u2014 your supplies and their '
+    + 'dates are exactly as you left them. This usually means another device '
+    + 'saved after an update, and this one is still running the older version '
+    + 'from its offline cache.';
+  const p3 = document.createElement('p');
+  p3.setAttribute('style', 'margin:0 0 18px;color:var(--text-secondary,#aab2d0)');
+  p3.textContent = 'Connect to the internet and reload to get the current version.';
+  const btn = document.createElement('button');
+  btn.setAttribute('style', 'font:inherit;font-weight:600;padding:9px 18px;'
+    + 'border:0;border-radius:8px;cursor:pointer;'
+    + 'background:var(--btn-bg,#e7eaf6);color:var(--btn-text,#0a0e1a)');
+  btn.textContent = 'Reload';
+  /* A plain reload can be answered by the service worker out of the same stale
+     cache that caused the halt, and location.reload(true) does not help — the
+     force-reload argument is non-standard and ignored. So unregister first,
+     then reload; the page registers a fresh worker on the next successful load.
+     Only `pap-shell-` caches are cleared: the origin is shared with the sibling
+     apps, and their caches are not ours to delete. */
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.textContent = 'Reloading\u2026';
+    try {
+      if (navigator.serviceWorker) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.unregister();
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter((k) => k.startsWith('pap-shell-'))
+          .map((k) => caches.delete(k)));
+      }
+    } catch (e) { /* nothing to clear, or storage refused — reload anyway */ }
+    location.reload();
+  });
+  card.append(h, p1, p2, p3, btn);
+  wrap.appendChild(card);
+  const attach = () => document.body.appendChild(wrap);
+  if (document.body) attach();
+  else document.addEventListener('DOMContentLoaded', attach, { once: true });
+  throw new Error('pap: saved data schema ' + found + ' is newer than this build (' + SCHEMA + ')');
+}
 
 let items = load();
 let filter = 'all';
@@ -659,12 +781,19 @@ function normalizeItems(list) {
   });
 }
 function save() {
+  /* The app halted on data from a newer build. Nothing may be written over it —
+     this is the single write path, so stopping here is the whole guarantee. */
+  if (halted) return;
   /* Guarded: Safari's private mode and a full quota both throw here, and an
      unguarded throw would kill the click handler mid-save with nothing on
      screen to say so. The in-memory list is still good — and still reaches the
      cloud below if signed in — so warn and carry on. */
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    /* Written beside the items, in the same try, so the two cannot drift: a
+       marker without its data, or data without its marker, both read as
+       "schema 1" and that is the safe way round. */
+    localStorage.setItem(SCHEMA_KEY, String(SCHEMA));
     // 'pap-updated' is the conflict-resolution timestamp for cloud sync: newer side wins.
     localStorage.setItem('pap-updated', String(Date.now()));
   } catch (e) {
@@ -1181,7 +1310,7 @@ closeOnBackdropClick(dataDialog);
    safety net — one press away from losing everything is exactly when a backup is
    worth taking. */
 function downloadBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'paptrack', version: 1, exported: new Date().toISOString(), items }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'paptrack', version: SCHEMA, exported: new Date().toISOString(), items }, null, 2)], { type: 'application/json' });
   downloadBlob(blob, `paptrack-backup-${toISO(today())}.json`);
   toast('Backup downloaded');
 }
@@ -1194,6 +1323,16 @@ $('importFile').addEventListener('change', async (e) => {
     const parsed = JSON.parse(await file.text());
     const raw = Array.isArray(parsed) ? parsed : parsed && parsed.items;
     if (!Array.isArray(raw)) throw new Error('bad format');
+    /* Written by a newer build — the backup file has carried a `version` since
+       long before it was ever read. Refused rather than halted: unlike the
+       boot, sync and other-tab paths, nothing has arrived yet and what is on
+       screen is still good, so the file is turned away and the app carries on.
+       It must come before normalizeItems(), which would strip what makes it
+       newer and leave an ordinary-looking backup to restore. */
+    if (Number((parsed && parsed.version) || 1) > SCHEMA) {
+      toast('This backup was saved by a newer version of the app — reload to update, then restore it');
+      return;
+    }
     // Validate before the confirm, so the count offered is the count actually restorable.
     const incoming = normalizeItems(raw);
     const dropped = raw.length - incoming.length;
@@ -1252,13 +1391,31 @@ $('clearConfirm').addEventListener('click', () => {
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
-window.paptrackAdopt = (newItems, ts) => {
+window.paptrackAdopt = (newItems, ts, schema) => {
+  /* The copy-from-the-future check, live edition. The boot check only guards the
+     load, but onSnapshot can hand a page running yesterday's cached code a
+     document today's build wrote on another device, mid-session.
+
+     Stored VERBATIM first, before normalizeItems() can strip what makes it
+     newer: it is the newest copy there is, and the fresh build reads
+     localStorage on its next load. Then the halt, which throws, so nothing
+     below adopts. A document from the iPhone or Android app carries no schema
+     at all, which reads as 1 — older, never newer, so they never trip this. */
+  if (Number(schema || 1) > SCHEMA) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
+      localStorage.setItem(SCHEMA_KEY, String(schema));
+      localStorage.setItem('pap-updated', String(ts || Date.now()));
+    } catch (e) { console.warn('Could not write synced data', e); }
+    haltForNewerData(schema);
+  }
   items = normalizeItems(newItems);
   /* Guarded like save(): a quota/private-mode throw here would otherwise escape
      into the onSnapshot callback and skip render(), leaving the adopted copy
      invisible. The in-memory list is good either way. */
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(SCHEMA_KEY, String(SCHEMA));
     localStorage.setItem('pap-updated', String(ts || Date.now()));
   } catch (e) {
     console.warn('Could not write synced data', e);
@@ -1273,6 +1430,14 @@ window.paptrackAdopt = (newItems, ts) => {
    reload. The storage event only ever fires in the tabs that DIDN'T write. */
 window.addEventListener('storage', (e) => {
   if (e.key !== STORAGE_KEY || e.newValue === null) return;
+  /* Two tabs can be running different builds — one served from the offline
+     cache, one fetched fresh after an update — so a newer copy arrives from
+     next door as easily as from the cloud. Read straight from storage rather
+     than from the event: the tab that wrote the items wrote the marker beside
+     them, and this event may be either of the two writes. Nothing is stored
+     here, because that tab already holds the newest copy. */
+  if (Number(localStorage.getItem(SCHEMA_KEY) || 1) > SCHEMA)
+    haltForNewerData(Number(localStorage.getItem(SCHEMA_KEY)));
   try { items = normalizeItems(JSON.parse(e.newValue)); } catch { return; }
   render();
 });
@@ -1363,7 +1528,15 @@ let inTestHarness = false;
 try { inTestHarness = !!(window.frameElement && window.frameElement.hasAttribute('data-pap-tests')); }
 catch (e) { /* cross-origin parent — not the harness */ }
 
-if (FIREBASE_CONFIG && !inTestHarness) {
+/* The module is a separate <script type="module"> and cannot see the classic
+   script's `const`s, so the one number it writes is mirrored here. It is pinned
+   to SCHEMA by tests.html — two constants that must agree is exactly the kind of
+   thing that drifts silently. */
+const PAP_SCHEMA = 1;
+
+/* A page halted on data from a newer build must not start a session: the halt is
+   only as good as everything that writes checking it. */
+if (FIREBASE_CONFIG && !inTestHarness && !window.papHalted) {
   init().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
 }
 
@@ -1624,7 +1797,7 @@ async function startSync() {
   if (remoteHas && localHas && isFirstSyncForAccount) {
     const keepGoogle = await chooseSyncSource(local.length, remote.items.length, remote.updatedAt);
     if (keepGoogle) {
-      window.paptrackAdopt(remote.items, remote.updatedAt);
+      window.paptrackAdopt(remote.items, remote.updatedAt, remote.schema);
       window.toast('Loaded your data from the cloud ☁️');
     } else {
       touchLocal();
@@ -1633,7 +1806,7 @@ async function startSync() {
     }
   } else if (remoteHas && !localHas) {
     /* Nothing here to lose. */
-    window.paptrackAdopt(remote.items, remote.updatedAt);
+    window.paptrackAdopt(remote.items, remote.updatedAt, remote.schema);
     window.toast('Loaded your data from the cloud ☁️');
   } else if (localHas && !remoteHas) {
     /* The cloud copy is empty — seeded by a sign-in on a browser that had
@@ -1641,7 +1814,7 @@ async function startSync() {
        real supplies. */
     await pushNow();
   } else if (remoteHas && remote.updatedAt > localTs()) {
-    window.paptrackAdopt(remote.items, remote.updatedAt);
+    window.paptrackAdopt(remote.items, remote.updatedAt, remote.schema);
     window.toast('Loaded your data from the cloud ☁️');
   } else {
     await pushNow();
@@ -1674,7 +1847,7 @@ function attachSnapshot() {
         return;
       }
     }
-    window.paptrackAdopt(r.items, r.updatedAt);
+    window.paptrackAdopt(r.items, r.updatedAt, r.schema);
     window.toast('Synced from another device ☁️');
   }, (e) => {
     /* The second argument is not optional. A listener that errors is handed to this
@@ -1702,7 +1875,12 @@ const forCloud = (v) => JSON.parse(JSON.stringify(v));
 
 async function pushNow() {
   if (!user) return;
-  await F.setDoc(docRef(), { items: forCloud(window.paptrackGet()), updatedAt: localTs() || Date.now() });
+  /* `schema` is additive: the iPhone and Android apps read this document key by
+     key and ignore what they don't know, and when they write it back without
+     the field it simply reads as 1 — older, never newer, so a native write can
+     never trip another device's halt. */
+  await F.setDoc(docRef(), { items: forCloud(window.paptrackGet()), schema: PAP_SCHEMA,
+    updatedAt: localTs() || Date.now() });
   /* A dropped listener is re-attached on the same success that clears the
      warning — without this, "Syncing again" would be true of pushes while
      other devices' updates were still arriving nowhere. */
@@ -1749,5 +1927,51 @@ document.addEventListener('visibilitychange', () => {
 });
 addEventListener('pagehide', flushPush);
 </script>
+<!-- ── Offline ────────────────────────────────────────────────────────────────
+     Registering sw.js is the whole of the offline feature on this side; the
+     strategy, the allowlist and the reasoning all live in sw.js, which is worth
+     reading before changing anything here.
+
+     Three guards, each earning its place:
+
+     • NOT IN A FRAME. tests.html boots the app in a hidden iframe, and a suite
+       run has no business installing a resident worker — nor picking up one
+       another run left behind, which is how a green suite starts lying about
+       which code it tested. Same reason the sync module checks for the harness.
+
+     • NOT WHEN HALTED. A page stopped by haltForNewerData() installs nothing:
+       this block is a script of its own, so the halt's throw never reaches it,
+       and window.papHalted is what stops it.
+
+     • AFTER LOAD. Registration competes with the app's own first paint
+       otherwise, and offline is worth nothing on the visit where you are online
+       anyway.
+
+     No `updatefound` prompt, deliberately. Under network-first there is nothing
+     to prompt about: the page you are reading came off the network, so it is
+     already current, and the worker only ever matters on a visit where the
+     network failed. -->
+<script>
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  if (window.top !== window.self) return;
+  if (window.papHalted) return;
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js', { scope: './' })
+      .then(function () { return navigator.serviceWorker.ready; })
+      .then(function (reg) {
+        /* Ask the worker to repair any missing shell file. The install event
+           that first filled the cache fires ONCE per script version, so if the
+           cache is later evicted nothing would ever rebuild it — offline would
+           quietly rot to "whatever the last visit happened to request". This
+           runs while we are demonstrably online, which is the only time the
+           repair can work. */
+        if (reg.active) reg.active.postMessage({ type: 'shell-check' });
+      })
+      .catch(function (e) { console.warn('Offline unavailable:', e); });
+  });
+})();
+</script>
+
 </body>
 </html>
