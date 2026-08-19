@@ -146,7 +146,11 @@
     padding: 10px; box-shadow: var(--shadow);
     display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
   }
-  .stat .label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
+  /* 0.75rem, not smaller: the theme pack's floor is 12px for --text-muted and
+     --text-hint, which sit at about 4.5:1 and stop being legible below it. rem
+     rather than the pack's px token so these still grow with a larger browser
+     font size, the way every other size on this page does. */
+  .stat .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
   .stat .value { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
   .stat .sub { font-size: 0.75rem; color: var(--text-secondary); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -158,7 +162,7 @@
   }
   .search:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
   .filter-block { display: flex; flex-direction: column; gap: 4px; }
-  .filters-cap { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .filters-cap { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
   /* Three chips stretched full-width so the row never scrolls (matches iOS). */
   .filters { display: flex; gap: 6px; }
   .filter-chip {
@@ -184,7 +188,7 @@
     background: var(--surface-alt); border-radius: 12px; padding: 10px;
     display: flex; flex-direction: column; gap: 8px;
   }
-  .quad-h { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .quad-h { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
   .quad-line { font-size: 0.8rem; color: var(--text-secondary); }
   /* The 1.5px border is the badge's real status signal, not trim. The tint fills are pale
      washes built to sit behind text, and they barely differ from each other once red-green
@@ -279,7 +283,7 @@
     border-radius: 14px; padding: 12px;
   }
   .sec-card .field:last-child { margin-bottom: 0; }
-  .sec-foot { font-size: 0.74rem; color: var(--text-muted); margin: 7px 0 0; padding-left: 2px; }
+  .sec-foot { font-size: 0.75rem; color: var(--text-muted); margin: 7px 0 0; padding-left: 2px; }
   .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
   /* ---- Back up & restore ---- */
   dialog p.hint { font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 12px; }
