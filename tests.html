@@ -518,6 +518,28 @@ t('null, undefined and numbers are handled, not thrown on', () => {
   eq(w.__papTestHooks.esc(7), '7');
 });
 
+
+group('Which fields raise a phone keyboard');
+/* `openModal` moves focus off a text field onto the dialog on a touch screen, so
+   the on-screen keyboard doesn't cover the dialog you just opened. What counts
+   as "a text field" is the whole decision, and it is pure — pinned here so the
+   list is a test rather than a rediscovery the next time a dialog opens on a
+   field nobody thought about. Same block in Money Map and the sibling apps. */
+t('a typing field does, whatever flavour', () => {
+  for (const type of ['text', 'number', 'search', 'tel', 'url', 'email',
+                      'password', 'date', 'month'])
+    ok(w.__papTestHooks.raisesKeyboard({ tagName: 'INPUT', type }), `input[type=${type}]`);
+  ok(w.__papTestHooks.raisesKeyboard({ tagName: 'TEXTAREA' }), 'a note box has no type at all');
+});
+t('a control you press or pick does not', () => {
+  for (const type of ['checkbox', 'radio', 'button', 'submit', 'range', 'color', 'file'])
+    eq(w.__papTestHooks.raisesKeyboard({ tagName: 'INPUT', type }), false, `input[type=${type}]`);
+  eq(w.__papTestHooks.raisesKeyboard({ tagName: 'BUTTON' }), false);
+  eq(w.__papTestHooks.raisesKeyboard({ tagName: 'SELECT' }), false);
+  eq(w.__papTestHooks.raisesKeyboard({ tagName: 'DIALOG' }), false, 'the dialog itself, once focus lands there');
+  eq(w.__papTestHooks.raisesKeyboard(null), false, 'nothing focused is not a keyboard');
+});
+
 /* ── Runner ───────────────────────────────────────────────────────────────── */
 
 /* The localhost gate. Booting the app is itself the side effect worth guarding:

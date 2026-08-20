@@ -1237,7 +1237,7 @@ function openForm(it = null) {
     $('fStock').value = 0;
     $('fLowAt').value = 1;
   }
-  dlg.showModal();
+  openModal(dlg);
 }
 $('fPreset').addEventListener('change', (e) => applyPreset(e.target.value));
 dlg.addEventListener('click', (e) => {
@@ -1247,6 +1247,61 @@ dlg.addEventListener('click', (e) => {
   if (r) { $('fReplace').value = r.dataset.replace; }
 });
 $('cancelBtn').addEventListener('click', () => dlg.close());
+/* ── Opening a dialog on a touch screen ─────────────────────────────────────
+   `showModal()` runs the spec's dialog focusing steps: focus the `autofocus`
+   element, or failing that the FIRST FOCUSABLE ONE, whatever it happens to
+   be. Nothing here asks for that — there is no `autofocus` anywhere in the
+   file — so which dialogs summoned a phone's keyboard was decided entirely by
+   which happened to open with a text box rather than a button. The supply
+   form did whenever it was EDITING: the preset picker is hidden for an item
+   that already exists, so the Name box became the first control. Back up did
+   not. On a phone the keyboard then covers half the dialog before you have
+   read it.
+
+   So on a COARSE pointer the focus is moved off the field and onto the dialog
+   itself. Focus still goes INTO the dialog, and that part is not optional:
+   leave it on the button behind and a keyboard or screen-reader user is
+   stranded outside a thing covering the page. Landing on the CONTAINER is the
+   arrangement the ARIA practices offer for exactly this case — every dialog
+   here carries `aria-labelledby`, so it announces itself, and Tab from there
+   reaches the first field. `tabIndex` is set at open rather than in the
+   markup: a dialog is a focus target only for the moment it opens.
+
+   `(pointer: coarse)` and NOT the width breakpoint the chrome uses: the
+   keyboard is a fact about touch, not about width. A desktop window dragged
+   narrow keeps its click-and-type, and a wide tablet is still spared.
+
+   It runs only when the browser actually landed on a text-entry field, so it
+   is a no-op for the dialogs that open on a button and stays right for one
+   that later gains a field at the top. And it deliberately does nothing to a
+   caller that focuses something itself AFTERWARDS, which is how a window
+   whose whole point is typing can still ask for the keyboard.
+
+   Ported from Money Map, where it was found and worked out, and mirrored
+   here, in Sprint Predictability, Flow Metrics and Golf Handicap on the same
+   afternoon. */
+const KEYBOARD_TYPES = new Set(['text', 'number', 'search', 'tel', 'url', 'email',
+  'password', 'date', 'month']);
+/* Which elements a phone answers with a keyboard — pure over {tagName, type},
+   so the list is pinned by tests rather than rediscovered the next time a
+   dialog opens on a field nobody thought about. A checkbox, a button and a
+   select all raise nothing, which is why the dialogs that open on one are left
+   exactly as they were. */
+function raisesKeyboard(el) {
+  if (!el) return false;
+  return el.tagName === 'TEXTAREA'
+    || (el.tagName === 'INPUT' && KEYBOARD_TYPES.has(el.type));
+}
+function openModal(dlg) {
+  dlg.showModal();
+  if (!window.matchMedia('(pointer: coarse)').matches) return;
+  const el = document.activeElement;
+  if (!el || !dlg.contains(el)) return;
+  if (!raisesKeyboard(el)) return;
+  dlg.tabIndex = -1;
+  dlg.focus();
+}
+
 /* Clicking outside the form cancels it, same as Cancel or Escape — edits are discarded. A click on
    the backdrop reports the dialog itself as the target, but so does one on the dialog's own padding
    or scrollbar, so test the pointer against the dialog's box rather than trusting the target. Both
@@ -1342,7 +1397,7 @@ $('themeSel').addEventListener('change', (e) => {
    that is the only way back from either, and the foot of the page is nowhere
    near where anyone looks for them. */
 const dataDialog = $('dataDialog');
-$('dataBtn').addEventListener('click', () => dataDialog.showModal());
+$('dataBtn').addEventListener('click', () => openModal(dataDialog));
 $('dataCloseBtn').addEventListener('click', () => dataDialog.close());
 /* Both dismiss on a backdrop click, like the item form. `syncChoiceDialog` is
    deliberately left out: picking which copy of your supplies survives has to be
@@ -1415,7 +1470,7 @@ $('clearBtn').addEventListener('click', () => {
   $('clearSyncWarn').textContent = signedIn
     ? 'You are signed in, so this also clears the copy in your Google account. Your other devices will ask before clearing themselves.'
     : '';
-  clearDialog.showModal();
+  openModal(clearDialog);
 });
 
 $('clearBackupBtn').addEventListener('click', downloadBackup);
@@ -1438,7 +1493,7 @@ $('clearConfirm').addEventListener('click', () => {
    a classic script, so the suite could never see it — and so the one function
    standing between a supply name and innerHTML went untested. Nothing in the
    app reads this object. Same pattern as __svTestHooks and __ghTestHooks. */
-window.__papTestHooks = { esc };
+window.__papTestHooks = { esc, raisesKeyboard };
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
@@ -1832,7 +1887,7 @@ function chooseSyncSource(localCount, remoteCount, remoteUpdatedAt) {
     deviceBtn.addEventListener('click', onDevice);
     googleBtn.addEventListener('click', onGoogle);
     dlg.addEventListener('cancel', preventCancel);
-    dlg.showModal();
+    openModal(dlg);
   });
 }
 
