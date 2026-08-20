@@ -546,7 +546,10 @@
     <div class="formsec">
       <h3 class="sec-h" id="notesH">Notes</h3>
       <div class="sec-card">
-        <input type="text" id="fNotes" aria-labelledby="notesH" maxlength="140" placeholder="size, model, supplier…">
+        <!-- data-keep-caret: a note is prose you come back and add to, not a value you retype.
+             See SELECT_ON_FOCUS. -->
+        <input type="text" id="fNotes" aria-labelledby="notesH" maxlength="140" data-keep-caret
+               placeholder="size, model, supplier…">
       </div>
     </div>
     <div class="formfoot">
@@ -1301,6 +1304,65 @@ function openModal(dlg) {
   dlg.tabIndex = -1;
   dlg.focus();
 }
+
+/* ── A box you land on has its contents selected ────────────────────────────
+   Typing then REPLACES the figure instead of running on to the end of it.
+   Every box in this app holds one short value — a name, a cycle in days, a
+   spares count — correcting one meant clearing it first: click, then Cmd-A or
+   several backspaces, then type. Ported from Money Map, where the grid
+   behaves like a spreadsheet and this is what a spreadsheet does.
+
+   One delegated listener on `focusin`, which BUBBLES where `focus` does not,
+   so it covers every field in every dialog including the supply form, which
+   is rebuilt from the item every time it opens. There is nothing to remember
+   when adding a field.
+
+   The list is a WHITELIST, not a blacklist: types with no text to select — a
+   date, a file picker — are left out because `select()` means nothing there,
+   and so is any type nobody has thought about yet. Search IS included: it
+   holds one short term like every other box here, and a second click still
+   places the caret if you meant to add to it.
+
+   **`data-keep-caret` opts a field out by hand, and the supply Notes box
+   carries it.** The sibling apps keep prose out by excluding TEXTAREA, but
+   this one is a single-line `input[type=text]`, so the type check would sweep
+   it in. A note is written once and added to later — "size, model" becoming
+   "size, model, supplier" — and selecting it on focus puts the lot one
+   keystroke from gone, with nothing on screen to retype it from. The
+   attribute is in every app in the family so the next prose field has an
+   escape hatch waiting.
+
+   Clicking a second time places the caret as it always did, since the field
+   is focused by then and no focusin fires — that is the way back in for
+   editing rather than replacing.
+
+   It does not fight `openModal` above: on a touch screen that moves focus to
+   the dialog, so no field is focused and nothing is selected until you tap
+   one. */
+const SELECT_ON_FOCUS = new Set(['text', 'search', 'number', 'tel', 'url', 'password']);
+/* Whether the focus about to be handled came from a pointer, which decides
+   whether the guard below is needed at all. Capture, so it is set before the
+   focus it explains. */
+let focusFromPointer = false;
+document.addEventListener('pointerdown', () => { focusFromPointer = true; }, true);
+document.addEventListener('pointerup', () => { focusFromPointer = false; }, true);
+document.addEventListener('focusin', (e) => {
+  const el = e.target;
+  if (!el || el.tagName !== 'INPUT' || !SELECT_ON_FOCUS.has(el.type)) return;
+  if (el.hasAttribute('data-keep-caret')) return;
+  if (typeof el.select !== 'function') return;
+  el.select();
+  /* A click focuses on mousedown and then PLACES THE CARET on mouseup, which
+     collapses the selection made a moment earlier — without this the feature
+     works from the keyboard and appears broken with a mouse, which is how
+     everybody would meet it. Attached only for a pointer-driven focus and only
+     `once`, so it is spent on the click that caused it: a listener left hanging
+     after a Tab would eat the caret placement of a later, deliberate click. A
+     drag-select is unharmed — the range is built on the mousemoves, and
+     stopping mouseup's default does not unpick it. */
+  if (focusFromPointer)
+    el.addEventListener('mouseup', (ev) => ev.preventDefault(), { once: true });
+});
 
 /* Clicking outside the form cancels it, same as Cancel or Escape — edits are discarded. A click on
    the backdrop reports the dialog itself as the target, but so does one on the dialog's own padding

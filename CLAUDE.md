@@ -180,7 +180,7 @@ This is a real, shipped product — the flagship web build alongside the native 
   teach `normalizeItem()` the field in that same commit** — a bump without it
   protects a field the boundary strips anyway.
 
-## Dialogs on a Phone (2026-08-20)
+## Fields and Dialogs (2026-08-20)
 
 - **Every modal opens through `openModal(dlg)`, never `showModal()` directly.**
   `showModal()` runs the spec's dialog focusing steps — the `autofocus` element, or failing
@@ -203,6 +203,33 @@ This is a real, shipped product — the flagship web build alongside the native 
   - A dialog that genuinely wants the keyboard needs no special case: call `openModal` and
     then focus the field yourself afterwards, which simply wins.
   Ported from Money Map, and mirrored across the app family the same afternoon.
+- **A box you land on has its contents SELECTED**, so typing replaces the value
+  rather than running on to the end of it — one delegated `focusin` listener
+  (`SELECT_ON_FOCUS`), which bubbles where `focus` does not, so it covers every
+  field including the ones built a moment before a dialog is shown, with nothing
+  to remember when adding one. Ported from Money Map 2026-08-20 and now in every
+  app in the family. Four things it must keep doing:
+  - **The type list is a WHITELIST.** A date, a checkbox, a range and a file
+    picker have no text for `select()` to take, and a type nobody has thought
+    about is left alone rather than silently swept in.
+  - **A TEXTAREA is never touched** — the `INPUT` check does it. A box you write
+    several lines into should not be one keystroke from gone, and unlike a
+    mistyped figure there is nothing on screen to retype it from.
+  - **`data-keep-caret` is the by-hand opt-out for a single-line PROSE field**,
+    which the TEXTAREA rule cannot catch. **The supply Notes box (`#fNotes`) carries it**: a
+    140-char `input[type=text]` that gets added to later, so the type check would
+    otherwise sweep it in. Search IS selected — it holds one short term.
+  - **The one-shot `mouseup` guard is load-bearing, and only for a POINTER-driven
+    focus.** A click focuses on mousedown and then places the caret on mouseup,
+    which collapses the selection made a moment earlier: without it the feature
+    works from the keyboard and looks broken with a mouse, which is how everybody
+    would meet it. A `{once:true}` listener left hanging after a Tab would sit
+    there and eat the caret placement of a later, deliberate click — hence
+    `focusFromPointer`, set on a capturing `pointerdown`. Clicking a second time
+    places the caret normally (the field is focused by then, so no focusin
+    fires), and that is the way back in for editing rather than replacing.
+  It does not fight `openModal`: on a touch screen focus goes to the dialog, so
+  nothing is selected until you tap a field.
 - **Date fields are `appearance: none`, and that lives in `theme.css`, not here.** WebKit
   ignores an author `box-sizing` on a natively drawn control, so `width: 100%` on a date
   input meant the column PLUS its padding and border and the box hung over its neighbour.
