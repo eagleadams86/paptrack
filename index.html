@@ -1400,6 +1400,14 @@ $('clearConfirm').addEventListener('click', () => {
   toast('Everything deleted — starting fresh');
 });
 
+/* Read by tests.html only (it loads this file in a hidden iframe and calls the
+   pure functions). Function declarations are already reachable as window
+   properties; `esc` is a top-level `const`, which is NOT a property of window in
+   a classic script, so the suite could never see it — and so the one function
+   standing between a supply name and innerHTML went untested. Nothing in the
+   app reads this object. Same pattern as __svTestHooks and __ghTestHooks. */
+window.__papTestHooks = { esc };
+
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
 window.paptrackAdopt = (newItems, ts, schema) => {

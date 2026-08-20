@@ -485,6 +485,39 @@ t('a push during sign-in reconciliation is deferred, then still sent', () => {
     'and an edit deferred behind it must be pushed once it lifts');
 });
 
+group('esc — the free-text boundary (a supply name or note reaching innerHTML)');
+/* The id boundary above has had hostile-input tests since it was written. This
+   one had none, in this app and three of its siblings, which an audit found on
+   2026-08-20: `normalizeItem` was proved to scrub a crafted id, while `esc` —
+   the function standing between a supply NAME and the card markup — was never
+   called by the suite at all. A name is free text capped at 60 characters and
+   a note at 140; neither is sanitized on the way in, because escaping at the
+   sink is the design. So the sink is what has to be pinned.
+   It matters beyond this app: every GitHub Pages site in this account shares one
+   browser origin, so markup escaping here is what keeps a hole here from being a
+   hole in the two apps holding work figures. */
+t('every HTML-significant character is replaced', () => {
+  eq(w.__papTestHooks.esc('<>&"\''), '&lt;&gt;&amp;&quot;&#39;');
+});
+t('a hostile name survives as text and never as markup', () => {
+  const evil = '"><img src=x onerror=alert(1)><script>alert(2)<\/script>';
+  const e = w.__papTestHooks.esc(evil);
+  /* Parsed for real rather than string-matched: the question is what a BROWSER
+     builds from this, both in an attribute (the card's aria-labels interpolate
+     the name) and in text. A regex over the output would pass on markup the
+     parser still accepts. */
+  const probe = document.createElement('div');
+  probe.innerHTML = '<span title="' + e + '">' + e + '</span>';
+  eq(probe.querySelectorAll('img, script').length, 0, 'no element may be created');
+  eq(probe.firstElementChild.textContent, evil, 'and the text reads back unchanged');
+  eq(probe.firstElementChild.getAttribute('title'), evil, 'including inside an attribute');
+});
+t('null, undefined and numbers are handled, not thrown on', () => {
+  eq(w.__papTestHooks.esc(null), '');
+  eq(w.__papTestHooks.esc(undefined), '');
+  eq(w.__papTestHooks.esc(7), '7');
+});
+
 /* ── Runner ───────────────────────────────────────────────────────────────── */
 
 /* The localhost gate. Booting the app is itself the side effect worth guarding:

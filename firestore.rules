@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// Security rules for the paptrack-6c817 Firestore database.
+//
+// This file is a checked-in copy of what should be deployed in the Firebase
+// console (Firestore Database → Rules). Nothing in this repo deploys it — there
+// is no Firebase CLI setup here and the app is a single static page — so if the
+// rules are ever changed in the console, update this file to match. (Same
+// pattern as the sprint-velocity, team-dashboard, golf-handicap and
+// financial-plan repos.)
+//
+// WRITTEN 2026-08-20, and honestly: PAPTrack was the only syncing app in the
+// family with no checked-in copy, so this was reconstructed from the path the
+// app actually writes (`F.doc(db, 'paptrack', user.uid)` in index.html) and the
+// wording its four siblings already use — it is NOT a transcription of a
+// console screen anyone read that day. Confirm it against the console and
+// replace this paragraph with a "verified against the deployed rules on
+// <date>" line, the way sprint-velocity's copy carries one.
+//
+// PASTE THESE INTO THE CONSOLE BEFORE SIGNING IN FOR THE FIRST TIME. Firestore's
+// default rules for a new project either deny everything (sync silently fails)
+// or, in test mode, allow every signed-in user to read every other user's data.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Sync stores one document per signed-in user, holding
+    // { items, updatedAt, schema } — the supply list as an array, the local
+    // clock the merge compares, and the schema number that lets an older build
+    // refuse data written by a newer one rather than guess at it.
+    // The {uid} path segment is the user's Firebase auth UID, so comparing it to
+    // request.auth.uid is what confines each account to its own record — a rule of
+    // just `request.auth != null` would let any signed-in Google account read every
+    // other user's supplies, while refusing anonymous callers identically, so the
+    // difference is invisible from outside. Keep the comparison.
+    match /paptrack/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Everything else is denied by default: there is deliberately no
+    // `match /{document=**}` catch-all, and the app touches no other path.
+  }
+}
