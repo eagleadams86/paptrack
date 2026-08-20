@@ -188,6 +188,34 @@ t('an overdue clean lands on today, never in the past', () => {
   ok(ics.includes('DTSTART;VALUE=DATE:' + iso(0).replace(/-/g, '')), 'clean event dated today');
 });
 
+/* The cleaning clock runs from the last wash OR the last replacement, whichever is later:
+   a supply out of a fresh packet is clean, so replacing one must not leave it wearing an
+   overdue badge. Pinned here as well as natively because it is the one piece of schedule
+   maths that reads BOTH dates. */
+group('the cleaning clock — replacing counts as clean');
+t('replacing an overdue item clears its cleaning, without recording a wash', () => {
+  const it = w.normalizeItem({ name: 'Mask', cleanDays: 7, lastCleaned: iso(-30), lastReplaced: iso(0) });
+  eq(w.cleanDue(it), false, 'a brand-new mask is not due for cleaning');
+  eq(w.cleanLeft(it), 7, 'the clock restarts at the full cycle');
+  eq(it.lastCleaned, iso(-30), 'the wash log is untouched — no cleaning was invented');
+  ok(!w.cleanBadge(it).includes('b-critical'), 'and the badge is not red: ' + w.cleanBadge(it));
+});
+t('a wash later than the replacement still wins', () => {
+  const it = w.normalizeItem({ name: 'Tube', cleanDays: 7, lastCleaned: iso(-1), lastReplaced: iso(-10) });
+  eq(w.cleanLeft(it), 6);
+});
+t('never cleaned and long since replaced is still overdue', () => {
+  const it = w.normalizeItem({ name: 'Headgear', cleanDays: 7, lastCleaned: null, lastReplaced: iso(-30) });
+  eq(w.cleanDue(it), true);
+  ok(w.cleanBadge(it).includes('Clean overdue by 23 days'), 'got ' + w.cleanBadge(it));
+  eq(w.cleanStatus(it), 'Not cleaned yet', 'the never-washed fact lives on the status line now');
+});
+t('an item with no cleaning schedule is never due, whatever its dates', () => {
+  const it = w.normalizeItem({ name: 'Filters', cleanDays: 0, lastCleaned: null, lastReplaced: iso(-30) });
+  eq(w.cleanDue(it), false);
+  eq(w.cleanBadge(it), '');
+});
+
 group('severity + labels — light echo of the natively-pinned rules');
 t('the cycle − 1 clamp keeps daily cleaning good on the day it was cleaned', () => {
   eq(w.severity(1, 1), 'good');

@@ -899,9 +899,23 @@ function nextReplace(it) { return addDays(parseDate(it.lastReplaced), it.replace
 /* replaceDays 0 = "as needed" (consumables like distilled water): never due, sorts last.
    Finite sentinel (not Infinity) so subtraction-based sort comparators stay valid. */
 function replaceLeft(it) { return it.replaceDays > 0 ? daysBetween(today(), nextReplace(it)) : 9e9; }
-/* Cleaning mirrors replacing: a due date and a days-left count off the same clock. An item
-   that was never cleaned is due today (there is no last-cleaned date to count from). */
-function nextClean(it) { return it.lastCleaned ? addDays(parseDate(it.lastCleaned), it.cleanDays) : today(); }
+/* Cleaning mirrors replacing: a due date and a days-left count off the same clock. That clock
+   starts at whichever came LATER — the last wash or the last replacement — because a supply
+   fresh out of the packet is clean whether or not it was ever washed. Without that, replacing
+   an overdue mask left the new one wearing a red "Clean overdue" badge, a "Mark cleaned"
+   button, a place in the due-to-clean count and a calendar reminder, all for a wash it did
+   not need. `lastCleaned` stays a record of washes that actually happened and is never
+   written by a replacement, so the two facts can't be confused for each other; deriving the
+   clock instead also fixes items already saved, and covers editing "last replaced" by hand,
+   which lands in the same state by another route. `lastReplaced` is never null — normalizeItem
+   defaults it to today — so there is always a date to count from. */
+function cleanedOrReplaced(it) {
+  const replaced = parseDate(it.lastReplaced);
+  if (!it.lastCleaned) return replaced;
+  const cleaned = parseDate(it.lastCleaned);
+  return cleaned > replaced ? cleaned : replaced;
+}
+function nextClean(it) { return addDays(cleanedOrReplaced(it), it.cleanDays); }
 function cleanLeft(it) { return it.cleanDays > 0 ? daysBetween(today(), nextClean(it)) : 9e9; }
 function cleanDue(it) { return it.cleanDays > 0 && cleanLeft(it) <= 0; }
 /* Reorder whenever spares are at or below the threshold — low stock alone drives it, for
@@ -953,11 +967,13 @@ function replaceBadge(it) {
 /* The cleaning badge carries the same data as the replace one — due date, days left, days
    overdue — read off the cleaning cycle instead of the replacement cycle, and coloured by the
    same bands. Overdue stays red: it's the same kind of miss as "Replace overdue", and amber
-   undersold it. An item that was never cleaned has no date to count from, so it just reads
-   "Cleaning due". */
+   undersold it. A never-cleaned item used to short-circuit to a flat red "Cleaning due", the
+   one asymmetry between the two badges; it counts from its replacement date now like every
+   other item, so a supply replaced today reads "Clean by <date>" and one replaced months ago
+   still reads overdue on the day it is added. The status line under it still says "Not
+   cleaned yet", which is where that fact belongs. */
 function cleanBadge(it) {
   if (it.cleanDays <= 0) return '';
-  if (!it.lastCleaned) return badge('b-critical', 'Cleaning due');
   const left = cleanLeft(it);
   if (left < 0) return badge('b-critical', `Clean overdue by ${-left} day${left === -1 ? '' : 's'}`);
   return badge(`b-${severity(it.cleanDays, left)}`, `Clean by ${esc(fmtDate(nextClean(it)))} · ${left} day${left === 1 ? '' : 's'} left`);

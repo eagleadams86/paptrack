@@ -30,8 +30,22 @@ This is a real, shipped product — the flagship web build alongside the native 
 - **The cleaning badge carries the same data as the replace badge** — due date, days left,
   days overdue — off `nextClean`/`cleanLeft` instead of `nextReplace`/`replaceLeft`, coloured
   by the same `severity(cycle, days)` bands with `cleanDays` as the cycle. Overdue stays red,
-  not amber: it's the same kind of miss as "Replace overdue". The one asymmetry is an item
-  that was never cleaned — no date to count from, so it just reads "Cleaning due" in red.
+  not amber: it's the same kind of miss as "Replace overdue". It has no special case left: the
+  flat red "Cleaning due" for a never-cleaned item is gone, because there is now always a date
+  to count from — see the next bullet.
+- **The cleaning clock runs from the LATER of the last wash and the last replacement**
+  (`cleanedOrReplaced()`, feeding `nextClean()`). A supply out of a fresh packet is clean
+  whether or not it was ever washed, so replacing one restarts its cleaning cycle. Before
+  2026-08-20 it counted from `lastCleaned` alone, which left a mask you had just replaced
+  wearing a red "Clean overdue" badge, a "Mark cleaned" button, a place in the due-to-clean
+  count and a calendar reminder — for a wash it did not need. **`lastCleaned` is still written
+  only by an actual cleaning**, never by a replacement: keeping it a record of washes that
+  happened is what stops the card claiming "Last cleaned today" for a bag you just opened, and
+  deriving the clock instead of writing a date also repairs items already saved and covers
+  editing "last replaced" by hand, which reaches the same state by another route.
+  `lastReplaced` is never null (`normalizeItem` defaults it to today), so the derivation always
+  has a date. Ported to iOS (`Schedule.cleanedOrReplaced`) and Android (`Schedule.cleanedOrReplaced`)
+  the same day — all three read `max(lastCleaned, lastReplaced)` and must stay in step.
 - **`severity()`'s bands are clamped to `cycle - 1`.** Daily cleaning is the reason: without
   it `ceil(1 × 0.2) = 1` puts a mask in the serious band the moment it's cleaned. The clamp
   never binds at replacement cycles (the shortest shipped is 14 days), so replace badges are
@@ -179,3 +193,58 @@ This is a real, shipped product — the flagship web build alongside the native 
 - **Bump `SCHEMA` in the same commit that adds or repurposes a stored field, and
   teach `normalizeItem()` the field in that same commit** — a bump without it
   protects a field the boundary strips anyway.
+
+## Fields and Dialogs (2026-08-20)
+
+- **Every modal opens through `openModal(dlg)`, never `showModal()` directly.**
+  `showModal()` runs the spec's dialog focusing steps — the `autofocus` element, or failing
+  that the FIRST FOCUSABLE one — and there is no `autofocus` anywhere in the file, so which
+  dialogs raised a phone's keyboard was decided entirely by which happened to open with a
+  text box — the supply form did whenever it was EDITING, because the
+  preset picker is hidden for an item that already exists and the Name box became the first
+  control; Back up did not. The keyboard then covers half the dialog before it has been read. On a
+  COARSE pointer `openModal` moves focus off the field and onto the dialog itself.
+  - **Focus still goes INTO the dialog** — that part is not optional, or a keyboard or
+    screen-reader user is stranded outside a thing covering the page. The CONTAINER is what
+    the ARIA practices offer for this case: every dialog here carries `aria-labelledby`, so
+    it announces itself, and Tab reaches the first field. `tabIndex` is set at open rather
+    than in the markup — a dialog is a focus target only for that moment.
+  - **`(pointer: coarse)`, NOT a width breakpoint.** The keyboard is a fact about touch, not
+    width: a desktop window dragged narrow keeps its click-and-type, a wide tablet is spared.
+  - **`raisesKeyboard(el)` is pure and pinned** over `{tagName, type}`, so the type list is a
+    test rather than a rediscovery. It is a no-op when the browser landed on a button, a
+    picker or a disclosure, which is what leaves those dialogs exactly as they were.
+  - A dialog that genuinely wants the keyboard needs no special case: call `openModal` and
+    then focus the field yourself afterwards, which simply wins.
+  Ported from Money Map, and mirrored across the app family the same afternoon.
+- **A box you land on has its contents SELECTED**, so typing replaces the value
+  rather than running on to the end of it — one delegated `focusin` listener
+  (`SELECT_ON_FOCUS`), which bubbles where `focus` does not, so it covers every
+  field including the ones built a moment before a dialog is shown, with nothing
+  to remember when adding one. Ported from Money Map 2026-08-20 and now in every
+  app in the family. Four things it must keep doing:
+  - **The type list is a WHITELIST.** A date, a checkbox, a range and a file
+    picker have no text for `select()` to take, and a type nobody has thought
+    about is left alone rather than silently swept in.
+  - **A TEXTAREA is never touched** — the `INPUT` check does it. A box you write
+    several lines into should not be one keystroke from gone, and unlike a
+    mistyped figure there is nothing on screen to retype it from.
+  - **`data-keep-caret` is the by-hand opt-out for a single-line PROSE field**,
+    which the TEXTAREA rule cannot catch. **The supply Notes box (`#fNotes`) carries it**: a
+    140-char `input[type=text]` that gets added to later, so the type check would
+    otherwise sweep it in. Search IS selected — it holds one short term.
+  - **The one-shot `mouseup` guard is load-bearing, and only for a POINTER-driven
+    focus.** A click focuses on mousedown and then places the caret on mouseup,
+    which collapses the selection made a moment earlier: without it the feature
+    works from the keyboard and looks broken with a mouse, which is how everybody
+    would meet it. A `{once:true}` listener left hanging after a Tab would sit
+    there and eat the caret placement of a later, deliberate click — hence
+    `focusFromPointer`, set on a capturing `pointerdown`. Clicking a second time
+    places the caret normally (the field is focused by then, so no focusin
+    fires), and that is the way back in for editing rather than replacing.
+  It does not fight `openModal`: on a touch screen focus goes to the dialog, so
+  nothing is selected until you tap a field.
+- **Date fields are `appearance: none`, and that lives in `theme.css`, not here.** WebKit
+  ignores an author `box-sizing` on a natively drawn control, so `width: 100%` on a date
+  input meant the column PLUS its padding and border and the box hung over its neighbour.
+  See rule 11 in the theme pack's CLAUDE.md; don't re-fix it locally.

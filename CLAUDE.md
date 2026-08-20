@@ -30,8 +30,22 @@ This is a real, shipped product — the flagship web build alongside the native 
 - **The cleaning badge carries the same data as the replace badge** — due date, days left,
   days overdue — off `nextClean`/`cleanLeft` instead of `nextReplace`/`replaceLeft`, coloured
   by the same `severity(cycle, days)` bands with `cleanDays` as the cycle. Overdue stays red,
-  not amber: it's the same kind of miss as "Replace overdue". The one asymmetry is an item
-  that was never cleaned — no date to count from, so it just reads "Cleaning due" in red.
+  not amber: it's the same kind of miss as "Replace overdue". It has no special case left: the
+  flat red "Cleaning due" for a never-cleaned item is gone, because there is now always a date
+  to count from — see the next bullet.
+- **The cleaning clock runs from the LATER of the last wash and the last replacement**
+  (`cleanedOrReplaced()`, feeding `nextClean()`). A supply out of a fresh packet is clean
+  whether or not it was ever washed, so replacing one restarts its cleaning cycle. Before
+  2026-08-20 it counted from `lastCleaned` alone, which left a mask you had just replaced
+  wearing a red "Clean overdue" badge, a "Mark cleaned" button, a place in the due-to-clean
+  count and a calendar reminder — for a wash it did not need. **`lastCleaned` is still written
+  only by an actual cleaning**, never by a replacement: keeping it a record of washes that
+  happened is what stops the card claiming "Last cleaned today" for a bag you just opened, and
+  deriving the clock instead of writing a date also repairs items already saved and covers
+  editing "last replaced" by hand, which reaches the same state by another route.
+  `lastReplaced` is never null (`normalizeItem` defaults it to today), so the derivation always
+  has a date. Ported to iOS (`Schedule.cleanedOrReplaced`) and Android (`Schedule.cleanedOrReplaced`)
+  the same day — all three read `max(lastCleaned, lastReplaced)` and must stay in step.
 - **`severity()`'s bands are clamped to `cycle - 1`.** Daily cleaning is the reason: without
   it `ceil(1 × 0.2) = 1` puts a mask in the serious band the moment it's cleaned. The clamp
   never binds at replacement cycles (the shortest shipped is 14 days), so replace badges are
