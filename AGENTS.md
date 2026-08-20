@@ -194,6 +194,24 @@ This is a real, shipped product — the flagship web build alongside the native 
   teach `normalizeItem()` the field in that same commit** — a bump without it
   protects a field the boundary strips anyway.
 
+## The Schema Marker Is a Three-App Contract (2026-08-20)
+
+- **All three apps now read and write it.** The `schema` field beside `items` in the Firestore
+  document, and `version` in the backup envelope, were written here to be *additive* precisely
+  because the phones ignored them — a copy without the field reads as 1, so an old phone build
+  could never trip this page's halt. Since 2026-08-20 the phones keep the convention as well:
+  iOS `DataSchema.current` and Android `DataSchema.CURRENT` are checked before any decode (iOS
+  checks the iCloud KV copy too) and written on every push, and both refuse a backup file whose
+  `version` is higher than they understand.
+- **So a bump belongs in all three apps in the same change.** Whichever app adds a stored field
+  raises the number; the other two then *stop* on that data instead of quietly normalising the
+  new field away. Raising it in one app alone gets the halt without the field, which is noise;
+  adding the field without raising it is the silent data loss the marker exists to prevent.
+- **The phones pause syncing rather than halting.** This page halts because it shares
+  localStorage with the newer build and could overwrite it. A phone's copy is its own — still
+  correct, still usable offline — so the native guard stops sync in both directions, says why,
+  and leaves the app working. Don't "fix" that into a matching halt.
+
 ## Fields and Dialogs (2026-08-20)
 
 - **Every modal opens through `openModal(dlg)`, never `showModal()` directly.**

@@ -677,16 +677,21 @@ const STORAGE_KEY = 'pap-items';
    `{ items, updatedAt }`). Wrapping the array in an object to make room for a
    marker would be a cross-platform format change for the sake of one number.
    So localStorage gets a separate `pap-schema` key, and the cloud document gets
-   an additive `schema` FIELD alongside `items` — which the native apps neither
-   read nor write, so their documents simply arrive without it and are treated
-   as schema 1, which is what they are.
+   an additive `schema` FIELD alongside `items`. It was written to be additive
+   because the phones did not read or write it — a document without the field
+   reads as 1, so those builds could never trip this. **Since 2026-08-20 both
+   phones keep the convention too**: they read `schema` before decoding (and
+   iOS reads it off the iCloud KV copy as well), refuse a backup whose `version`
+   is higher than they understand, and write `schema` on every push. A missing
+   field still reads as 1, so copies saved by older builds stay readable.
 
    THE CONVENTION ONLY HOLDS IF EVERY CLIENT KEEPS IT. Bump this whenever a
    stored field is added, renamed or repurposed — and teach normalizeItem() the
    field in the same commit, or the boundary strips the very thing the bump
-   exists to protect. **If the iOS or Android app ever adds a stored field, it
-   has to write a higher `schema` too**, or this page will keep quietly
-   normalising the new field away. */
+   exists to protect. That bump belongs in ALL THREE apps in the same change:
+   whichever one adds a stored field has to raise the number the other two check
+   against, or they will quietly normalise the new field away instead of
+   stopping. iOS `DataSchema.current`, Android `DataSchema.CURRENT`. */
 const SCHEMA = 1;
 const SCHEMA_KEY = 'pap-schema';
 const $ = (id) => document.getElementById(id);
@@ -1616,8 +1621,9 @@ window.paptrackAdopt = (newItems, ts, schema) => {
      Stored VERBATIM first, before normalizeItems() can strip what makes it
      newer: it is the newest copy there is, and the fresh build reads
      localStorage on its next load. Then the halt, which throws, so nothing
-     below adopts. A document from the iPhone or Android app carries no schema
-     at all, which reads as 1 — older, never newer, so they never trip this. */
+     below adopts. A phone writes its own schema now, and one from a build that
+     didn't carries none at all — either way 1 until a phone's format is bumped
+     ahead of this page's, which is exactly when this should fire. */
   if (Number(schema || 1) > SCHEMA) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
@@ -2112,10 +2118,10 @@ const forCloud = (v) => JSON.parse(JSON.stringify(v));
 
 async function pushNow() {
   if (!user) return;
-  /* `schema` is additive: the iPhone and Android apps read this document key by
-     key and ignore what they don't know, and when they write it back without
-     the field it simply reads as 1 — older, never newer, so a native write can
-     never trip another device's halt. */
+  /* `schema` is additive: the phones read this document key by key and ignore
+     what they don't know. They write the field themselves now, and a document
+     that predates that still reads as 1 — older, never newer, so no write from
+     any client can trip another device's halt by accident. */
   await F.setDoc(docRef(), { items: forCloud(window.paptrackGet()), schema: PAP_SCHEMA,
     updatedAt: localTs() || Date.now() });
   /* A dropped listener is re-attached on the same success that clears the
