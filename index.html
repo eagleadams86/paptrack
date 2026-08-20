@@ -579,14 +579,13 @@
 <style>
 /* No opacity dimming here — it stacked on top of an already-muted colour and pushed the
    summary and dates down to ~2:1 in the light palettes. Colour alone carries the hierarchy. */
-  /* theme.css (pack rule 10) puts every typing control at 16px on a touch
-     screen, so iOS stops zooming the page on focus. These carry a CLASS, which
-     outranks the pack's `html select`, so they have to be re-asserted here —
-     and the preset picker sits in the same form as the inputs, so leaving it
-     behind would make it the odd one out by a pixel too. */
-  @media (pointer: coarse) {
-    .field select, .sec-card > select, .search { font-size: 16px; }
-  }
+  /* No `(pointer: coarse)` font-size block here any more. This one re-asserted
+     16px for `.field select`, `.sec-card > select` and `.search`, because a
+     class outranks the pack's `html select` — correct as far as it went, and it
+     still missed `.theme-sel` in the header, which went on zooming iOS for a
+     day. Pack rule 10 is `!important` as of 2026-08-20, so the floor now holds
+     against class and id alike and there is nothing left for an app to
+     remember. Don't re-add a local one: a partial patch reads as coverage. */
 </style>
 
 <script>
