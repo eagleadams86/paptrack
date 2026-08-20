@@ -91,6 +91,12 @@
      is not in the pack at all, so these per-theme shadows are an ADDITION
      rather than an override of anything, and there is nothing here to diverge
      from. Flow Metrics and Financial Plan add their own the same way. */
+  /* ...and a third, added 2026-08-20: one height for everything in the header
+     row. Sprint Velocity, Flow Metrics and Financial Plan all carry a
+     `--chrome-h` for exactly this; this app was the one that didn't, which is
+     why its row never lined up. 40px because that is what the theme picker has
+     been since the app moved into this repo — the buttons move to meet it. */
+  :root { --chrome-h: 40px; }
   :root, [data-theme="midnight"] { --ring: rgba(129,140,248,0.28);
     --shadow: 0 1px 3px rgba(0,0,0,0.5); }
   [data-theme="dark"] { --ring: rgba(238,240,245,0.16);
@@ -155,7 +161,34 @@
                  justify-content: flex-end; margin-left: auto; }
   .theme-sel {
     border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
-    border-radius: 12px; height: 40px; padding: 0 10px; font-size: 0.85rem; cursor: pointer;
+    border-radius: 12px; height: var(--chrome-h); padding: 0 10px; font-size: 0.85rem; cursor: pointer;
+  }
+  /* The header row is ONE height, pinned on the buttons and the picker alike.
+     A native <select> ignores line-height, so pinning it on one and not the
+     other lines the row up on neither edge — the rule Sprint Velocity and Flow
+     Metrics state as `--chrome-h`. Until 2026-08-20 only the picker had a
+     height: the buttons were sized by padding alone and came out 34px, or 36px
+     for the sync button, whose emoji sits on a taller line box than plain text.
+     Three controls, three heights, against a 40px picker.
+     SCOPED to .top-actions on purpose — `.act` is used 17 times across the app
+     (card rows, dialogs, the empty state) and none of those should move. */
+  .top-actions .act {
+    height: var(--chrome-h);
+    /* inline-flex rather than trusting a button to centre its own label: with a
+       fixed height and 8px of vertical padding the text box is smaller than the
+       button, and only a flex line box centres it reliably across engines. */
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  @media (pointer: coarse) {
+    /* Matching the row on TOUCH takes one more rule, because the two kinds of
+       control get their size from different places there. theme.css puts every
+       <select> at 16px on a coarse pointer (pack rule 10 — under that, iOS zooms
+       the whole page when you focus one). A <button> raises no keyboard, so the
+       pack rightly leaves it alone — which left the picker's label visibly
+       bigger than the two buttons beside it at the same 40px height. Buttons
+       have no zoom to avoid, so this is cosmetic: it exists only so the row
+       reads as one row on a phone. */
+    .top-actions .act { font-size: 16px; }
   }
   .theme-sel:hover { border-color: var(--text-muted); }
   .theme-sel:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
