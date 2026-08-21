@@ -96,14 +96,38 @@
      `--chrome-h` for exactly this; this app was the one that didn't, which is
      why its row never lined up. 40px because that is what the theme picker has
      been since the app moved into this repo — the buttons move to meet it. */
-  :root { --chrome-h: 40px; }
-  :root, [data-theme="midnight"] { --ring: rgba(129,140,248,0.28);
+  /* ...and a fourth, added 2026-08-21: the one page width, read by BOTH the
+     content column and the row inside the sticky header bar. They have to be
+     the same number or the brand stops lining up with the left edge of the
+     first card, so both read it from here rather than repeating it.
+
+     1500px, the same number as Sprint Predictability and Flow Metrics, so the
+     three apps are one page width. Golf Handicap's narrower 1100px was tried
+     first on the reasoning that this app has no dense table to earn the extra —
+     but that reasoning was about a page whose content STRETCHES to the width.
+     This one's doesn't: the supply cards flow into columns (see `.list`), so
+     1500px buys a third column rather than a wider card, and the width is spent
+     on more to read. It was 760px until this change — a phone column shown on a
+     desktop. */
+  :root { --chrome-h: 40px; --page-w: 1500px; }
+  /* `color-scheme` rides along with the shadows, one per theme, the same shape
+     Money Map uses. It is not a colour of ours and it overrides nothing in the
+     pack — it is how a page TELLS the browser which way round it is, so the bits
+     of UI the browser draws itself follow the theme. Without it those are always
+     drawn light: the calendar button inside every `<input type="date">` was a
+     near-black glyph on a near-black field on the two dark themes, which is the
+     one control in the add/edit form you cannot restyle from CSS. It also fixes
+     the number spinners and the scrollbars, which had the same problem more
+     quietly.
+     Note the pairing follows the PALETTE, not the theme's name: sepia is a warm
+     LIGHT theme and takes `light`. */
+  :root, [data-theme="midnight"] { color-scheme: dark; --ring: rgba(129,140,248,0.28);
     --shadow: 0 1px 3px rgba(0,0,0,0.5); }
-  [data-theme="dark"] { --ring: rgba(238,240,245,0.16);
+  [data-theme="dark"] { color-scheme: dark; --ring: rgba(238,240,245,0.16);
     --shadow: 0 1px 3px rgba(0,0,0,0.5); }
-  [data-theme="light"] { --ring: rgba(38,109,195,0.30);
+  [data-theme="light"] { color-scheme: light; --ring: rgba(38,109,195,0.30);
     --shadow: 0 1px 3px rgba(17,17,16,0.06), 0 4px 14px rgba(17,17,16,0.05); }
-  [data-theme="sepia"] { --ring: rgba(58,48,32,0.14);
+  [data-theme="sepia"] { color-scheme: light; --ring: rgba(58,48,32,0.14);
     --shadow: 0 1px 3px rgba(58,48,32,0.08), 0 4px 14px rgba(58,48,32,0.06); }
 
   * { box-sizing: border-box; }
@@ -142,19 +166,78 @@
     margin: 0; background: var(--bg); color: var(--text-primary);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     line-height: 1.45;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* No TOP inset here any more. The header is a sticky, full-width bar now, and
+       an inset on the body would either push it away from the top of the screen
+       or leave its background short of the status bar. The top inset moved onto
+       the header's own padding, where it keeps the row clear of a notch AND lets
+       the bar's background fill the space above it. The other three stay: they
+       inset the page from the physical edges, which is also where the bar should
+       stop in landscape on a notched phone. */
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 16px 16px 24px; }
+  /* Width lives with the other layout tokens at the top of the file. The 64px of
+     bottom padding is the siblings' number and does a second job here: it keeps
+     the last card clear of the floating "+ Add supply" button. */
+  .wrap { max-width: var(--page-w); margin: 0 auto; padding: 0 16px 64px; }
 
   /* ---- Header ---- */
+  /* The sibling apps' shape, adopted 2026-08-21: a bar the full width of the
+     window that STAYS at the top of the screen, with the row inside it held to
+     the same `--page-w` as the content below so the logo lines up with the left
+     edge of the first card. Until now the header was an ordinary block inside
+     `.wrap` — it scrolled away, and on a long list of supplies the theme
+     picker, the backup button and the sync button were all off-screen.
+
+     Sticky rather than fixed: fixed takes the bar out of the flow and the page
+     then has to be padded by hand to make room for it, which goes wrong the
+     moment the row wraps to two lines on a phone. Sticky leaves it in the flow
+     and the browser does the arithmetic.
+
+     z-index 20 is the siblings' number, above every card and the FAB (5) and
+     below the toast (9) and any <dialog>, which sits in the top layer anyway. */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    /* The body no longer carries a top inset — see the note there. This is where
+       it went, so the row clears a notch and the bar's own background fills the
+       space above it rather than leaving a transparent strip. */
+    padding: 10px 0; padding-top: calc(10px + env(safe-area-inset-top));
+    margin-bottom: 20px;
+  }
   /* Wraps, deliberately. Three controls plus the title do not fit across a phone,
      and a header that overflows scrolls the WHOLE page sideways — so the buttons
      drop to a line of their own rather than being pushed off the right edge. */
-  header.top { display: flex; align-items: center; gap: 12px; padding: 6px 0 2px; flex-wrap: wrap; }
-  .logo { width: 40px; height: 40px; border-radius: 11px; display: block; flex: none;
+  .headbar { max-width: var(--page-w); margin: 0 auto; padding: 0 16px;
+             display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  /* A sticky bar covers whatever a jump link lands on. The skip link aims at
+     <main>, so without this the first thing a keyboard user is sent to is hidden
+     under the header they just skipped. Generous enough for the two-line row a
+     phone gets. */
+  main { scroll-margin-top: 96px; }
+  /* The family's brand line, adopted 2026-08-21: mark, name and strapline on ONE
+     line, the strapline muted behind a middle dot. It was a 40px tile with the
+     name and strapline stacked in a block beside it, which made this header two
+     lines tall where every sibling's is one — and a sticky bar pays for its
+     height on every screen, so the stack cost more here than it did before.
+     `margin: 0 auto 0 0` is what pushes the control cluster to the right edge. */
+  .brand { font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
+           margin: 0 auto 0 0; }
+  .brand span { color: var(--text-muted); font-weight: 500; }
+  /* 22px, the siblings' number, and NOT a flex row (Sprint Predictability's note
+     on this applies here too): the mark sits in the text's own flow, so a
+     strapline that wraps on a phone runs on below the name rather than being
+     laid out as a second narrow column beside it.
+
+     Width and height are on the element as well as here, so the row is laid out
+     at its final size before the icon arrives — the header paints long before
+     anything else runs, and a growing header is the one thing this row must
+     never do. The radius comes down with the size: 11px on a 22px tile is a
+     circle. The border stays — this art is a dark square, and on the midnight
+     and dark palettes it needs an edge or it dissolves into the bar. */
+  .logo { width: 22px; height: 22px; border-radius: 6px; flex: none;
+          vertical-align: -4px; margin-right: 9px;
           border: 1px solid var(--border); }
-  .title h1 { font-size: 1.25rem; margin: 0; letter-spacing: -0.01em; }
-  .title p { margin: 0; font-size: 0.8rem; color: var(--text-secondary); }
   /* margin-left:auto rather than a flexible spacer: a spacer would sit on the
      first line and strand the buttons at the left edge of the second. */
   .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -211,6 +294,7 @@
   .stat .sub { font-size: 0.75rem; color: var(--text-secondary); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- Toolbar ---- */
+  /* Stacked on a phone, as it always was. */
   .toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
   .search {
     width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
@@ -229,17 +313,80 @@
   .filter-chip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); font-weight: 600; }
   .cleanall { align-self: flex-start; }
 
+  /* One row once there is room, added with the page widening: a search box run
+     across the full 1468px of content to hold a word or two is the sort of thing
+     a phone layout shown on a desktop does. The breakpoint is the same 720px the rest of the
+     family uses. The chips keep their own width here — `flex: 1 1 0` stretched
+     them to fill a full-width row, which is right when the row IS the width of
+     the page and wrong when it is sharing it with the search box. */
+  @media (min-width: 720px) {
+    /* `stretch`, so the search box is as tall as the filter block beside it —
+       caption AND chips, not just the chips. Bottom-aligned it matched the chip
+       row and left a search-box-width strip of empty page above itself, level
+       with the "Filter — tap to toggle" line; the row now reads as two blocks of
+       the same height. `.cleanall` opts out below: it is a button, and a button
+       stretched to two lines' height is not a button any more. */
+    .toolbar { flex-direction: row; align-items: stretch; flex-wrap: wrap; gap: 12px; }
+    .toolbar .search { flex: 1 1 240px; min-width: 0; }
+    /* Both `0 0 auto`: the chips carry their filter's name and the theme pack's
+       12px floor is already the smallest they may be set, so there is nothing
+       left to give — allowed to shrink they truncated to "Reorder …" while the
+       search box beside them sat 500px wide. The search box is the flexible one
+       in this row, and it is the only one that should be. */
+    .filter-block { flex: 0 0 auto; }
+    .filters { flex-wrap: wrap; }
+    .filter-chip { flex: 0 0 auto; }
+    /* Pushed to the far end of the row, away from the filters it is not part of. */
+    .cleanall { align-self: flex-end; margin-left: auto; }
+  }
+
   /* ---- Cards ---- */
-  .list { display: flex; flex-direction: column; gap: 12px; }
+  /* A GRID since 2026-08-21, not a single column. The page is 1500px wide now,
+     and a supply card stretched across all of it is mostly empty space: its 2x2
+     quadrants would be ~730px each to hold a date and a button. Flowing the
+     cards into columns is what makes the extra width worth having.
+
+     auto-fill with a 400px floor rather than a fixed column count: the card is
+     the thing with a minimum readable width, not the page. Below 400px the two
+     quadrants in a row stop being able to hold a badge's date line in two lines
+     — the list drops to one column on its own there, so the phone layout is
+     unchanged and needs no media query of its own. Pairing at 400 rather than
+     the 460 first tried is what covers the 900px-ish laptop window: at 460 that
+     width fell one column short and showed a single card stretched across the
+     whole page, which is the shape the widening was meant to get rid of. At the
+     full 1500px page it gives three columns.
+
+     `min(400px, 100%)` rather than a bare 400px, and it is load-bearing: a
+     minmax MINIMUM is not a suggestion, so on a 375px phone a bare 400 lays out
+     a 400px column anyway and the card hangs off the right of the screen —
+     which scrolls the whole page sideways. The min() lets the floor collapse to
+     the container when the container is the smaller of the two.
+
+     Cards in a row are the SAME HEIGHT — the grid's default `stretch`, and it is
+     left alone deliberately. Only some supplies carry a note, so sizing each
+     card to its own content put a one-line step between neighbours and left the
+     row with a ragged bottom edge. Where that spare height goes inside the card
+     is the other half of it; see `.quadrants` below. */
+  .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr));
+          gap: 12px; }
+  /* A flex column, so the quadrant block can be told to take whatever height the
+     row hands the card beyond its title and note. */
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
     padding: 14px 14px 12px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
   }
   .card h3 { margin: 0; font-size: 1.02rem; }
   .card .notes { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0; }
   /* 2×2 quadrant grid — cleaning · replacing · spares · manage — on chip-bg tiles, matching
      the iOS card. align-items:stretch keeps the two tiles in a row the same height. */
-  .quadrants { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; align-items: stretch; }
+  /* Three stretches, doing three different jobs. `align-items` is across a row —
+     the two tiles beside each other are the same height. `flex: 1` takes the
+     spare height an equal-height card has below its shorter note, and
+     `align-content` shares that out between the two tile rows — without it the
+     block keeps its natural height and the card just ends in a gap. */
+  .quadrants { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;
+               align-items: stretch; flex: 1 1 auto; align-content: stretch; }
   .quad {
     background: var(--surface-alt); border-radius: 12px; padding: 10px;
     display: flex; flex-direction: column; gap: 8px;
@@ -291,10 +438,48 @@
 
   /* ---- Empty state ---- */
   .empty { text-align: center; padding: 40px 12px; color: var(--text-secondary); }
-  .empty .big { width: 72px; height: 72px; border-radius: 18px; display: inline-block; border: 1px solid var(--border); }
-  .empty h2 { color: var(--text-primary); margin: 8px 0 6px; }
+  /* No app mark here. It was a 72px copy of the one now worn in the header two
+     inches above it, on the ONE screen where both are visible at once — the
+     empty state is what a first-time visitor sees, so the icon was shown twice
+     to the only person who hasn't seen it before. Removing it also took the
+     second copy of the base64 image out of the file. */
+  .empty h2 { color: var(--text-primary); margin: 0 0 6px; }
   .empty p { font-size: 0.9rem; max-width: 44ch; margin: 0 auto 16px; }
+  .empty-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .empty .kits { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  /* Wide screens get the same words in a PANEL rather than a centred column.
+     Every other block on this page — the tiles, the toolbar, each card — is a
+     bordered box the width of the content, and the empty state was a narrow
+     stack of centred text floating in the middle of 1500px of nothing, which
+     read as a page that had failed to load rather than as an invitation. Two
+     columns: what the app does on the left, the three ways to start it on the
+     right. Same elements, same order in the markup, so the phone layout above
+     is untouched and a screen reader hears no difference.
+
+     `align-items: center` on a two-row-tall right column, so the buttons sit
+     against the middle of the prose beside them rather than at its cap height. */
+  @media (min-width: 720px) {
+    .empty {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: 40px; align-items: center; text-align: left;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; box-shadow: var(--shadow); padding: 28px 32px;
+    }
+    .empty h2 { grid-column: 1; grid-row: 1; }
+    /* 80ch, not the centred layout's 44ch and not uncapped. Uncapped it ran the
+       full ~1100px of the left column as ONE line, which is roughly twice the
+       measure small text can be read down comfortably; 44ch is the cap for a
+       narrow centred column and left this one looking like the old floating
+       stack again. 80ch wraps it to two lines that still start at the panel's
+       left edge. */
+    .empty p { grid-column: 1; grid-row: 2; margin: 0; max-width: 80ch; }
+    .empty-actions { grid-column: 2; grid-row: 1 / span 2; align-items: stretch; }
+    /* Stacked, not side by side: two pill buttons in a row is a wide object to
+       hang off the end of a sentence, and stacked they line up with the third
+       way in below them. */
+    .empty .kits { flex-direction: column; }
+    .empty-actions .act { text-align: center; }
+  }
 
   /* ---- Buttons / FAB ---- */
   .btn {
@@ -307,10 +492,19 @@
   }
 
   /* ---- Dialog / form ---- */
+  /* 560px, the siblings' number for a dialog that asks a question or offers a
+     couple of buttons (Sprint Predictability's data and clear dialogs, Golf
+     Handicap's base). It was 480px, which is a phone width, and the prose in
+     the backup and delete-all dialogs was running to five and six lines. The
+     add/edit form gets more again, below. */
   dialog {
     border: 1px solid var(--border); border-radius: 18px; background: var(--bg); color: var(--text-primary);
-    width: min(480px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
+    width: min(560px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
   }
+  /* The add/edit form is the one window in the app with real content in it —
+     six sections, each a heading, a card of fields and a footnote — and at a
+     phone width it was a long scroll on a desktop screen. */
+  #formDialog { width: min(820px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
   dialog h2 { margin: 0 0 12px; font-size: 1.1rem; }
   .field { margin-bottom: 12px; }
@@ -341,6 +535,47 @@
   .sec-card .field:last-child { margin-bottom: 0; }
   .sec-foot { font-size: 0.75rem; color: var(--text-muted); margin: 7px 0 0; padding-left: 2px; }
   .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+  /* Two columns of sections once the dialog is at its full 820px — 860px of
+     window, so the pairing only happens when both columns are actually wide.
+     The order is chosen so it holds whether or not the preset picker is there:
+     it's hidden when EDITING an item, so a plain two-column flow would pair
+     Name with Cleaning when adding and Cleaning with Replacement when editing,
+     and the form would rearrange itself between the two. Instead the preset and
+     the name each span the full width, which leaves Cleaning beside Replacement
+     — the two schedules, side by side, which is the comparison you want — and
+     Spares beside Notes, in both modes.
+
+     Paired sections are the same height, the same rule the supply cards follow.
+     Cleaning has a shorter row of quick buttons than Replacement, and Notes is
+     one input beside Spares' pair, so left to themselves the two boxes in a row
+     ended at different depths and the dialog read as four ragged panels rather
+     than two rows.
+
+     Matching them takes SUBGRID, not a stretch: a section is three stacked
+     parts — heading, field card, footnote — and only two of the four sections
+     have a footnote. Stretching the section box just hands the spare height to
+     whichever part is elastic, which made the Notes card 127px tall to match a
+     Spares section whose own card is 86, i.e. 60px of empty box under a single
+     text input. `grid-template-rows: subgrid` over a three-row span instead
+     lines the two sections up part for part: headings on one row, cards on the
+     next, footnotes on the last, each row as tall as the taller of the pair. A
+     section with no footnote simply leaves that row empty.
+
+     Behind @supports because the fallback is not a broken layout but a
+     different one — the flex stretch this replaced, which is what a browser
+     without subgrid still gets. */
+  @media (min-width: 860px) {
+    #itemForm { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+    #presetField, #nameField, #formDialog .formfoot { grid-column: 1 / -1; }
+    #itemForm .formsec { display: flex; flex-direction: column; }
+    #itemForm .sec-card { flex: 1 1 auto; }
+  }
+  @supports (grid-template-rows: subgrid) {
+    @media (min-width: 860px) {
+      #itemForm .formsec { display: grid; grid-template-rows: subgrid; grid-row: span 3; }
+      #itemForm .sec-card { flex: none; }
+    }
+  }
   /* ---- Back up & restore ---- */
   dialog p.hint { font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 12px; }
   .datarow { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -400,28 +635,34 @@
 </head>
 <body>
 <a class="skip" href="#maincontent">Skip to content</a>
-<div class="wrap">
-  <header class="top">
-    <img class="logo" src="data:image/png;base64,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" alt="" aria-hidden="true" width="40" height="40">
-    <div class="title">
-      <h1>PAPTrack</h1>
-      <p>CPAP Supply Tracker</p>
-    </div>
+<header>
+  <div class="headbar">
+    <h1 class="brand"><img class="logo" src="data:image/png;base64,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" alt="" aria-hidden="true" width="22" height="22"
+      >PAPTrack <span>&middot; CPAP Supply Tracker</span></h1>
     <div class="top-actions">
-      <button class="act" id="syncBtn" hidden>☁️ Sign in to sync</button>
-      <!-- Backing up used to be two underlined links at the very foot of the page, which
-           is nowhere near where you look for it. It sits beside the other app-level
-           controls now, the same place every sibling app keeps it. -->
-      <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data">Back up</button>
+      <!-- Order, pinned 2026-08-21: theme, then back up, then sync. It runs
+           least-consequential to most, and it is also the order that keeps the
+           row still — the sync button is the ONLY control here that changes
+           width as you use it ("Sign in to sync" → an account name → "⚠️ Not
+           syncing"), so it goes last, where its growing and shrinking moves
+           nothing but itself. Put anything after it and that control shifts
+           sideways every time sync changes state. -->
       <select class="theme-sel" id="themeSel" aria-label="Theme">
         <option value="dark">☾ Dark</option>
         <option value="light">☀️ Light</option>
         <option value="midnight">✦ Midnight</option>
         <option value="sepia">📜 Sepia</option>
       </select>
+      <!-- Backing up used to be two underlined links at the very foot of the page, which
+           is nowhere near where you look for it. It sits beside the other app-level
+           controls now, the same place every sibling app keeps it. -->
+      <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data">Back up</button>
+      <button class="act" id="syncBtn" hidden>☁️ Sign in to sync</button>
     </div>
-  </header>
+  </div>
+</header>
 
+<div class="wrap">
   <!-- The main landmark: everything between the header and the footer, so the
        skip link at the top of the page has somewhere to land. tabindex="-1"
        because a skip link has to be able to move focus here, and nothing else
@@ -470,14 +711,20 @@
   <div class="list" id="list"></div>
 
   <div class="empty" id="empty" hidden>
-    <img class="big" src="data:image/png;base64,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" alt="" aria-hidden="true">
     <h2>Set Up Your CPAP Kit in One Tap</h2>
     <p>PAPTrack keeps every supply on schedule — daily and weekly cleaning reminders, replacement countdowns, and a spares count so you reorder before you run out.</p>
-    <div class="kits">
-      <button class="btn" id="kitFull">Load full-face kit</button>
-      <button class="btn" id="kitNasal">Load nasal kit</button>
+    <!-- One wrapper round all three ways in. It used to be the .kits row plus a
+         lone <p style="margin-top:14px"> holding the third button — a paragraph
+         standing in for a layout gap, and a second thing `.empty p` had to match.
+         Grouped, the three move together into the right-hand column of the wide
+         layout without either rule knowing about the other. -->
+    <div class="empty-actions">
+      <div class="kits">
+        <button class="btn" id="kitFull">Load full-face kit</button>
+        <button class="btn" id="kitNasal">Load nasal kit</button>
+      </div>
+      <button class="act" id="emptyAdd">or add items one at a time</button>
     </div>
-    <p style="margin-top:14px"><button class="act" id="emptyAdd">or add items one at a time</button></p>
   </div>
 
   </main>
@@ -510,7 +757,7 @@
       </div>
     </div>
 
-    <div class="formsec">
+    <div class="formsec" id="nameField">
       <h3 class="sec-h" id="nameH">Name</h3>
       <div class="sec-card">
         <input type="text" id="fName" aria-labelledby="nameH" required maxlength="60" placeholder="e.g. Mask">
@@ -711,9 +958,22 @@ const PRESETS = [
   { key: 'water',     emoji: '💦', name: 'Distilled Water',           cleanDays: 0, replaceDays: 0,   note: 'Consumable — refill as needed. Track jugs on hand to know when to buy more.' },
   { key: 'custom',    emoji: '🔧', name: '',                          cleanDays: 0, replaceDays: 90,  note: '' },
 ];
+/* The two kits are NOT the same list with the cushion swapped, and the difference
+   is deliberate: the 'mask' preset is the full-face mask itself, so it belongs to
+   the full-face kit only. A nasal setup's mask IS its cushion or pillows — the
+   'nasal' preset — and adding a second "Mask" item beside it gave a nasal user a
+   supply they don't own, on its own 90-day replacement clock. Corrected
+   2026-08-21; the nasal kit is six items, the full-face one seven.
+
+   'water' is in BOTH, added the same day. Everyone running a humidifier buys
+   distilled water, and it is the one supply here you can actually run out of
+   mid-week — but it has no schedule (cleanDays 0, replaceDays 0), so it carries
+   no countdown, sorts last, and is driven purely by the spares count. That is
+   exactly what the as-needed path exists for, and it means a loaded kit
+   demonstrates that path rather than only the timed one. */
 const KITS = {
-  full:  ['mask', 'headgear', 'tubing', 'filters', 'ffcushion', 'humid'],
-  nasal: ['mask', 'headgear', 'tubing', 'filters', 'nasal', 'humid'],
+  full:  ['mask', 'headgear', 'tubing', 'filters', 'ffcushion', 'humid', 'water'],
+  nasal: ['headgear', 'tubing', 'filters', 'nasal', 'humid', 'water'],
 };
 
 /* ── The copy-from-the-future check ─────────────────────────────────────────
