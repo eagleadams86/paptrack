@@ -1579,6 +1579,29 @@ function openForm(it = null) {
     $('fLowAt').value = 1;
   }
   openModal(dlg);
+  /* One extra step this form needs and the shared `openModal` deliberately does
+     not do. `raisesKeyboard` covers text-entry fields, because a <select> raises
+     no keyboard — true, and right for the sibling apps, none of which opens a
+     dialog on one. THIS form does: the first control when adding is the preset
+     picker, so on a phone the window opens with a dropdown already grabbed and
+     ringed, before you have read the heading above it. Editing has none of this
+     (the preset section is hidden, and `openModal` already moves focus off the
+     Name field), so this line is what makes the two behave the same way.
+
+     Deliberately NOT folded into `raisesKeyboard`: that function is byte-
+     identical across Sprint Predictability, Flow Metrics, Money Map, Golf
+     Handicap and this app, and it is worth more as one shared object than as
+     five nearly-identical ones. This is the one app with the problem, so the fix
+     lives at this app's own call site. Same landing place `openModal` uses — the
+     dialog itself, which carries `aria-labelledby` and announces itself, with
+     Tab from there reaching the first field. */
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    const el = document.activeElement;
+    if (el && dlg.contains(el) && el.tagName === 'SELECT') {
+      dlg.tabIndex = -1;
+      dlg.focus();
+    }
+  }
 }
 $('fPreset').addEventListener('change', (e) => applyPreset(e.target.value));
 dlg.addEventListener('click', (e) => {
