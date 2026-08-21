@@ -511,6 +511,19 @@
   dialog {
     border: 1px solid var(--border); border-radius: 18px; background: var(--bg); color: var(--text-primary);
     width: min(560px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
+    /* A tall dialog on a short laptop screen opens already scrolled past its own
+       heading — showModal() focuses the first control and drags it into view.
+       Cap the height so the scrolling happens inside a dialog that fits. vh, not
+       dvh: dvh resolves to 0 in some embedded engines. */
+    max-height: calc(100vh - 32px); overflow: auto;
+    /* SCROLL CHAINING off. A scroll container that has run out of scroll hands
+       the rest of the gesture to its parent by default, so reaching the foot of
+       a dialog carried straight on into the page behind it — the app scrolling
+       away under a dialog that was still open and still covering it. Found in
+       Money Map, fixed across the family on 2026-08-17; this app was missed and
+       joined on 2026-08-21. `contain`, not `none`: the dialog's own scrolling is
+       untouched, only the hand-off is. */
+    overscroll-behavior: contain;
   }
   /* The add/edit form is the one window in the app with real content in it —
      six sections, each a heading, a card of fields and a footnote — and at a
