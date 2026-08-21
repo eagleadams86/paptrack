@@ -15,12 +15,20 @@
      submission to any external URL.
      Note: frame-ancestors is ignored in a meta tag; it needs a real header.
 
+     manifest-src is 'self' for the install manifest, and it has to be spelled
+     out: it falls back to default-src, which is 'none' here, so without this
+     line the fetch of manifest.webmanifest is refused and "Install app"
+     silently stops being offered — no error anywhere except the console. The
+     risk it carries is a static JSON file on this origin and nothing else; a
+     manifest executes nothing and reads no data. Same line, same reasoning, in
+     Money Map.
+
      accounts.google.com is in script-src, connect-src AND frame-src because
      sign-in goes through Google Identity Services (see the sign-in block at the
      foot of the file). firebaseapp.com and apis.google.com are deliberately NOT
      here: they served Firebase's hosted popup, which this app no longer uses —
      the same as the three sibling web apps. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://accounts.google.com; worker-src 'self'; frame-src https://accounts.google.com; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://accounts.google.com; worker-src 'self'; manifest-src 'self'; frame-src https://accounts.google.com; base-uri 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PAPTrack — CPAP supply, cleaning & reorder tracker</title>
 <meta name="description" content="A private, offline-friendly tracker for CPAP supplies: cleaning schedules, replacement countdowns, and spare inventory. No account, no server of ours — your data stays on this device unless you sign in to sync.">
@@ -47,6 +55,22 @@
      Bump ?v= whenever make_favicon.py is re-run. (The data URIs above need no
      version: their content IS the URL.) -->
 <link rel="alternate icon" href="favicon.ico?v=1">
+<!-- Installing the app on a Mac or a PC. The manifest is what turns Chrome's
+     "Install page as app…" into a real install: its own window with no browser
+     chrome, its own icon in the Dock or on the taskbar, and its own entry in the
+     app switcher. Offline was already here — that is sw.js, and it predates
+     this; what the manifest adds is the window and the icon, not the caching.
+
+     The icons it names are FILES rather than the data URIs above, because a
+     manifest's icons are fetched by URL. make_favicon.py writes them from the
+     same recoloured master as everything else, so all five copies of the mark
+     stay one picture. -->
+<link rel="manifest" href="manifest.webmanifest">
+<!-- The colour of the window's title bar in an installed app, and of the address
+     bar on Android. Set to midnight's page colour to start with, because that is
+     the default theme; the theme picker rewrites it, so an installed window
+     follows the theme rather than staying dark behind a light page. -->
+<meta name="theme-color" content="#0a0e1a">
 <script>
   // Apply saved theme before first paint to avoid a flash. Midnight is the default.
   (function () {
@@ -284,6 +308,12 @@
        reads as one row on a phone. */
     .top-actions .act { font-size: 16px; }
   }
+  /* The other half of not moving: this button's LABEL changes as you use it —
+     "☁️ Sign in to sync", then "☁️ Charlie", then "⚠️ Not syncing" — and each
+     one is a different width, so the row shifted every time sync changed state.
+     The floor is the widest of them, so the button only ever grows past it for
+     a long account name. Golf Handicap pins the same button the same way. */
+  #syncBtn { min-width: 148px; }
   .theme-sel:hover { border-color: var(--text-muted); }
   .theme-sel:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
 
@@ -681,7 +711,19 @@
            is nowhere near where you look for it. It sits beside the other app-level
            controls now, the same place every sibling app keeps it. -->
       <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data">Back up</button>
-      <button class="act" id="syncBtn" hidden>☁️ Sign in to sync</button>
+      <!-- VISIBLE by default, and hidden on failure — not the other way round.
+           It shipped with `hidden` here and was revealed once the Firebase SDK
+           had loaded, which meant the header was painted without it and then
+           grew a button a moment later: the whole control cluster jumped left,
+           on every single refresh. Nothing about this button's SIZE depends on
+           the SDK, so it can be laid out at its final size immediately and
+           taken away in the two cases that can't use it (see the boot branch in
+           the sync module). The same rule as Golf Handicap, Sprint
+           Predictability and Flow Metrics: everything in this row is written
+           into the markup at its final size, because the header paints long
+           before anything else runs and a growing header is the one thing it
+           must never do. -->
+      <button class="act" id="syncBtn">☁️ Sign in to sync</button>
     </div>
   </div>
 </header>
@@ -1832,10 +1874,23 @@ document.querySelector('.filters').addEventListener('click', (e) => {
 });
 
 /* ---------------- Theme ---------------- */
+/* Keeps the installed app window's title bar with the theme. Read back out of
+   the pack's `--bg` rather than listed here, so a palette change in the theme
+   pack carries across without a second place to remember it. Only an installed
+   window and mobile browser chrome read it; in an ordinary tab it does nothing.
+   Same function, same reasoning, in Money Map. */
+function applyThemeColor() {
+  const bar = document.querySelector('meta[name="theme-color"]');
+  const bg = getComputedStyle(document.documentElement)
+    .getPropertyValue('--bg').trim();
+  if (bar && bg) bar.setAttribute('content', bg);
+}
+applyThemeColor();
 $('themeSel').value = document.documentElement.getAttribute('data-theme');
 $('themeSel').addEventListener('change', (e) => {
   document.documentElement.setAttribute('data-theme', e.target.value);
   localStorage.setItem('pap-theme', e.target.value);
+  applyThemeColor();
 });
 
 /* ---------------- Backup ----------------
@@ -2090,8 +2145,13 @@ const PAP_SCHEMA = 1;
 
 /* A page halted on data from a newer build must not start a session: the halt is
    only as good as everything that writes checking it. */
+/* The button is visible in the markup now (see the note on it there), so THIS
+   is what takes it away when there is nothing behind it: fully-local mode with
+   FIREBASE_CONFIG null, the test harness, and a page halted on newer data. */
 if (FIREBASE_CONFIG && !inTestHarness && !window.papHalted) {
   init().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
+} else {
+  btn.hidden = true;
 }
 
 let A, F, auth, db, user = null, unsub = null, pushTimer = null, tokenClient = null;
@@ -2191,7 +2251,8 @@ async function init() {
       onSignInFailed(err);
     },
   });
-  btn.hidden = false;
+  /* No `btn.hidden = false` here any more — it is visible from first paint, and
+     revealing it at the end of init() is exactly what made the header jump. */
   btn.addEventListener('click', onClick);
 }
 

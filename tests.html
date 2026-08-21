@@ -262,8 +262,13 @@ t('the cache list holds only files that are already public', () => {
   ok(m, 'could not find the SHELL list in sw.js');
   const shell = [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]).sort();
   /* Exact equality, not "contains". A new entry has to be added here too, which
-     is the moment to ask whether the file is genuinely public. */
-  eq(shell, ['./', 'favicon.ico', 'privacy.html', 'theme.css'], 'the offline shell list changed');
+     is the moment to ask whether the file is genuinely public. The manifest and
+     the three install icons joined on 2026-08-21, when the app became
+     installable on a Mac or a PC: all four are committed files in this repo,
+     and an installed app is the copy most likely to start with no network. */
+  eq(shell, ['./', 'favicon.ico', 'icon-192.png', 'icon-512-maskable.png',
+             'icon-512.png', 'manifest.webmanifest', 'privacy.html',
+             'theme.css'], 'the offline shell list changed');
   for (const entry of shell)
     for (const pat of [/^tests\.html$/, /\.py$/, /CLAUDE/i, /README/i, /backup/i])
       ok(!pat.test(entry), `"${entry}" is on the shell list but must never be cached`);

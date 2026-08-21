@@ -53,7 +53,7 @@
 /* Bump when the shell list changes, so old caches are purged on activate. It is
    NOT load-bearing for freshness — network-first means a forgotten bump cannot
    serve you stale code — it only stops dead entries accumulating. */
-const CACHE = 'pap-shell-v1';
+const CACHE = 'pap-shell-v2';
 const PREFIX = 'pap-shell-';
 
 /* THE ALLOWLIST, and the security boundary of this file. Every entry is a file
@@ -62,11 +62,27 @@ const PREFIX = 'pap-shell-';
    notes. A request that is not on this list is not intercepted at all: it goes
    to the network as if this worker did not exist. Adding a line here is a
    security decision, so justify it in the commit. */
+/* The last four were added with the install support (2026-08-21), and the
+   security decision is the same one every other entry passes: each is a file
+   already public in this repo, so the origin-wide-cache rule above is unchanged
+   by them — nothing cached here is readable that isn't readable from GitHub.
+   They earn their place because an INSTALLED app is exactly the copy most
+   likely to be opened with no network at all: a launcher re-reads the manifest
+   and its icons to draw the window, and without them a cold offline start shows
+   a blank icon and can drop back out of standalone display.
+
+   Keep the array itself free of comments — tests.html reads this list straight
+   out of the source to pin it, and a comment between the entries lands in the
+   parsed list as a fake entry. */
 const SHELL = [
   './',
   'theme.css',
   'privacy.html',
-  'favicon.ico'
+  'favicon.ico',
+  'manifest.webmanifest',
+  'icon-192.png',
+  'icon-512.png',
+  'icon-512-maskable.png'
 ];
 
 /* Not on the list, and worth saying why: the tab icon and the Apple touch icon

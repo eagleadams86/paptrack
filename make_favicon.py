@@ -81,6 +81,41 @@ ICO_SIZES = [16, 32, 48, 64, 128, 256]
 PAGE_ICON = 64                  # the rel="icon" data URI
 TOUCH_ICON = 180                # the apple-touch-icon data URI
 
+# The INSTALL icons, named by manifest.webmanifest and cached by sw.js. Renaming
+# one means editing both of those files as well as this line.
+#
+# 192 and 512 are the two sizes Chrome asks for when it offers "Install app" on
+# a Mac or a PC. They are written from the master UNCHANGED — the art is already
+# an app icon's own composition, laid out for iOS, and a desktop install draws a
+# `purpose: any` icon as given rather than masking it. Deliberately SQUARE, for
+# the same reason favicon.ico is: the shape belongs to the platform.
+PWA_ICONS = [(192, 'icon-192.png'), (512, 'icon-512.png')]
+
+# The maskable one is a different picture, and has to be. A launcher crops it to
+# whatever outline it likes — a circle on a lot of Android ones — so everything
+# in the corners is thrown away, and what survives has to still read as the
+# icon. Two things therefore change, and neither is decoration:
+#
+#  • THE CORNER DISCS GO. They are the master's background decoration, drawn to
+#    sit in corners that a mask removes. Scaling the whole picture down onto a
+#    matching ground was tried first: the flat ground hid any seam of colour,
+#    but the discs were then cut off mid-curve at the scaled art's own edge and
+#    read as two hard-edged quarter-squares. The ground here is flat instead —
+#    the mark on the page colour, nothing else.
+#
+#  • THE MARK IS CENTRED. In the master it sits deliberately right of middle
+#    (the arcs radiate rightward from the dot, and the composition is balanced
+#    for a square). A circular crop is centred, so an off-centre mark loses more
+#    on one side than the other; this recentres its bounding box first.
+MASKABLE = (512, 'icon-512-maskable.png')
+
+# How much of the width the centred mark spans. The circular safe zone is a disc
+# of 0.8 of the width, i.e. 0.4 of it as a radius from the middle — so a mark
+# whose own bounding box is square-ish must stay inside about 0.56 to keep its
+# CORNERS in as well (0.56 x sqrt(2)/2 = 0.396). 0.55 is that with a little to
+# spare, and it is the number Money Map's icon uses for the same reason.
+MASKABLE_SCALE = 0.55
+
 
 def is_mark(px):
     """Is this pixel part of the blue mark, rather than page or corner circle?"""
@@ -193,6 +228,37 @@ def rewrite_page(art, path='index.html'):
     p.write_text(html)
 
 
+def maskable(art):
+    """The mark alone, centred on a full-bleed ground. See MASKABLE above."""
+    w, h = art.size
+    ground = art.getpixel((2, 2))[:3]
+    src = art.load()
+
+    # Everything that isn't the mark becomes the flat ground — this is what
+    # removes the corner discs, rather than cropping them.
+    only_mark = Image.new('RGB', art.size, ground)
+    dst = only_mark.load()
+    x0, y0, x1, y1 = w, h, 0, 0
+    for y in range(h):
+        for x in range(w):
+            if is_mark(src[x, y]):
+                dst[x, y] = src[x, y][:3]
+                x0 = min(x0, x); y0 = min(y0, y)
+                x1 = max(x1, x); y1 = max(y1, y)
+
+    # Recentre the mark's bounding box, then scale it to MASKABLE_SCALE. The box
+    # is squared off first so the mark keeps its proportions.
+    side = max(x1 - x0, y1 - y0) + 1
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    box = only_mark.crop((round(cx - side / 2), round(cy - side / 2),
+                          round(cx + side / 2), round(cy + side / 2)))
+    inner = round(w * MASKABLE_SCALE)
+    out = Image.new('RGB', art.size, ground)
+    off = (w - inner) // 2
+    out.paste(box.resize((inner, inner), Image.LANCZOS), (off, off))
+    return out
+
+
 def main():
     if not MASTER.exists():
         raise SystemExit(
@@ -206,9 +272,22 @@ def main():
                     sizes=[(s, s) for s in ICO_SIZES])
     print('favicon.ico written at ' + ', '.join(f'{s}px' for s in ICO_SIZES))
     rewrite_page(art)
+
+    for size, name in PWA_ICONS:
+        art.resize((size, size), Image.LANCZOS).save(name, format='PNG',
+                                                     optimize=True)
+        print(f'{name} written (square, as the master draws it)')
+
+    size, name = MASKABLE
+    maskable(art).resize((size, size), Image.LANCZOS).save(name, format='PNG',
+                                                           optimize=True)
+    print(f'{name} written (full bleed, mark centred at '
+          f'{MASKABLE_SCALE:.0%} of the width)')
+
     print('Now bump the ?v= on any favicon.ico reference in index.html — '
           'browsers cache an icon for a long time. (The data URIs need no '
-          'version: their content IS the URL.)')
+          'version: their content IS the URL.) The manifest icons are '
+          'versioned by sw.js\'s CACHE constant instead; bump that too.')
 
 
 if __name__ == '__main__':
