@@ -92,10 +92,16 @@
      rather than an override of anything, and there is nothing here to diverge
      from. Flow Metrics and Financial Plan add their own the same way. */
   /* ...and a third, added 2026-08-20: one height for everything in the header
-     row. Sprint Velocity, Flow Metrics and Financial Plan all carry a
-     `--chrome-h` for exactly this; this app was the one that didn't, which is
-     why its row never lined up. 40px because that is what the theme picker has
-     been since the app moved into this repo — the buttons move to meet it. */
+     row. Sprint Predictability, Flow Metrics, Money Map and Golf Handicap all
+     carry a `--chrome-h` for exactly this; this app was the one that didn't,
+     which is why its row never lined up.
+
+     30px since 2026-08-21, and that is the SIBLINGS' number. It was 40px, on
+     the reasoning that the theme picker had been 40px since the app moved into
+     this repo and the buttons should move to meet it — fine while the header
+     was an ordinary block that scrolled away, but the bar is sticky now and a
+     10px difference is 10px off the top of every screen, permanently. At 30px
+     this header is 51px tall, byte for byte what Sprint Predictability's is. */
   /* ...and a fourth, added 2026-08-21: the one page width, read by BOTH the
      content column and the row inside the sticky header bar. They have to be
      the same number or the brand stops lining up with the left edge of the
@@ -109,7 +115,7 @@
      1500px buys a third column rather than a wider card, and the width is spent
      on more to read. It was 760px until this change — a phone column shown on a
      desktop. */
-  :root { --chrome-h: 40px; --page-w: 1500px; }
+  :root { --chrome-h: 30px; --page-w: 1500px; }
   /* `color-scheme` rides along with the shadows, one per theme, the same shape
      Money Map uses. It is not a colour of ours and it overrides nothing in the
      pack — it is how a page TELLS the browser which way round it is, so the bits
@@ -257,6 +263,11 @@
      (card rows, dialogs, the empty state) and none of those should move. */
   .top-actions .act {
     height: var(--chrome-h);
+    /* Vertical padding cut to match: at 30px the shipped `8px 12px` leaves a
+       14px content box, which the coarse-pointer 16px label below does not fit
+       into. The button is sized by its height either way — the padding is only
+       there to keep the label off the sides. */
+    padding: 4px 12px;
     /* inline-flex rather than trusting a button to centre its own label: with a
        fixed height and 8px of vertical padding the text box is smaller than the
        button, and only a flex line box centres it reliably across engines. */
