@@ -956,21 +956,23 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   @supports (grid-template-rows: subgrid) {
     @media (min-width: 860px) {
       #itemForm .formsec { display: grid; grid-template-rows: subgrid; grid-row: span 3; }
-      /* NO CARD STRETCHES PAST ITS CONTENT. `flex: none` undoes the fallback
-         layout's stretch; `align-self: start` undoes the grid's own, which was
-         still running underneath it and is what subgrid alone does not fix.
+      /* TWO CARDS ON A ROW ARE THE SAME HEIGHT. That is the grid's own default
+         `stretch` on the card in subgrid row 2, and it is left alone on purpose —
+         it is the same rule the supply cards in the list follow, and a row of two
+         bordered panels ending at different depths is what this dialog looked
+         like before any of the two-column work.
 
-         Subgrid is what aligns the two sections — headings on one row, cards on
-         the next, footnotes on the last — and it does that whatever height the
-         cards themselves take. Stretching them on top of it only fills the taller
-         row's spare height INTO the shorter card, which is dead space inside a
-         bordered box: Spares carried 171px of it under two number fields because
-         it sits beside Ordering's three, and the preset card grew about 100px
-         under a single select once Name & Notes moved in beside it. `start`
-         leaves that gap outside the card, as plain dialog, where it reads as the
-         row simply being taller on one side. Section bottoms still line up,
-         because the subgrid rows do. */
-      #itemForm .sec-card { flex: none; align-self: start; }
+         `flex: none` only neutralises the FALLBACK layout's `flex: 1 1 auto`,
+         which is meaningless once the section is a grid; it is not what does the
+         matching. `align-self: start` was tried on 2026-08-22 to stop the shorter
+         card carrying the taller one's spare height as empty box — Spares runs
+         about 170px under its two number fields beside Ordering's three — and it
+         was REVERTED the same day: Charles's call, and the right one, because a
+         ragged row reads as a layout that has come apart while a tall card with
+         space at the bottom just reads as a tall card. Don't reintroduce it. The
+         preset section is unaffected either way: it is alone on its row, so the
+         row is only ever as tall as it is. */
+      #itemForm .sec-card { flex: none; }
     }
   }
   /* ---- Back up & restore ---- */

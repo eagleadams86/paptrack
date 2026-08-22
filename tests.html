@@ -1116,9 +1116,11 @@ t('Notes is a textarea, and it lives with the Name box', () => {
   ok(d.querySelector('label[for="fNotes"]') && d.querySelector('label[for="fName"]'),
     'two controls in one section cannot share the heading as their name, so each needs a real label');
 });
-t('no card in the form stretches past its content', () => {
-  ok(/#itemForm \.sec-card \{ flex: none; align-self: start; \}/.test(APP_SRC),
-    'subgrid aligns the sections; without align-self the grid still stretches the card and leaves dead space inside it');
+t('two cards on a form row are the same height', () => {
+  ok(/#itemForm \.sec-card \{ flex: none; \}/.test(APP_SRC),
+    'the grid\u2019s own stretch is what matches them, and flex: none only neutralises the fallback');
+  ok(!/#itemForm[^\n]*\.sec-card[^\n]*align-self: start/.test(APP_SRC),
+    'align-self: start was tried and reverted — a ragged row reads as a layout that has come apart');
   ok(/#itemForm #presetField, #itemForm #nameField \{ grid-column: 1; \}/.test(APP_SRC),
     'the preset sits on its own row, one column wide — the name pin is what pushes it there');
 });
