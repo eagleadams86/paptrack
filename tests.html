@@ -251,6 +251,18 @@ group('Profiles — one account, more than one person');
 /* `pap-items` still means "the list in front of you". That is the whole design: the
    phone widgets read that key directly and neither needed a line changed, and every
    other profile's supplies sit beside it under `pap-items:<id>`. */
+/* The door to the whole feature is the last entry IN this picker, so hiding the picker
+   for a household of one — which is what shipped for an hour on 2026-08-22 — meant a
+   first-time reader could never add a second person. The phones hide their menu on the
+   same rule and keep a People row in Settings; the web has no Settings screen. */
+t('the profile picker is reachable with only one person, or the feature has no door', () => {
+  const sel = w.document.getElementById('profileSel');
+  ok(sel, 'no profile picker in the header at all');
+  eq(sel.hidden, false, 'hidden with one profile — "Manage people…" lives inside it');
+  const values = [...sel.options].map((o) => o.value);
+  ok(values.includes('__manage__'), 'the manage entry must be in the picker');
+  ok(values.length >= 2, 'one person plus the manage entry');
+});
 t('a browser that has never seen profiles gets exactly one, and keeps its supplies', () => {
   const list = w.normalizeProfiles(null);
   eq(list.length, 1);

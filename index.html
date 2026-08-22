@@ -808,10 +808,15 @@
       </select>
       <!-- Whose supplies these are. First in the row because it governs everything
            below it: change this and the whole list changes, where the theme only
-           changes its colours. Hidden until the script at the foot fills it in — its
-           options are the saved profiles, so unlike the theme picker there is nothing
-           sensible to paint before the script runs, and an empty select flashing in
-           the header is worse than a control that arrives with the list. -->
+           changes its colours.
+
+           It carries `hidden` here and the script at the foot takes it away once it has
+           filled in the options — unlike the theme picker, whose four options are known
+           before any script runs, this one's are the saved profiles, and an empty select
+           flashing in the header is worse than a control that arrives with its list. It
+           is NOT hidden for a household of one: "Manage people…" is the last entry in
+           this picker, so hiding it below two people (which is what shipped for an hour
+           on 2026-08-22) hid the only door to the feature. -->
       <label class="sr-only" for="profileSel">Whose supplies</label>
       <select class="theme-sel" id="profileSel" hidden></select>
       <!-- Backing up used to be two underlined links at the very foot of the page, which
@@ -2568,10 +2573,15 @@ const MANAGE_PROFILES = '__manage__';
 
 function renderProfilePicker() {
   const sel = $('profileSel');
-  /* Shown only once there is a choice to make. A household of one has nothing to
-     switch between, and a picker with a single option is a control that does nothing
-     — so for them this is a line in the Back up dialog and nothing in the header. */
-  sel.hidden = profiles.length < 2;
+  /* ALWAYS shown, and that is a correction rather than a preference. It shipped hidden
+     below two people, on the reasoning that a picker with one option is a control that
+     does nothing — which was true of the switching and false of everything else, because
+     "Manage people…" is the last entry IN this picker. With one profile the door to the
+     feature was inside a control the app was hiding, so a household of one could never
+     add a second person at all. The phones do not have this problem: they hide their menu
+     on the same rule but keep a People row in Settings, and the web has no Settings
+     screen to put one in. One always-present control is the honest answer. */
+  sel.hidden = false;
   sel.innerHTML = profiles
     .map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`)
     .join('') + `<option value="${MANAGE_PROFILES}">⚙ Manage people…</option>`;
