@@ -460,6 +460,9 @@ t('the cache list holds only files that are already public', () => {
 });
 
 t('the worker touches nothing cross-origin, and has no eval', () => {
+  /* Guarded before the negations. Every assertion below is a NOT, and a NOT over
+     an empty string passes — a file that failed to load would report green here. */
+  ok(SW_SRC, 'sw.js did not load — the negations below would all pass on an empty string');
   const code = stripComments(SW_SRC);
   ok(!/https?:\/\//.test(code), 'sw.js names an off-origin URL in executable code');
   /* A worker on Pages runs with NO CSP at all, so these are not merely untidy. */
