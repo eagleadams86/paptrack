@@ -795,6 +795,10 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     }
   }
   /* ---- Back up & restore ---- */
+  /* Every paragraph in a dialog, not only the ones tagged .hint — a class-less
+     <p> was falling back to body text. --fs-xs and --text-secondary is the
+     family's dialog prose (2026-08-22). */
+  dialog p { font-size: var(--fs-xs); color: var(--text-secondary); }
   dialog p.hint { font-size: var(--fs-xs); color: var(--text-secondary); margin: 0 0 12px; }
   .datarow { display: flex; gap: 10px; flex-wrap: wrap; }
   /* "Start again" inside the backup dialog. Folded away deliberately: the one
@@ -1274,7 +1278,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
 
 <dialog id="syncChoiceDialog" aria-labelledby="syncChoiceTitle">
   <h2 id="syncChoiceTitle">Which Data Do You Want to Keep?</h2>
-  <p id="syncChoiceBody" style="color:var(--text-secondary); font-size:var(--fs-sm); margin:0 0 16px;"></p>
+  <p id="syncChoiceBody" style="margin:0 0 16px"></p>
   <div class="formfoot">
     <button type="button" class="act" id="syncKeepDeviceBtn">Keep this device</button>
     <button type="button" class="btn" id="syncKeepGoogleBtn">Keep Google's data</button>
