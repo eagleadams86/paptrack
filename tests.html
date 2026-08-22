@@ -1011,7 +1011,8 @@ t('a plain button is the bordered one the siblings use', () => {
     return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`;
   };
   eq(s.backgroundColor, rgb(token('--surface-alt')));
-  eq(s.borderTopColor, rgb(token('--border-strong')));
+  eq(s.borderTopColor, rgb(token('--border-control')),
+    "a control's edge is the pack's gated 3:1 token, not the panel edge it used to borrow");
   eq(s.borderTopWidth, '1px');
   eq(s.padding, '7px 12px', "the family's button padding");
 });
@@ -1086,8 +1087,10 @@ t('the placeholder is a token that clears 4.5:1, not the browser\u2019s default'
 });
 t('a filter chip is drawn on the same edge as every other button here', () => {
   const rule = (APP_SRC.match(/\.filter-chip \{[^}]*\}/) || [''])[0];
-  ok(/border: 1px solid var\(--border-strong\)/.test(rule),
-    'plain --border measured 1.21:1 against the bar and made the chips the odd button out');
+  ok(/border: 1px solid var\(--border-control\)/.test(rule),
+    'a chip is a control, so it takes the pack\u2019s 3:1 control edge like every other button');
+  ok(!/var\(--border-strong\)/.test(rule) && !/1px solid var\(--border\)/.test(rule),
+    '--border measured 1.21:1 against the bar and --border-strong 1.92 — both are panel edges');
 });
 t('a dialog focused as a container does not ring itself', () => {
   ok(/dialog:focus \{ outline: none/.test(APP_SRC),
@@ -1127,7 +1130,8 @@ t('two cards on a form row are the same height', () => {
 t('the form fields are the family\u2019s, and an empty date box cannot collapse', () => {
   const rule = (APP_SRC.match(/\.field input, \.field select[^{]*\{[^}]*\}/) || [''])[0];
   ok(/background: var\(--surface\)/.test(rule), 'it was --bg, the page colour, which read as a hole in the dialog');
-  ok(/border: 1px solid var\(--border-strong\)/.test(rule), 'the family paints a field on the pack\u2019s input border');
+  ok(/border: 1px solid var\(--input-border\)/.test(rule),
+    'the pack has a token for a field\u2019s edge, gated at 3:1 — --border-strong is a panel edge');
   ok(/min-height: calc\(1\.5em \+ 20px\)/.test(rule),
     'an empty <input type=date> renders no content in iOS Safari and collapses to its padding');
   ok(!/min-height: \d+px/.test(rule), 'in em, because the pack lifts fields to 16px on a coarse pointer');

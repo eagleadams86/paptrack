@@ -387,7 +387,7 @@
      left alone: inside a dialog a select sits beside text fields and is a thing
      you FILL IN, which wants the input palette rather than this one. */
   .theme-sel, .top-actions .act {
-    background: var(--surface-alt); border: 1px solid var(--border-strong);
+    background: var(--surface-alt); border: 1px solid var(--border-control);
     color: var(--text-primary); border-radius: var(--radius-sm);
   }
   .theme-sel:hover, .top-actions .act:hover { border-color: var(--text-muted); }
@@ -491,7 +491,7 @@
      different edge from all the others. No new colour — the token was already in
      the file twice over. */
   .filter-chip {
-    flex: 1 1 0; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-secondary);
+    flex: 1 1 0; border: 1px solid var(--border-control); background: var(--surface); color: var(--text-secondary);
     padding: 6px 8px; border-radius: var(--radius-sm); font-size: var(--fs-xs); cursor: pointer; white-space: nowrap;
     text-align: center; overflow: hidden; text-overflow: ellipsis;
   }
@@ -707,7 +707,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     /* The same two tokens as `.btn` below, which is what every sibling app's
        button wears: --surface-alt on --border-strong. It was --surface on
        --border, a step down, so these read flat against the card behind them. */
-    border: 1px solid var(--border-strong); background: var(--surface-alt); color: var(--text-primary);
+    border: 1px solid var(--border-control); background: var(--surface-alt); color: var(--text-primary);
     padding: 8px 12px; border-radius: var(--radius-sm); font-size: var(--fs-xs); cursor: pointer;
   }
   .act:hover { border-color: var(--text-muted); }
@@ -774,7 +774,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      with the pack, not a change to it. */
   .btn {
     background: var(--surface-alt); color: var(--text-primary);
-    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    border: 1px solid var(--border-control); border-radius: var(--radius-sm);
     padding: 7px 12px; cursor: pointer; white-space: nowrap;
   }
   .btn:hover { border-color: var(--text-muted); }
@@ -868,7 +868,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      so iOS doesn't zoom the page, and a hard pixel min-height would go wrong
      there. Put a new field type in this form and it inherits the guard. */
   .field input, .field select, .field textarea, .sec-card > input, .sec-card > select {
-    width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+    width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--input-border);
     background: var(--surface); color: var(--text-primary); font-size: var(--fs-sm);
     min-height: calc(1.5em + 20px);
   }
