@@ -912,7 +912,12 @@ t('the policy says WHEN Google\u2019s code loads, because it is not on sign-in',
     + 'already holds a session, which is the only way staying signed in can work');
   ok(/signing out stops the requests/i.test(policySrc),
     'and say that signing out stops the requests, not just the syncing');
-  ok(/gstatic/.test(policySrc) && /accounts\.google\.com/.test(policySrc),
+  /* includes(), not a regex: these look for a hostname WRITTEN IN PROSE, and an
+     unanchored /accounts\.google\.com/ reads to a scanner as a URL check that
+     any host could sail through — js/regex/missing-regexp-anchor, open on this
+     repo and two siblings at once. Nothing here validates a URL, so there was
+     nothing to exploit; a substring search simply says what this is. */
+  ok(policySrc.includes('gstatic') && policySrc.includes('accounts.google.com'),
     'and name the two hosts, so the claim is checkable against a network trace');
   ok(!/loads? on (every|each) visit(?![\s\S]{0,80}until August)/i.test(policySrc),
     'the every-visit wording is back, but the app no longer does that — one of '
