@@ -146,8 +146,8 @@
      Golf Handicap's narrower 1100px was tried first, on the reasoning that this
      app has no dense table to earn the extra — but that reasoning was about a
      page whose content STRETCHES to the width. This one's doesn't: the supply
-     cards flow into columns (see `.list`), so every extra 400px buys another
-     column rather than a wider card, and the width is spent on more to read. It
+     cards flow into columns (see `.list`, capped at three), so the width is spent
+     on more to read rather than on a wider card. It
      was 760px until 2026-08-21 — a phone column shown on a desktop. */
   :root { --chrome-h: 30px; --page-w: 2400px; }
   /* `color-scheme` rides along with the shadows, one per theme, the same shape
@@ -497,8 +497,8 @@
      unchanged and needs no media query of its own. Pairing at 400 rather than
      the 460 first tried is what covers the 900px-ish laptop window: at 460 that
      width fell one column short and showed a single card stretched across the
-     whole page, which is the shape the widening was meant to get rid of. At the
-     full 2400px page it gives five columns.
+     whole page, which is the shape the widening was meant to get rid of. Three
+     is the ceiling from ~1250px up — see the cap on `.list` itself.
 
      `min(400px, 100%)` rather than a bare 400px, and it is load-bearing: a
      minmax MINIMUM is not a suggestion, so on a 375px phone a bare 400 lays out
@@ -511,8 +511,20 @@
      card to its own content put a one-line step between neighbours and left the
      row with a ragged bottom edge. Where that spare height goes inside the card
      is the other half of it; see `.quadrants` below. */
-  .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr));
-          gap: 12px; }
+  /* THREE COLUMNS AT MOST, whatever the page is doing (2026-08-22). auto-fill on
+     its own gave five at the 2400px width, and a supply card does not want to be
+     one of five: the 2x2 tiles inside it were down to the width of their own
+     labels. The cap is written as the column MINIMUM rather than a fixed
+     `repeat(3, 1fr)`, so the responsive behaviour underneath is untouched — the
+     floor is the larger of the 400px card width and a third of the row, so a
+     third of the row wins from about 1250px up (three wide cards) and the 400px
+     floor wins below it (two, then one, exactly as before).
+
+     `- 24px` is the two 12px gaps a three-column row carries. Keep it in step
+     with the `gap` below or the third column falls off the row at the width
+     where the two terms cross. */
+  .list { display: grid; gap: 12px;
+          grid-template-columns: repeat(auto-fill, minmax(max(min(400px, 100%), calc((100% - 24px) / 3)), 1fr)); }
   /* A flex column, so the quadrant block can be told to take whatever height the
      row hands the card beyond its title and note. */
   /* 18px, the family's card. Golf Handicap was --sp-6 (16px) and PAPTrack
