@@ -85,7 +85,7 @@ function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy');
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 93;
+const EXPECTED = 95;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1088,6 +1088,19 @@ t('a filter chip is drawn on the same edge as every other button here', () => {
   const rule = (APP_SRC.match(/\.filter-chip \{[^}]*\}/) || [''])[0];
   ok(/border: 1px solid var\(--border-strong\)/.test(rule),
     'plain --border measured 1.21:1 against the bar and made the chips the odd button out');
+});
+t('a dialog focused as a container does not ring itself', () => {
+  ok(/dialog:focus \{ outline: none/.test(APP_SRC),
+    'openModal focuses the dialog on a coarse pointer, so without this every phone rings the whole window');
+  ok(/dlg\.focus\(\)/.test(APP_SRC), 'and that is still how the keyboard is kept down');
+});
+t('the form fields are the family\u2019s, and an empty date box cannot collapse', () => {
+  const rule = (APP_SRC.match(/\.field input, \.field select[^{]*\{[^}]*\}/) || [''])[0];
+  ok(/background: var\(--surface\)/.test(rule), 'it was --bg, the page colour, which read as a hole in the dialog');
+  ok(/border: 1px solid var\(--border-strong\)/.test(rule), 'the family paints a field on the pack\u2019s input border');
+  ok(/min-height: calc\(1\.5em \+ 20px\)/.test(rule),
+    'an empty <input type=date> renders no content in iOS Safari and collapses to its padding');
+  ok(!/min-height: \d+px/.test(rule), 'in em, because the pack lifts fields to 16px on a coarse pointer');
 });
 t('motion is dropped for anyone who has asked the system for none', () => {
   ok(/@media \(prefers-reduced-motion: reduce\)/.test(APP_SRC), 'the toast fades, and a fade is still motion');

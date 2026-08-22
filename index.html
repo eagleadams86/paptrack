@@ -243,6 +243,16 @@
 
      `:focus-visible`, not `:focus`, so a mouse click doesn't leave a ring behind. */
   :focus-visible { outline: 2px solid var(--focus-border); outline-offset: 2px; }
+  /* Same exemption as <main> above, and for the same reason. On a COARSE pointer
+     `openModal()` deliberately puts focus on the dialog itself (`tabIndex = -1`,
+     then `focus()`) so that opening a form doesn't drag the on-screen keyboard up
+     with it — see the note on that function. The dialog is a container that has
+     been focused as a mechanism, not a control somebody is about to operate, so a
+     ring around the whole window says nothing and looks like a mistake. It was
+     drawing one on every phone and tablet, in the browser's own colour before
+     2026-08-22 and in ours after; caught on an iPhone, because a fine pointer
+     never takes this path. Focus inside the dialog still rings normally. */
+  dialog:focus { outline: none; }
 
   .sr-only {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -823,9 +833,37 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   dialog h2 { margin: 0 0 12px; font-size: var(--fs-md); }
   .field { margin-bottom: 12px; }
   .field label { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
+  /* THE FAMILY'S FIELD: `--surface` on a `--border-strong` edge (2026-08-22).
+     It was `--bg` on plain `--border` — the PAGE colour, which is the darkest
+     thing in the palette, so a field inside a dialog read as a hole cut through
+     two lighter panels to the black behind them, and on midnight it was very
+     nearly black. Golf Handicap, Flow Metrics and Money Map all paint a field
+     `--surface` on the pack's `--input-border` (the same value as
+     `--border-strong`), and this app was the only one that didn't. No colour was
+     invented: both tokens were already in this file.
+
+     The layering that results is deliberate and is one step better than the
+     siblings' own: their fields sit on `--surface` too, so only the border
+     separates them, where this app's `.sec-card` is `--surface-alt`, leaving the
+     field a touch darker than the card holding it.
+
+     MIN-HEIGHT, and it is not cosmetic. An `<input type="date">` with NO VALUE
+     renders no inner content in iOS Safari, and the pack turns the native
+     appearance off (its rule 425) — so the content box has nothing to give it a
+     height and collapses to its padding. That is what made "Last ordered" a thin
+     empty bar beside a full-height "Cost each": the two date boxes above it were
+     fine only because they always have a value. Chromium always paints
+     "mm/dd/yyyy" and desktop WebKit draws its own box, so NEITHER shows this —
+     it is visible on a real iPhone and nowhere else. `calc(1.5em + 20px)` is the
+     box a filled field makes, stated rather than left to the content: 1.5em is
+     the inherited line-height, 20px the 9px padding twice plus the two borders.
+     In `em` on purpose — the pack lifts every field to 16px on a coarse pointer
+     so iOS doesn't zoom the page, and a hard pixel min-height would go wrong
+     there. Put a new field type in this form and it inherits the guard. */
   .field input, .field select, .sec-card > input, .sec-card > select {
-    width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border);
-    background: var(--bg); color: var(--text-primary); font-size: var(--fs-sm);
+    width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+    background: var(--surface); color: var(--text-primary); font-size: var(--fs-sm);
+    min-height: calc(1.5em + 20px);
   }
   .field input:focus, .field select:focus,
   .sec-card > input:focus, .sec-card > select:focus { border-color: var(--accent); }
