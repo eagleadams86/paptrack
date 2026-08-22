@@ -272,9 +272,26 @@
      first line and strand the buttons at the left edge of the second. */
   .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
                  justify-content: flex-end; margin-left: auto; }
+  /* ── The header controls wear the family's button, not this app's ──────────
+     Sprint Predictability is the design lead and Golf Handicap, Flow Metrics and
+     Money Map all carry the same object: `--surface-alt` on `--border-strong`,
+     `--radius-sm`, darkening its border on hover. This row wore `--surface` on
+     plain `--border` at a 12px radius — a quieter, rounder control that sat a
+     shade darker than the bar behind it, so beside a sibling app the two rows
+     read as different furniture.
+
+     Both the picker and the buttons take it, because in this row a <select> is a
+     thing you PRESS, like the buttons beside it. The same rule scoped the same
+     way in Golf Handicap, and for the same reason its base `select` styling is
+     left alone: inside a dialog a select sits beside text fields and is a thing
+     you FILL IN, which wants the input palette rather than this one. */
+  .theme-sel, .top-actions .act {
+    background: var(--surface-alt); border: 1px solid var(--border-strong);
+    color: var(--text-primary); border-radius: var(--radius-sm);
+  }
+  .theme-sel:hover, .top-actions .act:hover { border-color: var(--text-muted); }
   .theme-sel {
-    border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
-    border-radius: 12px; height: var(--chrome-h); padding: 0 10px; font-size: 0.85rem; cursor: pointer;
+    height: var(--chrome-h); padding: 0 10px; font-size: 0.85rem; cursor: pointer;
   }
   /* The header row is ONE height, pinned on the buttons and the picker alike.
      A native <select> ignores line-height, so pinning it on one and not the
@@ -314,7 +331,6 @@
      The floor is the widest of them, so the button only ever grows past it for
      a long account name. Golf Handicap pins the same button the same way. */
   #syncBtn { min-width: 148px; }
-  .theme-sel:hover { border-color: var(--text-muted); }
   .theme-sel:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
 
   /* ---- Stat tiles ---- */
