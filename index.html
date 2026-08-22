@@ -303,7 +303,7 @@
      never do. The radius comes down with the size: 11px on a 22px tile is a
      circle. The border stays — this art is a dark square, and on the midnight
      and dark palettes it needs an edge or it dissolves into the bar. */
-  .logo { width: 22px; height: 22px; border-radius: 6px; flex: none;
+  .logo { width: 22px; height: 22px; border-radius: var(--radius-sm); flex: none;
           vertical-align: -4px; margin-right: 9px;
           border: 1px solid var(--border); }
   /* margin-left:auto rather than a flexible spacer: a spacer would sit on the
@@ -383,7 +383,7 @@
      at 0 the columns give way and the text inside them wraps instead. */
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
   .stat {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 10px; box-shadow: var(--shadow);
     display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
   }
@@ -407,7 +407,7 @@
   /* Stacked on a phone, as it always was. */
   .toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
   .search {
-    width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+    width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--surface); color: var(--text-primary); font-size: var(--fs-sm);
   }
   .search:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
@@ -417,7 +417,7 @@
   .filters { display: flex; gap: 6px; }
   .filter-chip {
     flex: 1 1 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
-    padding: 6px 8px; border-radius: 12px; font-size: var(--fs-xs); cursor: pointer; white-space: nowrap;
+    padding: 6px 8px; border-radius: var(--radius-sm); font-size: var(--fs-xs); cursor: pointer; white-space: nowrap;
     text-align: center; overflow: hidden; text-overflow: ellipsis;
   }
   .filter-chip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); font-weight: 600; }
@@ -482,7 +482,7 @@
   /* A flex column, so the quadrant block can be told to take whatever height the
      row hands the card beyond its title and note. */
   .card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 14px 14px 12px; box-shadow: var(--shadow);
     display: flex; flex-direction: column;
   }
@@ -511,7 +511,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .quadrants { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;
                align-items: stretch; flex: 1 1 auto; align-content: stretch; }
   .quad {
-    background: var(--surface-alt); border-radius: 12px; padding: 10px;
+    background: var(--surface-alt); border-radius: var(--radius-sm); padding: 10px;
     display: flex; flex-direction: column; gap: 8px;
   }
   .quad-h { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
@@ -525,7 +525,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      Non-text contrast against the card runs 5.3-13.7, well over the 3:1 needed. */
   .badge {
     display: flex; align-items: flex-start; gap: 6px; font-size: var(--fs-xs); line-height: 16px; font-weight: 600;
-    padding: 6px 10px; border-radius: 14px; width: 100%; color: var(--text-primary);
+    padding: 6px 10px; border-radius: var(--radius-sm); width: 100%; color: var(--text-primary);
     border: 1.5px solid transparent;
   }
   /* Center the dot on the first text line: (lineHeight − dotSize) / 2 = (16 − 8) / 2 = 4px.
@@ -546,7 +546,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .hist { list-style: none; margin: 0; padding: 0; }
   .hist li {
     display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: space-between;
-    padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
     background: var(--surface-alt); margin-bottom: 6px; font-size: var(--fs-xs);
   }
   .hist .hk { font-weight: 600; }
@@ -554,16 +554,16 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      do to them. The name field takes the room; the buttons keep their own width. */
   .prow {
     display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-    padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
     background: var(--surface-alt); margin-bottom: 6px;
   }
   .prow .pname {
-    flex: 1 1 140px; min-width: 0; padding: 6px 8px; border-radius: 8px;
+    flex: 1 1 140px; min-width: 0; padding: 6px 8px; border-radius: var(--radius-sm);
     border: 1px solid var(--input-border); background: var(--surface); color: var(--text-primary);
   }
   .prow .phint { font-size: var(--fs-xs); color: var(--text-secondary); }
   #profileNew {
-    flex: 1 1 160px; min-width: 0; padding: 8px 10px; border-radius: 10px;
+    flex: 1 1 160px; min-width: 0; padding: 8px 10px; border-radius: var(--radius-sm);
     border: 1px solid var(--input-border); background: var(--surface); color: var(--text-primary);
   }
   .hist .hd { color: var(--text-secondary); }
@@ -572,13 +572,13 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   #itemActions a.act { text-decoration: none; text-align: center; }
   .stock { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .stock button {
-    width: 30px; height: 30px; border-radius: 12px; border: 1px solid var(--border);
+    width: 30px; height: 30px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--surface); color: var(--text-primary); font-size: var(--fs-base); cursor: pointer; line-height: 1;
   }
   .stock .count { font-weight: 700; min-width: 1.6ch; text-align: center; }
   .act {
     border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
-    padding: 8px 12px; border-radius: 12px; font-size: var(--fs-xs); cursor: pointer;
+    padding: 8px 12px; border-radius: var(--radius-sm); font-size: var(--fs-xs); cursor: pointer;
   }
   .act:hover { border-color: var(--text-muted); }
   .quad .act { width: 100%; text-align: center; font-size: var(--fs-xs); }
@@ -662,7 +662,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .fab {
     position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
     box-shadow: 0 6px 20px rgba(0,0,0,0.35); z-index: 5;
-    padding: 12px 18px; border-radius: 999px; font-weight: 700; font-size: var(--fs-sm);
+    padding: 12px 18px; border-radius: var(--radius-pill); font-weight: 700; font-size: var(--fs-sm);
   }
 
   /* ---- Dialog / form ---- */
@@ -672,7 +672,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      the backup and delete-all dialogs was running to five and six lines. The
      add/edit form gets more again, below. */
   dialog {
-    border: 1px solid var(--border); border-radius: 18px; background: var(--bg); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text-primary);
     width: min(560px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
     /* A tall dialog on a short laptop screen opens already scrolled past its own
        heading — showModal() focuses the first control and drags it into view.
@@ -697,7 +697,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .field { margin-bottom: 12px; }
   .field label { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
   .field input, .field select, .sec-card > input, .sec-card > select {
-    width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--border);
+    width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--bg); color: var(--text-primary); font-size: var(--fs-sm);
   }
     .field input:focus, .field select:focus,
@@ -705,7 +705,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .quick button {
     border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-secondary);
-    padding: 4px 10px; border-radius: 999px; font-size: var(--fs-xs); cursor: pointer;
+    padding: 4px 10px; border-radius: var(--radius-pill); font-size: var(--fs-xs); cursor: pointer;
   }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .grid2 .field { margin-bottom: 0; }
@@ -717,7 +717,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   }
   .sec-card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 12px;
+    border-radius: var(--radius); padding: 12px;
   }
   .sec-card .field:last-child { margin-bottom: 0; }
   .sec-foot { font-size: var(--fs-xs); color: var(--text-muted); margin: 7px 0 0; padding-left: 2px; }
@@ -802,18 +802,18 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      backup, so they need to be comfortably tappable rather than hairline-thin links. */
   footer button {
     background: none; border: none; color: var(--accent); font-size: var(--fs-xs); cursor: pointer;
-    text-decoration: underline; padding: 6px 10px; border-radius: 8px; min-height: 32px;
+    text-decoration: underline; padding: 6px 10px; border-radius: var(--radius-sm); min-height: 32px;
   }
   footer button:hover { background: var(--surface-alt); }
   .insurance {
-    margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px;
+    margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: var(--radius-sm);
     font-size: var(--fs-xs); color: var(--text-secondary); text-align: left;
   }
 
   /* ---- Toast ---- */
   .toast {
     position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-    background: var(--text-primary); color: var(--bg); padding: 10px 16px; border-radius: 999px;
+    background: var(--text-primary); color: var(--bg); padding: 10px 16px; border-radius: var(--radius-pill);
     font-size: var(--fs-sm); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
     max-width: calc(100vw - 40px); text-align: center;
   }
