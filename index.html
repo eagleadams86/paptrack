@@ -205,6 +205,21 @@
        stop in landscape on a notched phone. */
     padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
+  /* Form controls do NOT inherit the page's typeface — a <button>, a <select> and
+     an <input> each take the browser's own default instead, which on this platform
+     is Arial. So every control in this app was set in Arial while its prose was in
+     the system face: the buttons, the theme picker, the search box, the fields in
+     every dialog. It is subtle enough to live a long time unnoticed, and it
+     surfaced through the header glyphs — Arial's ⇩ is a thin outline where the
+     system face draws a solid one, so PAPTrack's download arrow came out skinnier
+     than the same character in the sibling apps.
+
+     Every sibling carries this line; this app was the one that never had it. `font`
+     and not `font-family`, which is the family's version and also picks up the
+     size and weight — every control here that cares states its own size after this
+     rule, so nothing is left to the UA's 13.33px default either. */
+  button, select, input, textarea { font: inherit; color: inherit; }
+
   /* Width lives with the other layout tokens at the top of the file. The 64px of
      bottom padding is the siblings' number and does a second job here: it keeps
      the last card clear of the floating "+ Add supply" button. */
