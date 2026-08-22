@@ -364,7 +364,7 @@
     .top-actions .act { font-size: var(--fs-xs); }
   }
   /* The other half of not moving: this button's LABEL changes as you use it —
-     "☁️ Sign in to sync", then "☁️ Charlie", then "⚠️ Not syncing" — and each
+     "☁️ Sign In to Sync", then "☁️ Charlie", then "⚠️ Not syncing" — and each
      one is a different width, so the row shifted every time sync changed state.
      The floor is the widest of them, so the button only ever grows past it for
      a long account name. Golf Handicap pins the same button the same way. */
@@ -896,7 +896,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
            into the markup at its final size, because the header paints long
            before anything else runs and a growing header is the one thing it
            must never do. -->
-      <button class="act" id="syncBtn">☁️ Sign in to sync</button>
+      <button class="act" id="syncBtn">☁️ Sign In to Sync</button>
       <!-- Whose supplies these are. First in the row because it governs everything
            below it: change this and the whole list changes, where the theme only
            changes its colours.
@@ -924,7 +924,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
          ⚙ for settings — so the same action looks the same in every app. ☁️ Sign
          in to sync keeps its emoji: the sync module rewrites that label as the
          state changes, and it is the one control here about somewhere else. -->
-      <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data"><span aria-hidden="true">⇩</span> Back up</button>
+      <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data"><span aria-hidden="true">⇩</span> Back Up</button>
       <!-- The four unified themes, listed alphabetically (matches every sibling
            app). ☀ is the plain text sun, not ☀️ — the emoji-presentation
            variant is drawn from the colour font, which is a different weight
@@ -985,12 +985,12 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     <div class="filter-block">
       <div class="filters-cap">Filter — tap to toggle</div>
       <div class="filters" role="group" aria-label="Filter supplies">
-        <button class="filter-chip" data-filter="clean" aria-pressed="false"><span aria-hidden="true">🧼</span> Clean due</button>
-        <button class="filter-chip" data-filter="replace" aria-pressed="false"><span aria-hidden="true">↻</span> Replace due</button>
-        <button class="filter-chip" data-filter="reorder" aria-pressed="false"><span aria-hidden="true">📦</span> Reorder due</button>
+        <button class="filter-chip" data-filter="clean" aria-pressed="false"><span aria-hidden="true">🧼</span> Clean Due</button>
+        <button class="filter-chip" data-filter="replace" aria-pressed="false"><span aria-hidden="true">↻</span> Replace Due</button>
+        <button class="filter-chip" data-filter="reorder" aria-pressed="false"><span aria-hidden="true">📦</span> Reorder Due</button>
       </div>
     </div>
-    <button class="act cleanall" id="cleanAllBtn" hidden>Mark all due items clean</button>
+    <button class="act cleanall" id="cleanAllBtn" hidden>Mark All Due Items Clean</button>
   </div>
 
   <!-- The cards are h3s; this gives them an h2 to sit under so the outline doesn't skip a level. -->
@@ -1066,7 +1066,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   </footer>
 </div>
 
-<button class="btn primary fab" id="addBtn">+ Add supply</button>
+<button class="btn primary fab" id="addBtn">+ Add Supply</button>
 <div class="toast" id="toast" role="status"></div>
 
 <dialog id="formDialog" aria-labelledby="formTitle">
@@ -1115,11 +1115,11 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
           <label for="fReplace">Replace every (days)</label>
           <input type="number" id="fReplace" min="0" max="3650" required value="90">
           <div class="quick">
-            <button type="button" data-replace="14">2 wk</button>
-            <button type="button" data-replace="30">1 mo</button>
-            <button type="button" data-replace="90">3 mo</button>
-            <button type="button" data-replace="180">6 mo</button>
-            <button type="button" data-replace="0">As needed</button>
+            <button type="button" data-replace="14">2 Wk</button>
+            <button type="button" data-replace="30">1 Mo</button>
+            <button type="button" data-replace="90">3 Mo</button>
+            <button type="button" data-replace="180">6 Mo</button>
+            <button type="button" data-replace="0">As Needed</button>
           </div>
         </div>
         <div class="field">
@@ -1232,8 +1232,8 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     copy you keep, independent of this browser and of any Google account. With no account
     needed to use PAPTrack, clearing your browser data is the one thing that will lose it.</p>
   <div class="datarow">
-    <button type="button" class="act" id="exportBtn"><span aria-hidden="true">⬇︎</span> Download backup (JSON)</button>
-    <button type="button" class="act" id="importBtn"><span aria-hidden="true">⬆︎</span> Restore from backup…</button>
+    <button type="button" class="act" id="exportBtn"><span aria-hidden="true">⬇︎</span> Download Backup (JSON)</button>
+    <button type="button" class="act" id="importBtn"><span aria-hidden="true">⬆︎</span> Restore from Backup…</button>
     <input type="file" id="importFile" accept=".json,application/json" aria-label="Choose a backup file" hidden>
   </div>
   <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
@@ -1241,8 +1241,8 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     one-way door — it's for reading and charting, not for restoring, which is what the JSON
     file above is for.</p>
   <div class="datarow">
-    <button type="button" class="act" id="csvSuppliesBtn"><span aria-hidden="true">⬇︎</span> Download supplies (CSV)</button>
-    <button type="button" class="act" id="csvHistoryBtn"><span aria-hidden="true">⬇︎</span> Download history (CSV)</button>
+    <button type="button" class="act" id="csvSuppliesBtn"><span aria-hidden="true">⬇︎</span> Download Supplies (CSV)</button>
+    <button type="button" class="act" id="csvHistoryBtn"><span aria-hidden="true">⬇︎</span> Download History (CSV)</button>
   </div>
   <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
   <p class="hint" style="margin-top:12px">Restoring <strong>replaces every supply in this
@@ -1253,7 +1253,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     <p class="hint" style="margin-top:10px">Deletes every supply in this browser. Your theme
       is kept.</p>
     <div class="datarow">
-      <button type="button" class="act danger" id="clearBtn">Delete all data</button>
+      <button type="button" class="act danger" id="clearBtn">Delete All Data</button>
     </div>
   </details>
   <div class="formfoot">
@@ -1270,9 +1270,9 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   <p class="hint" id="clearBody"></p>
   <p class="warn" id="clearSyncWarn" role="status"></p>
   <div class="clearfoot">
-    <button type="button" class="act safety" id="clearBackupBtn"><span aria-hidden="true">⬇︎</span> Download backup first</button>
+    <button type="button" class="act safety" id="clearBackupBtn"><span aria-hidden="true">⬇︎</span> Download Backup First</button>
     <button type="button" class="act" id="clearCancel">Cancel</button>
-    <button type="button" class="act danger" id="clearConfirm">Delete everything</button>
+    <button type="button" class="act danger" id="clearConfirm">Delete Everything</button>
   </div>
 </dialog>
 
@@ -1280,8 +1280,8 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   <h2 id="syncChoiceTitle">Which Data Do You Want to Keep?</h2>
   <p id="syncChoiceBody" style="margin:0 0 16px"></p>
   <div class="formfoot">
-    <button type="button" class="act" id="syncKeepDeviceBtn">Keep this device</button>
-    <button type="button" class="btn" id="syncKeepGoogleBtn">Keep Google's data</button>
+    <button type="button" class="act" id="syncKeepDeviceBtn">Keep This Device</button>
+    <button type="button" class="btn" id="syncKeepGoogleBtn">Keep Google's Data</button>
   </div>
 </dialog>
 
@@ -2050,14 +2050,14 @@ function render() {
           <div class="quad-line">${esc(capFirst(cleanLabel(it.cleanDays)))}</div>
           <div class="quad-line">${esc(cleanStatus(it))}</div>
           ${isPaused ? '' : cleanBadge(it)}
-          ${isCleanDue ? `<button class="act" data-act="clean" aria-label="Mark cleaned — ${n}">Mark cleaned</button>` : ''}
+          ${isCleanDue ? `<button class="act" data-act="clean" aria-label="Mark cleaned — ${n}">Mark Cleaned</button>` : ''}
         </div>
         <div class="quad">
           <div class="quad-h">↻ Replacing</div>
           <div class="quad-line">${esc(capFirst(replaceLabel(it.replaceDays)))}</div>
           <div class="quad-line">Last replaced ${esc(agoLabel(it.lastReplaced))}</div>
           ${isPaused ? '' : replaceBadge(it)}
-          ${isPaused || replacedToday(it) ? '' : `<button class="act" data-act="replace" aria-label="Mark replaced — ${n}">Mark replaced</button>`}
+          ${isPaused || replacedToday(it) ? '' : `<button class="act" data-act="replace" aria-label="Mark replaced — ${n}">Mark Replaced</button>`}
         </div>
         <div class="quad">
           <div class="quad-h">📦 Spares</div>
@@ -2067,7 +2067,7 @@ function render() {
             <button data-act="stock+" aria-label="One more spare — ${n}">+</button>
           </div>
           ${reorderBadge(it)}
-          ${dueToReorder(it) ? `<button class="act" data-act="ordered" aria-label="Mark ordered — ${n}">Mark ordered</button>` : ''}
+          ${dueToReorder(it) ? `<button class="act" data-act="ordered" aria-label="Mark ordered — ${n}">Mark Ordered</button>` : ''}
         </div>
         <div class="quad">
           <div class="quad-h">⚙️ Manage</div>
@@ -2636,9 +2636,9 @@ function renderDetails() {
   $('itemActions').innerHTML = [
     `<button type="button" class="act" data-d="pause">${paused(it) ? 'Resume this supply' : 'Pause this supply'}</button>`,
     snoozed(it)
-      ? '<button type="button" class="act" data-d="unsnooze">Wake reminders now</button>'
-      : '<button type="button" class="act" data-d="snooze">Snooze reminders 7 days</button>',
-    '<button type="button" class="act" data-d="ordered">Mark ordered today</button>',
+      ? '<button type="button" class="act" data-d="unsnooze">Wake Reminders Now</button>'
+      : '<button type="button" class="act" data-d="snooze">Snooze Reminders 7 Days</button>',
+    '<button type="button" class="act" data-d="ordered">Mark Ordered Today</button>',
     it.orderUrl
       ? `<a class="act" href="${esc(it.orderUrl)}" target="_blank" rel="noopener noreferrer">Reorder at ${esc(it.supplier || 'the supplier')} ↗</a>`
       : '',
@@ -2752,7 +2752,7 @@ function renderProfiles() {
              data-keep-caret aria-label="Name for ${esc(p.name)}">
       ${active
         ? '<span class="phint">on screen</span>'
-        : `<button type="button" class="act" data-p="use">Switch to</button>`}
+        : `<button type="button" class="act" data-p="use">Switch To</button>`}
       ${profiles.length > 1
         ? `<button type="button" class="act danger" data-p="del" aria-label="Remove ${esc(p.name)}">Remove</button>`
         : '<span class="phint">the only one</span>'}
@@ -3458,8 +3458,8 @@ function updateUI() {
     btn.title = 'Syncing across devices — tap to sign out';
     privacyNote.textContent = `☁️ Signed in as ${user.email} — your data syncs privately to your own account and still works offline.`;
   } else {
-    btn.textContent = '☁️ Sign in to sync';
-    btn.setAttribute('aria-label', 'Sign in to sync');
+    btn.textContent = '☁️ Sign In to Sync';
+    btn.setAttribute('aria-label', 'Sign In to Sync');
     btn.title = 'Sign in with Google to see the same data on all your devices';
     privacyNote.textContent = '🔒 Private — stored in this browser; sign in to sync your own devices. No account required to use the app.';
   }
