@@ -486,6 +486,14 @@
     padding: 14px 14px 12px; box-shadow: var(--shadow);
     display: flex; flex-direction: column;
   }
+/* SEMIBOLD, not the browser's own bold. Headings had no weight declared here,
+   so an h2 fell through to the UA default of 700 — while Flow Metrics, Golf
+   Handicap and the Task Dashboard all declare --fw-semibold (600) for the same
+   heading. Three apps at 700 and three at 600 is the difference Charles saw as
+   "bolder text" between two of these open side by side. 600 is the family's
+   answer: the brand is --fw-bold, and a card heading sits one step under it.
+   Weight only — the margins here are each app's own and are left alone. */
+h1, h2, h3 { font-weight: var(--fw-semibold); }
   .card h3 { margin: 0; font-size: var(--fs-md); }
   /* A paused supply reads as set aside without being made hard to read: the title drops to
      the secondary ink, which is a palette token the contrast gate already covers, rather
