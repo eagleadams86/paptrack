@@ -753,7 +753,18 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      without subgrid still gets. */
   @media (min-width: 860px) {
     #itemForm { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-    #presetField, #nameField, #formDialog .formfoot { grid-column: 1 / -1; }
+    /* Preset and Name PAIR UP, like every other row in this dialog. They were
+       pinned full-width, which put two short controls on two full lines and
+       pushed everything below them down a screen for no gain — a select holding
+       "😷 Mask" and a name box holding "Mask" do not need 770px each. They are
+       the same shape of thing as Cleaning-beside-Replacement below them: one
+       control apiece, read together, and choosing a preset FILLS the name box,
+       so seeing both at once is the point rather than a convenience.
+
+       The subgrid rule below lines them up part for part, so the two headings
+       sit on one row and the two cards on the next even though neither section
+       has a footnote. Only the button row still spans the full width. */
+    #formDialog .formfoot { grid-column: 1 / -1; }
     #itemForm .formsec { display: flex; flex-direction: column; }
     #itemForm .sec-card { flex: 1 1 auto; }
   }
