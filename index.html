@@ -140,15 +140,16 @@
      the same number or the brand stops lining up with the left edge of the
      first card, so both read it from here rather than repeating it.
 
-     1500px, the same number as Sprint Predictability and Flow Metrics, so the
-     three apps are one page width. Golf Handicap's narrower 1100px was tried
-     first on the reasoning that this app has no dense table to earn the extra —
-     but that reasoning was about a page whose content STRETCHES to the width.
-     This one's doesn't: the supply cards flow into columns (see `.list`), so
-     1500px buys a third column rather than a wider card, and the width is spent
-     on more to read. It was 760px until this change — a phone column shown on a
-     desktop. */
-  :root { --chrome-h: 30px; --page-w: 1500px; }
+     2400px, Money Map's number (2026-08-22). It was 1500px for a day, matching
+     Sprint Predictability and Flow Metrics; Money Map is the app in this family
+     that is opened widest, and PAPTrack now sits beside it at the same width.
+     Golf Handicap's narrower 1100px was tried first, on the reasoning that this
+     app has no dense table to earn the extra — but that reasoning was about a
+     page whose content STRETCHES to the width. This one's doesn't: the supply
+     cards flow into columns (see `.list`), so every extra 400px buys another
+     column rather than a wider card, and the width is spent on more to read. It
+     was 760px until 2026-08-21 — a phone column shown on a desktop. */
+  :root { --chrome-h: 30px; --page-w: 2400px; }
   /* `color-scheme` rides along with the shadows, one per theme, the same shape
      Money Map uses. It is not a colour of ours and it overrides nothing in the
      pack — it is how a page TELLS the browser which way round it is, so the bits
@@ -244,8 +245,9 @@
   button, select, input, textarea { font: inherit; color: inherit; }
 
   /* Width lives with the other layout tokens at the top of the file. The 64px of
-     bottom padding is the siblings' number and does a second job here: it keeps
-     the last card clear of the floating "+ Add supply" button. */
+     bottom padding is the siblings' number. It used to do a second job — keeping
+     the last card clear of the floating "+ Add Supply" button — and stays at the
+     family number now that the button has moved up into the toolbar. */
   .wrap { max-width: var(--page-w); margin: 0 auto; padding: 0 16px 64px; }
 
   /* ---- Header ---- */
@@ -261,8 +263,8 @@
      moment the row wraps to two lines on a phone. Sticky leaves it in the flow
      and the browser does the arithmetic.
 
-     z-index 20 is the siblings' number, above every card and the FAB (5) and
-     below the toast (9) and any <dialog>, which sits in the top layer anyway. */
+     z-index 20 is the siblings' number, above every card and below the toast (9)
+     and any <dialog>, which sits in the top layer anyway. */
   header {
     position: sticky; top: 0; z-index: 20;
     background: var(--surface);
@@ -412,6 +414,9 @@
   }
   .search:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
   .filter-block { display: flex; flex-direction: column; gap: 4px; }
+  /* One short word and a colon. It was "Filter — tap to toggle", which said what a
+     chip does; the chips say that themselves the first time one is pressed, and the
+     long caption was the widest thing in the filter block. */
   .filters-cap { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
   /* Three chips stretched full-width so the row never scrolls (matches iOS). */
   .filters { display: flex; gap: 6px; }
@@ -420,40 +425,69 @@
     padding: 6px 8px; border-radius: var(--radius-sm); font-size: var(--fs-xs); cursor: pointer; white-space: nowrap;
     text-align: center; overflow: hidden; text-overflow: ellipsis;
   }
+  /* A chip is a button, and it was the only one in the app that didn't answer the
+     pointer. The tell is the family's — the border comes up to --text-muted, the
+     same move `.btn:hover` and `.act:hover` make — with the fill stepping up to
+     --surface-alt so the whole chip lifts rather than just its edge. Declared
+     BEFORE the pressed rule below: both are two-specificity selectors, so a tie
+     goes to whichever comes last, and a hover written after it would repaint a
+     pressed chip in the unpressed colours. */
+  .filter-chip:hover { border-color: var(--text-muted); background: var(--surface-alt); }
   .filter-chip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); font-weight: 600; }
+  /* A pressed chip is a FILLED control, so it takes the filled button's hover —
+     `.btn.primary:hover`'s .88 — rather than a border it no longer shows. */
+  .filter-chip[aria-pressed="true"]:hover { opacity: .88; }
   .cleanall { align-self: flex-start; }
 
   /* One row once there is room, added with the page widening: a search box run
-     across the full 1468px of content to hold a word or two is the sort of thing
-     a phone layout shown on a desktop does. The breakpoint is the same 720px the rest of the
-     family uses. The chips keep their own width here — `flex: 1 1 0` stretched
-     them to fill a full-width row, which is right when the row IS the width of
-     the page and wrong when it is sharing it with the search box. */
+     across the full width of the content to hold a word or two is the sort of thing
+     a phone layout shown on a desktop does. The breakpoint is the same 720px the
+     rest of the family uses.
+
+     Since 2026-08-22 the row is ONE LINE of controls all the same height, and the
+     "Filters:" caption sits BESIDE its chips rather than above them.
+     Stacked, the filter block was two lines tall, which set the height of the whole
+     row: the search box stretched to 57px to match it and the chips stayed at 33px,
+     so three different box heights sat side by side with the add button between
+     them. There is more than enough width to lay the caption out inline,
+     and once it is inline every control in the row can take the same box.
+
+     That box is `.btn`'s own — 16px text at 7px/12px, a 40px control — because the
+     add button is the one thing in this row whose size is not ours to choose: it is
+     the family's button, and matching it is what makes the row uniform rather than
+     merely self-consistent. The chips come up from 13px and the caption stays at 13
+     (it is a label, not a control). */
   @media (min-width: 720px) {
-    /* `stretch`, so the search box is as tall as the filter block beside it —
-       caption AND chips, not just the chips. Bottom-aligned it matched the chip
-       row and left a search-box-width strip of empty page above itself, level
-       with the "Filter — tap to toggle" line; the row now reads as two blocks of
-       the same height. `.cleanall` opts out below: it is a button, and a button
-       stretched to two lines' height is not a button any more. */
-    .toolbar { flex-direction: row; align-items: stretch; flex-wrap: wrap; gap: 12px; }
+    /* `center`, not `stretch`: every item in the row is now a single-line control
+       of the same height, so there is nothing left to stretch — and stretch would
+       pull the caption's text to the top of a 40px box. */
+    .toolbar { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 12px; }
     .toolbar .search { flex: 1 1 240px; min-width: 0; }
-    /* Both `0 0 auto`: the chips carry their filter's name and the theme pack's
-       12px floor is already the smallest they may be set, so there is nothing
-       left to give — allowed to shrink they truncated to "Reorder …" while the
-       search box beside them sat 500px wide. The search box is the flexible one
-       in this row, and it is the only one that should be. */
-    .filter-block { flex: 0 0 auto; }
+    /* The add button sits between the search box and the filters and keeps its own
+       width — it is the row's reference box, so nothing about it flexes. */
+    .toolbar .addbtn { flex: 0 0 auto; }
+    /* Caption alongside, ahead of the chips it names. */
+    .filter-block { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 10px; }
     .filters { flex-wrap: wrap; }
-    .filter-chip { flex: 0 0 auto; }
+    /* `0 0 auto`: the chips carry their filter's name, and allowed to shrink they
+       truncated to "Reorder …" while the search box beside them sat 500px wide. The
+       search box is the flexible one in this row, and it is the only one that
+       should be. */
+    .filter-chip { flex: 0 0 auto; font-size: var(--fs-base); padding: 7px 12px; }
+    /* The add button's box, stated once for everything that isn't already wearing
+       it. The search box's own 10px padding would make it 44px and the chips' 13px
+       text 33px; a min-height can only raise a box, so each is set to the button's
+       padding first and then held at its height. */
+    .toolbar .search { padding: 7px 12px; }
+    .toolbar .search, .toolbar .filter-chip, .toolbar .cleanall { min-height: 40px; }
     /* Pushed to the far end of the row, away from the filters it is not part of. */
-    .cleanall { align-self: flex-end; margin-left: auto; }
+    .toolbar .cleanall { align-self: auto; margin-left: auto; font-size: var(--fs-base); padding: 7px 12px; }
   }
 
   /* ---- Cards ---- */
-  /* A GRID since 2026-08-21, not a single column. The page is 1500px wide now,
+  /* A GRID since 2026-08-21, not a single column. The page is 2400px wide now,
      and a supply card stretched across all of it is mostly empty space: its 2x2
-     quadrants would be ~730px each to hold a date and a button. Flowing the
+     quadrants would be over 1000px each to hold a date and a button. Flowing the
      cards into columns is what makes the extra width worth having.
 
      auto-fill with a 400px floor rather than a fixed column count: the card is
@@ -464,7 +498,7 @@
      the 460 first tried is what covers the 900px-ish laptop window: at 460 that
      width fell one column short and showed a single card stretched across the
      whole page, which is the shape the widening was meant to get rid of. At the
-     full 1500px page it gives three columns.
+     full 2400px page it gives five columns.
 
      `min(400px, 100%)` rather than a bare 400px, and it is load-bearing: a
      minmax MINIMUM is not a suggestion, so on a 375px phone a bare 400 lays out
@@ -637,7 +671,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      whichever one you open. */
   .card.welcome { padding: 18px; }
 
-  /* ---- Buttons / FAB ----
+  /* ---- Buttons ----
      The family's rule, byte-for-byte off Sprint Predictability, Flow Metrics and
      Money Map — and copied rather than admired because PAPTrack was the one app
      whose primary button was an accent-purple pill (999px, bold, 0.95rem) while
@@ -660,17 +694,20 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .btn.primary:hover { opacity: .88; }
   .btn:disabled { opacity: .45; cursor: default; }
   .btn.primary:disabled:hover { opacity: .45; }
-  /* The floating add button keeps its own size and shape on top of `.btn primary`.
-     The family's 7px/13px button is a 31px target, and this is the one control here
-     meant to be hit with a thumb against a moving list — 44px is the floor the rest
-     of this app's accessibility work holds to, so the padding stays. The pill radius
-     stays with it: it is what makes a floating control read as floating rather than
-     as a panel that has come loose. */
-  .fab {
-    position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
-    box-shadow: 0 6px 20px rgba(0,0,0,0.35); z-index: 5;
-    padding: 12px 18px; border-radius: var(--radius-pill); font-weight: 700; font-size: var(--fs-sm);
-  }
+  /* The add button is an ORDINARY button in the toolbar row, not a floating pill
+     (2026-08-22). It had been fixed to the bottom-right corner of the window in a
+     999px pill at 12/18 padding and 700 weight — a phone pattern, and on a desktop
+     it hung over the list as the only control in the app that wasn't part of the
+     page. Nothing else in the family floats, and no sibling has a pill: Golf
+     Handicap's `+ Add Round` is this same `.btn primary` sitting in the row above
+     the thing it adds to, which is the shape being matched here.
+
+     It keeps nothing of its own: `.btn primary` at the 16px body size is a 40px
+     control, and that measurement is now the toolbar's reference — the search box,
+     the chips and the clean-all button are all held to it, so the row is uniform
+     because everything in it matches the family's button rather than each other.
+     The `.addbtn` class carries no size; it exists only for the alignment rule
+     down in the 720px block. */
 
   /* ---- Dialog / form ---- */
   /* 560px, the siblings' number for a dialog that asks a question or offers a
@@ -982,8 +1019,9 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
 
   <div class="toolbar" id="toolbar" hidden>
     <input type="search" class="search" id="search" aria-label="Search supplies and notes" placeholder="Search supplies, notes…">
+    <button class="btn primary addbtn" id="addBtn">+ Add Supply</button>
     <div class="filter-block">
-      <div class="filters-cap">Filter — tap to toggle</div>
+      <div class="filters-cap">Filters:</div>
       <div class="filters" role="group" aria-label="Filter supplies">
         <button class="filter-chip" data-filter="clean" aria-pressed="false"><span aria-hidden="true">🧼</span> Clean Due</button>
         <button class="filter-chip" data-filter="replace" aria-pressed="false"><span aria-hidden="true">↻</span> Replace Due</button>
@@ -1066,7 +1104,6 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   </footer>
 </div>
 
-<button class="btn primary fab" id="addBtn">+ Add Supply</button>
 <div class="toast" id="toast" role="status"></div>
 
 <dialog id="formDialog" aria-labelledby="formTitle">

@@ -85,7 +85,7 @@ function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy');
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 87;
+const EXPECTED = 88;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1015,15 +1015,39 @@ t('a plain button is the bordered one the siblings use', () => {
   eq(s.borderTopWidth, '1px');
   eq(s.padding, '7px 12px', "the family's button padding");
 });
-/* The floating button deliberately does NOT take the family's 7px/13px size: it is the
-   one control here meant to be hit with a thumb against a moving list, and 31px is under
-   the 44px floor the rest of this app's accessibility work holds to. */
-t('the floating add button keeps a thumb-sized target', () => {
+/* The add button stopped floating on 2026-08-22: it is an ordinary button in the toolbar
+   row wearing the family's shape, like Golf Handicap's `+ Add Round` — same padding, same
+   corner, the same body size and the same weight. A `position: fixed` or a pill radius here
+   means the floating button has come back. Measured through the computed style rather than
+   a box: the harness sits in the empty state, where the toolbar around this button is
+   hidden and every rect it could report is zero. */
+t('the add button is the family\u2019s button, in the page and not floating', () => {
   const el = w.document.getElementById('addBtn');
   ok(el.classList.contains('primary'), 'it is still the screen\u2019s primary action');
+  ok(el.closest('#toolbar'), 'it sits in the toolbar row, beside the search box and filters');
   const s = w.getComputedStyle(el);
-  eq(s.padding, '12px 18px');
-  eq(s.borderTopLeftRadius, '999px', 'a floating control reads as floating by being a pill');
+  eq(s.position, 'static', 'nothing in this app floats over the list');
+  eq(s.padding, '7px 12px', "the family's button padding");
+  const token = (n) => w.getComputedStyle(w.document.documentElement).getPropertyValue(n).trim();
+  eq(s.borderTopLeftRadius, token('--radius-sm'), 'the family\u2019s corner, not a pill');
+  const body = w.getComputedStyle(w.document.body);
+  eq(s.fontSize, body.fontSize, 'the body size every sibling button takes, not the pill\u2019s --fs-sm');
+  ok(s.fontWeight !== '700', 'the pill\u2019s bold weight went with it');
+});
+
+/* The chip hover is a two-specificity selector and so is the pressed rule, so the tie
+   between them goes to whichever is written last. Written after, `.filter-chip:hover`
+   repaints a PRESSED chip in the unpressed colours the moment the pointer touches it —
+   the filter silently looks switched off while it is still on. Source order is the whole
+   guard, so source order is what this pins. */
+t('the chip hover cannot repaint a pressed chip', () => {
+  const hover = APP_SRC.indexOf('.filter-chip:hover {');
+  const pressed = APP_SRC.indexOf('.filter-chip[aria-pressed="true"] {');
+  ok(hover > -1, 'the chips answer the pointer at all');
+  ok(pressed > -1, 'the pressed chip still has its own rule');
+  ok(hover < pressed, 'the plain hover must be declared BEFORE the pressed rule');
+  ok(APP_SRC.includes('.filter-chip[aria-pressed="true"]:hover'),
+    'a pressed chip needs a hover of its own — it is filled, so a border tell is invisible');
 });
 
 group('The header picker reads the theme the page is actually showing');
