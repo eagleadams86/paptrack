@@ -163,6 +163,90 @@ t('no record holds an undefined value, which would stop cloud sync dead', () => 
   eq(list.length, 3, 'and they are all still real records');
 });
 
+group('Schema 2 — history, paused, snoozed, on order');
+/* Seven fields landed together on 2026-08-22 rather than one bump each: a build that
+   doesn't know a field strips it, so five bumps would have meant five windows in which two
+   of the three apps were halted. */
+t('the new fields are always present, never undefined', () => {
+  const it = w.normalizeItem({ name: 'Mask', lastReplaced: iso(0) });
+  eq(it.paused, false);
+  eq(it.snoozeUntil, null);
+  eq(it.supplier, '');
+  eq(it.orderUrl, '');
+  eq(it.lastOrdered, null);
+  eq(it.cost, 0);
+  eq(it.history, []);
+});
+/* The one field a browser will FOLLOW, arriving from a synced document or a backup file
+   like everything else here. Anything but absolute http(s) is dropped entirely. */
+t('a reorder link that is not plain http(s) is dropped', () => {
+  const url = (v) => w.normalizeItem({ name: 'x', lastReplaced: iso(0), orderUrl: v }).orderUrl;
+  eq(url('javascript:alert(1)'), '');
+  // The closing tag is written with an escaped slash on purpose: a literal one inside a
+  // classic <script> ends the block, whatever quotes it is sitting in.
+  eq(url('data:text/html,<script>alert(1)<\/script>'), '');
+  eq(url('  javascript:alert(1)'), '', 'leading space must not smuggle it past');
+  eq(url('/relative/path'), '');
+  eq(url('https://example.com/reorder?sku=1'), 'https://example.com/reorder?sku=1');
+  eq(url('http://example.com/x'), 'http://example.com/x');
+  eq(url('https://example.com/' + 'x'.repeat(400)), '', 'over the length cap, so nothing');
+});
+t('history keeps only entries it can read, newest kept when over the cap', () => {
+  const h = (list) => w.normalizeItem({ name: 'x', lastReplaced: iso(0), history: list }).history;
+  eq(h([{ k: 'c', d: iso(-1) }, { k: 'zz', d: iso(-1) }, { k: 'r', d: 'nonsense' }, 'junk', null]),
+    [{ k: 'c', d: iso(-1) }], 'one readable entry out of five');
+  eq(h('not an array'), []);
+  const many = Array.from({ length: 90 }, (_, i) => ({ k: 'c', d: iso(-i) }));
+  const kept = h(many);
+  eq(kept.length, w.__papTestHooks.LIMITS.history);
+  eq(kept[kept.length - 1], many[many.length - 1], 'the tail is what survives — oldest dropped');
+});
+t('cost is money or nothing, and never negative', () => {
+  const c = (v) => w.normalizeItem({ name: 'x', lastReplaced: iso(0), cost: v }).cost;
+  eq(c(12.345), 12.35);
+  eq(c(-5), 0);
+  eq(c('abc'), 0);
+  eq(c(1e9), w.__papTestHooks.LIMITS.cost);
+});
+/* Three states that all mean "don't bother me", deliberately not the same thing. */
+t('paused leaves the counts and the chips; snoozed does not', () => {
+  const base = { name: 'x', cleanDays: 1, replaceDays: 90, lastReplaced: iso(-200), stock: 0, lowAt: 1 };
+  const live = w.normalizeItem(base);
+  const off = w.normalizeItem({ ...base, paused: true });
+  ok(w.dueToClean(live) && w.dueToReplace(live) && w.dueToReorder(live), 'the live one is due for everything');
+  ok(!w.dueToClean(off) && !w.dueToReplace(off) && !w.dueToReorder(off), 'the paused one for nothing');
+  const snoozy = w.normalizeItem({ ...base, snoozeUntil: iso(3) });
+  ok(w.dueToClean(snoozy), 'a snooze silences reminders, it does not change what is due');
+  ok(w.snoozed(snoozy) && !w.snoozed(w.normalizeItem({ ...base, snoozeUntil: iso(-1) })),
+    'and a snooze that has run out is simply over');
+});
+t('an order rests the reorder flag until the spares go up or the window passes', () => {
+  const low = { name: 'x', replaceDays: 90, lastReplaced: iso(0), stock: 0, lowAt: 1 };
+  ok(w.dueToReorder(w.normalizeItem(low)), 'low and nothing ordered');
+  ok(!w.dueToReorder(w.normalizeItem({ ...low, lastOrdered: iso(-3) })), 'ordered three days ago');
+  ok(w.dueToReorder(w.normalizeItem({ ...low, lastOrdered: iso(-40) })), 'ordered too long ago to still be coming');
+  ok(!w.onOrder(w.normalizeItem({ ...low, stock: 5, lastOrdered: iso(-3) })), 'the box arrived and was unpacked');
+});
+t('the average gap is the real interval, not the scheduled one', () => {
+  const it = w.normalizeItem({
+    name: 'x', replaceDays: 90, lastReplaced: iso(0),
+    history: [{ k: 'r', d: iso(-200) }, { k: 'c', d: iso(-150) }, { k: 'r', d: iso(-100) }, { k: 'r', d: iso(0) }],
+  });
+  eq(w.averageReplaceGap(it), 100, 'two gaps of 100 days, and the cleaning is not one of them');
+  eq(w.averageReplaceGap(w.normalizeItem({ name: 'x', lastReplaced: iso(0) })), null, 'nothing to average');
+});
+/* A spreadsheet reads a cell starting with = + - or @ as a FORMULA, so the free text this
+   app escapes on the way to innerHTML has to be defused again on the way to a CSV. */
+t('CSV cells that a spreadsheet would run are defused', () => {
+  eq(w.csvCell('=cmd|calc'), `"'=cmd|calc"`);
+  eq(w.csvCell('+1'), `"'+1"`);
+  eq(w.csvCell('-2'), `"'-2"`);
+  eq(w.csvCell('@x'), `"'@x"`);
+  eq(w.csvCell('Mask'), '"Mask"', 'ordinary text is left alone');
+  eq(w.csvCell('a "quoted" bit'), '"a ""quoted"" bit"');
+  eq(w.csvCell(null), '""');
+});
+
 group('escICS / foldICS — RFC 5545 text rules');
 t('backslash, semicolon, comma, and newlines are escaped', () => {
   eq(w.escICS('a;b,c\\d\r\ne'), 'a\\;b\\,c\\\\d\\ne');
@@ -390,7 +474,7 @@ t('the cloud document carries the marker additively, for the phone apps', () => 
      know; when they write it back without the field it reads as 1 — older,
      never newer — so a phone write can never trip another device's halt. */
   ok(/schema: PAP_SCHEMA/.test(APP_SRC), 'pushNow must write the schema field');
-  ok(/const PAP_SCHEMA = 1;/.test(APP_SRC),
+  ok(/const PAP_SCHEMA = \d+;/.test(APP_SRC),
     'the sync module keeps its own copy — it cannot see the classic script’s consts');
   const appSchema = (APP_SRC.match(/const SCHEMA = (\d+);/) || [])[1];
   const modSchema = (APP_SRC.match(/const PAP_SCHEMA = (\d+);/) || [])[1];

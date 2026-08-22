@@ -171,6 +171,40 @@ This is a real, shipped product — the flagship web build alongside the native 
 - The scope is `./`, never absolute: on the local server the app is at the root,
   not under `/paptrack/`, and an absolute scope is simply invalid there.
 
+## Schema 2 (2026-08-22)
+
+Seven stored fields landed in one bump, in all three apps the same day: `history`, `paused`,
+`snoozeUntil`, `supplier`, `orderUrl`, `lastOrdered`, `cost`. One bump rather than five,
+because a build that doesn't know a field strips it — the number exists to stop that — and
+five bumps would have meant five windows in which two of the three apps were halted.
+
+Three things to know before touching them:
+
+- **`history` is the only field that grows on its own**, so it is capped at `LIMITS.history`
+  (60 events, oldest dropped). The whole item list rides in ONE Firestore document with a 1MB
+  ceiling for all supplies together.
+- **History records actions taken in the app**, never edits. `logEvent` is called from Mark
+  cleaned / Mark replaced / Mark ordered and from the bulk clean; the edit form writes no
+  event even when it changes `lastCleaned`. Correcting a record is not the same as doing the
+  thing, and a log writable from two directions is worth nothing.
+- **`orderUrl` is the one field a browser will follow.** It goes through `safeUrl` at both
+  boundaries (the form and `normalizeItem`), absolute `http(s)` only, and is DROPPED rather
+  than truncated when over-long — a cut URL still looks usable and points somewhere nobody
+  chose. Rendered with `rel="noopener noreferrer"`.
+
+`paused`, `snoozed` and `onOrder` are three different kinds of "don't bother me" and are
+deliberately separate predicates: paused leaves the counts/chips/reminders altogether,
+snoozed silences only the phones' reminders (the card still tells the truth), and on-order
+rests the reorder flag for `ORDER_WINDOW_DAYS` while the box is in the post. The app's views
+run on `dueToClean`/`dueToReplace`/`dueToReorder`, which fold those in; `cleanDue`,
+`replaceLeft` and `reorderNeeded` stay pure schedule maths.
+
+**A top-level `const` used by `normalizeItem` must be a `function` or sit above `let items =
+load()`.** `isoOrNull` was hoisted out of `normalizeItem` as a const arrow and landed below
+that line: every load threw a TDZ `ReferenceError` straight into `load()`'s `catch { return
+[] }`, and the app came up with an empty list and no error. Declarations hoist; const does
+not.
+
 ## The Schema Halt (`SCHEMA` / `haltForNewerData`)
 
 - **The app refuses to open a saved copy written by a NEWER build**, rather than

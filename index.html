@@ -449,6 +449,11 @@
     display: flex; flex-direction: column;
   }
   .card h3 { margin: 0; font-size: 1.02rem; }
+  /* A paused supply reads as set aside without being made hard to read: the title drops to
+     the secondary ink, which is a palette token the contrast gate already covers, rather
+     than an opacity that would quietly take every line on the card below AA. */
+  .card.paused h3 { color: var(--text-secondary); }
+  .card.paused > .badge { margin-top: 8px; }
   .card .notes { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0; }
   /* 2×2 quadrant grid — cleaning · replacing · spares · manage — on chip-bg tiles, matching
      the iOS card. align-items:stretch keeps the two tiles in a row the same height. */
@@ -490,6 +495,19 @@
   .b-serious, .b-critical { background: var(--err-bg); border-color: var(--err); }
   .b-serious .dot, .b-critical .dot { background: var(--err); }
   .b-neutral { background: var(--surface-alt); border-color: var(--border); } .b-neutral .dot { background: var(--text-muted); }
+  /* The details dialog's event list. Two columns on one line — what happened, and when —
+     with the date allowed to wrap under on a narrow phone rather than squeezing the label. */
+  .hist { list-style: none; margin: 0; padding: 0; }
+  .hist li {
+    display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: space-between;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface-alt); margin-bottom: 6px; font-size: 0.85rem;
+  }
+  .hist .hk { font-weight: 600; }
+  .hist .hd { color: var(--text-secondary); }
+  /* The reorder link is an <a> wearing the .act button style, so it needs the bits a
+     button gets for free: no underline, and the same centred single line. */
+  #itemActions a.act { text-decoration: none; text-align: center; }
   .stock { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .stock button {
     width: 30px; height: 30px; border-radius: 12px; border: 1px solid var(--border);
@@ -941,6 +959,32 @@
     </div>
 
     <div class="formsec">
+      <h3 class="sec-h">Ordering</h3>
+      <div class="sec-card">
+        <div class="field">
+          <label for="fSupplier">Supplier</label>
+          <input type="text" id="fSupplier" maxlength="60" data-keep-caret placeholder="e.g. Aeroflow">
+        </div>
+        <div class="field">
+          <label for="fOrderUrl">Reorder link</label>
+          <input type="url" id="fOrderUrl" maxlength="200" data-keep-caret placeholder="https://…">
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="fCost">Cost each</label>
+            <input type="number" id="fCost" min="0" max="99999" step="0.01" value="0">
+          </div>
+          <div class="field">
+            <label for="fLastOrdered">Last ordered</label>
+            <input type="date" id="fLastOrdered">
+          </div>
+        </div>
+      </div>
+      <p class="sec-foot">All optional. A cost turns into a yearly figure on the supply's
+        Details page; a link has to start with http:// or https:// to be kept.</p>
+    </div>
+
+    <div class="formsec">
       <h3 class="sec-h" id="notesH">Notes</h3>
       <div class="sec-card">
         <!-- data-keep-caret: a note is prose you come back and add to, not a value you retype.
@@ -956,6 +1000,22 @@
   </form>
 </dialog>
 
+<!-- ── One supply's details, opened from its card ───────────────────────────────
+     Everything about a single supply that isn't its schedule: what has actually been done
+     to it, whether it's paused or snoozed or on order, and what it costs to keep running.
+     One dialog rather than four more buttons per card — a card already carries seven. -->
+<dialog id="itemDialog" aria-labelledby="itemDialogTitle">
+  <h2 id="itemDialogTitle"></h2>
+  <div id="itemStatus"></div>
+  <div class="datarow" id="itemActions"></div>
+  <div id="itemFacts"></div>
+  <h3 class="sec-h" style="margin-top:18px">History</h3>
+  <div id="itemHistory"></div>
+  <div class="formfoot">
+    <button type="button" class="btn" id="itemCloseBtn">Done</button>
+  </div>
+</dialog>
+
 <!-- ── Back up / restore, opened from the header ─────────────────────────────── -->
 <dialog id="dataDialog" aria-labelledby="dataDialogTitle">
   <h2 id="dataDialogTitle">Back Up &amp; Restore</h2>
@@ -966,6 +1026,13 @@
     <button type="button" class="act" id="exportBtn"><span aria-hidden="true">⬇︎</span> Download backup (JSON)</button>
     <button type="button" class="act" id="importBtn"><span aria-hidden="true">⬆︎</span> Restore from backup</button>
     <input type="file" id="importFile" accept=".json,application/json" aria-label="Choose a backup file" hidden>
+  </div>
+  <p class="hint" style="margin-top:12px">Or take the same data to a spreadsheet. CSV is a
+    one-way door — it's for reading and charting, not for restoring, which is what the JSON
+    file above is for.</p>
+  <div class="datarow">
+    <button type="button" class="act" id="csvSuppliesBtn"><span aria-hidden="true">⬇︎</span> Supplies (CSV)</button>
+    <button type="button" class="act" id="csvHistoryBtn"><span aria-hidden="true">⬇︎</span> History (CSV)</button>
   </div>
   <p class="hint" style="margin-top:12px">Restoring <strong>replaces every supply in this
     browser</strong>. You're told what the file holds and asked to confirm first — and if
@@ -1056,7 +1123,12 @@ const STORAGE_KEY = 'pap-items';
    whichever one adds a stored field has to raise the number the other two check
    against, or they will quietly normalise the new field away instead of
    stopping. iOS `DataSchema.current`, Android `DataSchema.CURRENT`. */
-const SCHEMA = 1;
+/* 2 (2026-08-22) — added `history`, `paused`, `snoozeUntil`, `supplier`, `orderUrl`,
+   `lastOrdered` and `cost` to every item. All seven bumped together, in all three apps on
+   the same day, rather than one bump per feature: a build that doesn't know a field strips
+   it, so the number exists to stop that, and five separate bumps would have meant five
+   windows in which two of the apps were halted. */
+const SCHEMA = 2;
 const SCHEMA_KEY = 'pap-schema';
 
 /* ---------------- Field bounds — a three-app contract ----------------
@@ -1084,7 +1156,20 @@ const LIMITS = {
                      // shelf count is harmless, and one constant can't disagree with itself
   name: 60,
   notes: 140,
+  supplier: 60,
+  orderUrl: 200,
+  cost: 99999,
+  /* Events per item, oldest dropped first. A cap because the whole list rides in one
+     Firestore document (1MB for all supplies together) and history is the only field that
+     grows on its own — 60 events is over a decade of a 3-monthly replacement, or four
+     months of a daily wash. */
+  history: 60,
 };
+
+/* The three things an event can be: cleaned, replaced, ordered. One letter because every
+   event carries it and the whole list rides in one Firestore document. Up here with LIMITS
+   because normalizeHistory reads it and the first load happens above its old home. */
+const HISTORY_KINDS = { c: 'Cleaned', r: 'Replaced', o: 'Ordered' };
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /* Capitalizes just the first letter — used on the lowercase schedule labels for display. */
@@ -1233,6 +1318,45 @@ function load() {
    attribute, so a crafted backup could smuggle in an event handler. Coercing every field
    to a known type and charset closes both, and keeps one malformed record from taking the
    whole list down with it. */
+/* Round-tripping through toISO rejects both nonsense and dates that silently roll over
+   (Date treats '2026-02-31' as March 3rd), so downstream date math always has a real day.
+   Top-level because the history entries below need the same rule as the date fields.
+
+   A `function`, not the `const` arrow it started as, and that is load-bearing: `let items =
+   load()` runs ABOVE this line, so a const here is in its temporal dead zone at that moment
+   and normalizeItem throws a ReferenceError — straight into load()'s `catch { return [] }`,
+   which exists for corrupt JSON. The app came up with an empty list and said nothing.
+   Declarations hoist; const does not. Same reason HISTORY_KINDS now sits with LIMITS. */
+function isoOrNull(v) {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && toISO(parseDate(v)) === v ? v : null;
+}
+
+/* A supply's own record of what was actually done to it, and the only field that grows by
+   itself — hence the cap, oldest first. Anything unrecognisable is dropped rather than
+   repaired: a history entry is a claim about the past, and a half-readable one is worse
+   than a missing one. */
+function normalizeHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((e) => (e && typeof e === 'object'
+      && HISTORY_KINDS[e.k] && isoOrNull(e.d) ? { k: e.k, d: e.d } : null))
+    .filter(Boolean)
+    .slice(-LIMITS.history);
+}
+
+/* A reorder link is the one field in this app that a browser will follow, so it is the one
+   field that could carry `javascript:` — and it arrives from a synced document or a backup
+   file like everything else here. Only absolute http(s), no whitespace, or nothing at all. */
+function safeUrl(v) {
+  if (typeof v !== 'string') return '';
+  const s = v.trim();
+  // Over the cap it is DROPPED, not truncated — the one field here that is cut to fit and
+  // still looks usable would point somewhere nobody chose. Every other string field is
+  // prose, where a trim loses a word; a URL loses its destination.
+  if (s.length > LIMITS.orderUrl) return '';
+  return /^https?:\/\/[^\s<>"']+$/i.test(s) ? s : '';
+}
+
 function normalizeItem(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const int = (v, min, max, dflt) => {
@@ -1240,10 +1364,12 @@ function normalizeItem(raw) {
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : dflt;
   };
   const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
-  // Round-tripping through toISO rejects both nonsense and dates that silently roll over
-  // (Date treats '2026-02-31' as March 3rd), so downstream date math always has a real day.
-  const isoOrNull = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
-    && toISO(parseDate(v)) === v ? v : null);
+  // Money, to the cent. 0 means "not recorded" rather than "free", which is why it is also
+  // what anything unreadable or negative becomes.
+  const money = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.min(LIMITS.cost, Math.round(n * 100) / 100) : 0;
+  };
   return {
     id: str(raw.id, 64).replace(/[^A-Za-z0-9_-]/g, '') || uid(),
     emoji: str(raw.emoji, 8) || '🔧',
@@ -1256,6 +1382,18 @@ function normalizeItem(raw) {
     lowAt: int(raw.lowAt, 0, LIMITS.lowAt, 1),
     notes: str(raw.notes, LIMITS.notes),
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, Date.now()),
+    /* Schema 2. Every one of these is written unconditionally, never left `undefined`:
+       localStorage drops such a key silently, so the local copy looks perfect, while
+       setDoc() walks the live object and Firestore rejects the WHOLE document over one of
+       them. That is how Sprint Velocity lost sync on 2026-08-12, off one new optional
+       field absent from every copy saved before it existed. */
+    paused: raw.paused === true,
+    snoozeUntil: isoOrNull(raw.snoozeUntil),
+    supplier: str(raw.supplier, LIMITS.supplier).trim(),
+    orderUrl: safeUrl(raw.orderUrl),
+    lastOrdered: isoOrNull(raw.lastOrdered),
+    cost: money(raw.cost),
+    history: normalizeHistory(raw.history),
   };
 }
 function normalizeItems(list) {
@@ -1333,6 +1471,71 @@ function reorderNeeded(it) { return it.stock <= it.lowAt; }
 /* True once an item was already replaced today — hides the "Mark replaced" button so it
    can't be pressed twice in a day (matches the iOS app). */
 function replacedToday(it) { return it.lastReplaced === toISO(today()); }
+
+/* ---------------- Paused, snoozed, on order (schema 2) ----------------
+   Three states that all mean "don't bother me", and they are deliberately NOT the same:
+
+   - **Paused** is about the supply. A spare machine in a drawer, a mask you've stopped
+     using: it keeps its dates and its spares, but it leaves the counts, the filters and the
+     reminders entirely, and it sorts to the bottom. The alternative was deleting it, which
+     also throws away its history.
+   - **Snoozed** is about the reminders only. The badge on the card still tells the truth —
+     the card is something you went looking at — but the phones stay quiet until the date.
+     A snooze that has run out is simply over; nothing has to clear it.
+   - **On order** is about the spares. Ordering doesn't change the count on the shelf, so
+     the reorder flag would otherwise go on nagging for the fortnight the box is in the post.
+
+   Each has its own predicate rather than being folded into cleanDue/reorderNeeded, so the
+   schedule maths stays about the schedule and these stay testable on their own. */
+function paused(it) { return it.paused === true; }
+function snoozed(it) { return !!it.snoozeUntil && it.snoozeUntil > toISO(today()); }
+/* A recent order still waiting on a delivery. It ends when the spares go up (you unpacked
+   it) or when the window runs out — an order older than that has either arrived or been
+   forgotten, and either way the nag is the right thing again. */
+const ORDER_WINDOW_DAYS = 21;
+function onOrder(it) {
+  if (!it.lastOrdered || !reorderNeeded(it)) return false;
+  return daysBetween(parseDate(it.lastOrdered), today()) <= ORDER_WINDOW_DAYS;
+}
+/* What the counts, the chips and the sort actually run on. `cleanDue`/`replaceLeft`/
+   `reorderNeeded` stay pure schedule maths; these three are the app's view of them. */
+function dueToClean(it) { return !paused(it) && cleanDue(it); }
+function dueToReplace(it) { return !paused(it) && replaceLeft(it) <= 0; }
+function dueToReorder(it) { return !paused(it) && reorderNeeded(it) && !onOrder(it); }
+
+/* Appends one event, unless the same thing was already recorded today — pressing "Mark
+   cleaned" twice is one wash. History records ACTIONS TAKEN IN THE APP; editing the last-
+   cleaned date by hand deliberately writes no event, because correcting a record is not the
+   same as doing the thing, and a log you can edit from two directions is worth nothing. */
+function logEvent(it, kind) {
+  const d = toISO(today());
+  const list = Array.isArray(it.history) ? it.history : [];
+  const last = list[list.length - 1];
+  if (last && last.k === kind && last.d === d) return;
+  it.history = [...list, { k: kind, d }].slice(-LIMITS.history);
+}
+
+/* Days between consecutive replacements, for the details dialog: what the schedule actually
+   turns out to be, as opposed to what the item says it should be. Needs two replacements
+   before it can say anything. */
+function replaceIntervals(it) {
+  const dates = (it.history || []).filter(e => e.k === 'r').map(e => parseDate(e.d));
+  return dates.slice(1).map((d, i) => daysBetween(dates[i], d));
+}
+function averageReplaceGap(it) {
+  const gaps = replaceIntervals(it);
+  if (!gaps.length) return null;
+  return Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length);
+}
+/* What this supply costs to keep running for a year, from its own cycle and unit cost.
+   As-needed items have no cycle to reckon from, so they get no figure. */
+function yearlyCost(it) {
+  if (!it.cost || it.replaceDays <= 0) return null;
+  return (365 / it.replaceDays) * it.cost;
+}
+function money(n) {
+  return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+}
 /* Badge urgency thresholds scale with the item's cycle, so short-cycle consumables (e.g.
    2-week filters) don't look urgent the day they're replaced: warning at ≤40% of the cycle,
    serious at ≤20% (capped at 14/7 days). The `cycle - 1` clamp keeps a band from swallowing
@@ -1388,7 +1591,11 @@ function cleanBadge(it) {
   return badge(`b-${severity(it.cleanDays, left)}`, `Clean by ${esc(fmtDate(nextClean(it)))} · ${left} day${left === 1 ? '' : 's'} left`);
 }
 function reorderBadge(it) {
-  if (!reorderNeeded(it)) return '';
+  if (!reorderNeeded(it) || paused(it)) return '';
+  /* Ordered and waiting: the shelf is still empty, so the count hasn't changed and the item
+     is still "low" — but there is nothing left for you to do about it, which is what the
+     green says. It reverts to the red the day the window runs out or the spares go up. */
+  if (onOrder(it)) return badge('b-good', `On order — ordered ${esc(agoLabel(it.lastOrdered))}`);
   return badge(`b-${it.stock === 0 ? 'critical' : 'serious'}`, `Reorder — ${it.stock} spare${it.stock === 1 ? '' : 's'} left`);
 }
 /* The status line under the cleaning label: "Last cleaned …", "Not cleaned yet", or (for
@@ -1404,9 +1611,9 @@ function matches(it) {
     if (!(`${it.name} ${it.notes || ''}`.toLowerCase().includes(q))) return false;
   }
   switch (filter) {
-    case 'clean': return cleanDue(it);
-    case 'replace': return replaceLeft(it) <= 0;
-    case 'reorder': return reorderNeeded(it);
+    case 'clean': return dueToClean(it);
+    case 'replace': return dueToReplace(it);
+    case 'reorder': return dueToReorder(it);
     default: return true;
   }
 }
@@ -1431,17 +1638,17 @@ function render() {
       ? `${list.length} ${list.length === 1 ? 'supply' : 'supplies'} ${verb}: ${list.map(i => i.name).join(', ')}`
       : allClear;
 
-    const dueClean = items.filter(cleanDue);
+    const dueClean = items.filter(dueToClean);
     $('statClean').textContent = dueClean.length;
     $('statCleanSub').textContent = dueClean.length ? dueClean.map(i => i.emoji).join(' ') : 'all clean ✓';
     $('statCleanSr').textContent = srLine(dueClean, 'due for cleaning', 'All supplies are clean');
 
-    const dueReplace = items.filter(i => replaceLeft(i) <= 0);
+    const dueReplace = items.filter(dueToReplace);
     $('statReplace').textContent = dueReplace.length;
     $('statReplaceSub').textContent = dueReplace.length ? dueReplace.map(i => i.emoji).join(' ') : 'on schedule ✓';
     $('statReplaceSr').textContent = srLine(dueReplace, 'due for replacement', 'All replacements are on schedule');
 
-    const reorder = items.filter(reorderNeeded);
+    const reorder = items.filter(dueToReorder);
     $('statReorder').textContent = reorder.length;
     $('statReorderSub').textContent = reorder.length ? reorder.map(i => i.emoji).join(' ') : 'stocked up ✓';
     $('statReorderSr').textContent = srLine(reorder, 'to reorder', 'All supplies are stocked up');
@@ -1449,32 +1656,38 @@ function render() {
     $('cleanAllBtn').hidden = dueClean.length < 2;
   }
 
-  const visible = items.filter(matches).sort((a, b) => replaceLeft(a) - replaceLeft(b));
+  /* Paused supplies sort below even the as-needed ones (9e9): they are still yours and
+     still searchable, but they are not part of what you have to do. */
+  const sortKey = (it) => (paused(it) ? 9e9 + 1 : replaceLeft(it));
+  const visible = items.filter(matches).sort((a, b) => sortKey(a) - sortKey(b));
   $('list').innerHTML = visible.map(it => {
-    const isCleanDue = it.cleanDays > 0 && cleanDue(it);
+    const isCleanDue = dueToClean(it);
     // Every card repeats the same seven buttons, so each one's accessible name ends with the
     // supply it belongs to — otherwise a screen reader just reads "Delete, Delete, Delete".
     // The item name goes last so the visible text stays a prefix of the accessible name,
     // which is what voice-control users say out loud to press it.
     const n = esc(it.name);
+    const isPaused = paused(it);
     return `
-    <article class="card" data-id="${esc(it.id)}" tabindex="-1" aria-labelledby="cardh-${esc(it.id)}">
+    <article class="card${isPaused ? ' paused' : ''}" data-id="${esc(it.id)}" tabindex="-1" aria-labelledby="cardh-${esc(it.id)}">
       <h3 id="cardh-${esc(it.id)}"><span aria-hidden="true">${esc(it.emoji)}</span> ${n}</h3>
       ${it.notes ? `<p class="notes">${esc(it.notes)}</p>` : ''}
+      ${isPaused ? badge('b-neutral', 'Paused — no countdowns or reminders') : ''}
+      ${!isPaused && snoozed(it) ? badge('b-neutral', `Reminders snoozed until ${esc(fmtDate(parseDate(it.snoozeUntil)))}`) : ''}
       <div class="quadrants">
         <div class="quad">
           <div class="quad-h">🧼 Cleaning</div>
           <div class="quad-line">${esc(capFirst(cleanLabel(it.cleanDays)))}</div>
           <div class="quad-line">${esc(cleanStatus(it))}</div>
-          ${cleanBadge(it)}
+          ${isPaused ? '' : cleanBadge(it)}
           ${isCleanDue ? `<button class="act" data-act="clean" aria-label="Mark cleaned — ${n}">Mark cleaned</button>` : ''}
         </div>
         <div class="quad">
           <div class="quad-h">↻ Replacing</div>
           <div class="quad-line">${esc(capFirst(replaceLabel(it.replaceDays)))}</div>
           <div class="quad-line">Last replaced ${esc(agoLabel(it.lastReplaced))}</div>
-          ${replaceBadge(it)}
-          ${replacedToday(it) ? '' : `<button class="act" data-act="replace" aria-label="Mark replaced — ${n}">Mark replaced</button>`}
+          ${isPaused ? '' : replaceBadge(it)}
+          ${isPaused || replacedToday(it) ? '' : `<button class="act" data-act="replace" aria-label="Mark replaced — ${n}">Mark replaced</button>`}
         </div>
         <div class="quad">
           <div class="quad-h">📦 Spares</div>
@@ -1484,10 +1697,12 @@ function render() {
             <button data-act="stock+" aria-label="One more spare — ${n}">+</button>
           </div>
           ${reorderBadge(it)}
+          ${dueToReorder(it) ? `<button class="act" data-act="ordered" aria-label="Mark ordered — ${n}">Mark ordered</button>` : ''}
         </div>
         <div class="quad">
           <div class="quad-h">⚙️ Manage</div>
           <button class="act" data-act="calendar" aria-label="Calendar — ${n}"><span aria-hidden="true">🗓️</span> Calendar</button>
+          <button class="act" data-act="details" aria-label="Details and history — ${n}"><span aria-hidden="true">📋</span> Details</button>
           <button class="act" data-act="edit" aria-label="Edit — ${n}">Edit</button>
           <button class="act" data-act="delete" aria-label="Delete — ${n}">Delete</button>
         </div>
@@ -1529,10 +1744,12 @@ $('list').addEventListener('click', (e) => {
   switch (act) {
     case 'clean':
       it.lastCleaned = toISO(today());
+      logEvent(it, 'c');
       save(); renderKeepingFocus(id, act); toast(`${it.emoji} ${it.name} cleaned ✓`);
       break;
     case 'replace': {
       it.lastReplaced = toISO(today());
+      logEvent(it, 'r');
       const usedSpare = it.stock > 0;
       if (usedSpare) it.stock -= 1;
       save(); renderKeepingFocus(id, act);
@@ -1547,8 +1764,17 @@ $('list').addEventListener('click', (e) => {
       // the toast — it's the one live region that survives a re-render.
       toast(`${it.name} — ${it.stock} spare${it.stock === 1 ? '' : 's'}`);
       break;
+    case 'ordered':
+      it.lastOrdered = toISO(today());
+      logEvent(it, 'o');
+      save(); renderKeepingFocus(id, null);
+      toast(`${it.emoji} ${it.name} marked ordered — the reorder flag rests for ${ORDER_WINDOW_DAYS} days`);
+      break;
     case 'calendar':
       downloadICS(it);
+      break;
+    case 'details':
+      openDetails(it);
       break;
     case 'edit':
       openForm(it);
@@ -1566,9 +1792,9 @@ $('cleanAllBtn').addEventListener('click', () => {
   // Only the items actually due. Marking an item that isn't due would record a cleaning
   // that never happened and reset its clock — the button appears on a count of due items,
   // so it needs to act on exactly those.
-  const due = items.filter(cleanDue);
+  const due = items.filter(dueToClean);
   const iso = toISO(today());
-  due.forEach(it => { it.lastCleaned = iso; });
+  due.forEach(it => { it.lastCleaned = iso; logEvent(it, 'c'); });
   save(); render();
   toast(`Marked ${due.length} item${due.length === 1 ? '' : 's'} clean ✓`);
 });
@@ -1680,7 +1906,7 @@ function openForm(it = null) {
   // "Last cleaned" and "last replaced" record something that already happened, so a future
   // date is always a typo — and it used to render as "cleaned -5 days ago". Set on open
   // rather than in markup so the ceiling is still correct on a tab left open overnight.
-  $('fLastClean').max = $('fLast').max = toISO(today());
+  $('fLastClean').max = $('fLast').max = $('fLastOrdered').max = toISO(today());
   if (it) {
     $('fName').value = it.name;
     $('fClean').value = it.cleanDays;
@@ -1690,6 +1916,10 @@ function openForm(it = null) {
     $('fStock').value = it.stock;
     $('fLowAt').value = it.lowAt;
     $('fNotes').value = it.notes || '';
+    $('fSupplier').value = it.supplier || '';
+    $('fOrderUrl').value = it.orderUrl || '';
+    $('fCost').value = it.cost || 0;
+    $('fLastOrdered').value = it.lastOrdered || '';
   } else {
     $('fPreset').value = 'mask';
     applyPreset('mask');
@@ -1697,6 +1927,10 @@ function openForm(it = null) {
     $('fLast').value = toISO(today());
     $('fStock').value = 0;
     $('fLowAt').value = 1;
+    $('fSupplier').value = '';
+    $('fOrderUrl').value = '';
+    $('fCost').value = 0;
+    $('fLastOrdered').value = '';
   }
   openModal(dlg);
   /* One extra step this form needs and the shared `openModal` deliberately does
@@ -1905,6 +2139,12 @@ $('itemForm').addEventListener('submit', () => {
     stock: clampInt($('fStock').value, 0, LIMITS.stock),
     lowAt: clampInt($('fLowAt').value, 0, LIMITS.lowAt),
     notes: $('fNotes').value.trim(),
+    supplier: $('fSupplier').value.trim().slice(0, LIMITS.supplier),
+    // Through the same gate a synced document goes through: a reorder link is the one field
+    // here a browser will follow, so `javascript:` typed into it must not survive either.
+    orderUrl: safeUrl($('fOrderUrl').value),
+    cost: Math.min(LIMITS.cost, Math.max(0, Math.round((Number($('fCost').value) || 0) * 100) / 100)),
+    lastOrdered: notFuture($('fLastOrdered').value) || null,
   };
   if (editingId) {
     const it = items.find(i => i.id === editingId);
@@ -1912,7 +2152,10 @@ $('itemForm').addEventListener('submit', () => {
     Object.assign(it, data);
     toast(`${it.emoji} ${it.name} updated`);
   } else {
-    items.push({ id: uid(), emoji: preset ? preset.emoji : '🔧', createdAt: Date.now(), ...data });
+    /* Through normalizeItem rather than straight into the list: it is the one place that
+       knows the full shape, so a new supply carries every schema-2 field from its first
+       save instead of gaining them on the next load. */
+    items.push(normalizeItem({ id: uid(), emoji: preset ? preset.emoji : '🔧', createdAt: Date.now(), ...data }));
     toast(`${data.name} added`);
   }
   save(); render();
@@ -1923,13 +2166,13 @@ function loadKit(keys) {
   const iso = toISO(today());
   keys.forEach(key => {
     const p = PRESETS.find(x => x.key === key);
-    items.push({
+    items.push(normalizeItem({
       id: uid(), emoji: p.emoji, name: p.name, cleanDays: p.cleanDays, replaceDays: p.replaceDays,
       lastReplaced: iso, lastCleaned: null,
       stock: key === 'filters' ? 4 : 0, // filters ship in multipacks, so seed a realistic spare count
       lowAt: 1,
       notes: p.note, createdAt: Date.now(),
-    });
+    }));
   });
   save(); render();
   toast(`Added ${keys.length} supplies — set each “last replaced” date via Edit`);
@@ -1983,6 +2226,148 @@ $('dataCloseBtn').addEventListener('click', () => dataDialog.close());
    deliberately left out: picking which copy of your supplies survives has to be
    a choice, not something you can click past by accident. */
 closeOnBackdropClick(dataDialog);
+
+/* ---------------- One supply's details ----------------
+   Everything about a single supply that isn't its schedule. It reads the item fresh each
+   time it is opened and re-renders in place after every action, because the card behind it
+   is being rebuilt at the same moment and the two must not disagree. */
+let detailsId = null;
+
+function openDetails(it) {
+  detailsId = it.id;
+  renderDetails();
+  openModal($('itemDialog'));
+}
+
+function historyLine(e) {
+  return `<li><span class="hk">${esc(HISTORY_KINDS[e.k])}</span>
+    <span class="hd">${esc(fmtDate(parseDate(e.d)))} · ${esc(agoLabel(e.d))}</span></li>`;
+}
+
+function renderDetails() {
+  const it = items.find(i => i.id === detailsId);
+  if (!it) { $('itemDialog').close(); return; }
+
+  $('itemDialogTitle').textContent = `${it.emoji} ${it.name}`;
+
+  const status = [];
+  if (paused(it)) status.push('Paused — it keeps its dates and spares, but it is out of the counts, the filters and the reminders.');
+  if (snoozed(it)) status.push(`Reminders snoozed until ${fmtDate(parseDate(it.snoozeUntil))}. The card still shows the truth; the phones stay quiet.`);
+  if (onOrder(it)) status.push(`On order since ${fmtDate(parseDate(it.lastOrdered))} — the reorder flag rests until the spares go up or ${ORDER_WINDOW_DAYS} days pass.`);
+  $('itemStatus').innerHTML = status.map(t => `<p class="hint">${esc(t)}</p>`).join('');
+
+  /* Every action re-renders this dialog AND the list behind it. */
+  $('itemActions').innerHTML = [
+    `<button type="button" class="act" data-d="pause">${paused(it) ? 'Resume this supply' : 'Pause this supply'}</button>`,
+    snoozed(it)
+      ? '<button type="button" class="act" data-d="unsnooze">Wake reminders now</button>'
+      : '<button type="button" class="act" data-d="snooze">Snooze reminders 7 days</button>',
+    '<button type="button" class="act" data-d="ordered">Mark ordered today</button>',
+    it.orderUrl
+      ? `<a class="act" href="${esc(it.orderUrl)}" target="_blank" rel="noopener noreferrer">Reorder at ${esc(it.supplier || 'the supplier')} ↗</a>`
+      : '',
+  ].join('');
+
+  const facts = [];
+  const gap = averageReplaceGap(it);
+  const replacements = (it.history || []).filter(e => e.k === 'r').length;
+  if (gap !== null) {
+    facts.push(`Replaced ${replacements} time${replacements === 1 ? '' : 's'} on record, on average every ${gap} day${gap === 1 ? '' : 's'}` +
+      (it.replaceDays > 0 ? ` — the schedule says ${it.replaceDays}.` : '.'));
+  } else if (replacements === 1) {
+    facts.push('One replacement on record. A second is what it takes to know your real interval.');
+  }
+  if (it.supplier) facts.push(`Supplier: ${it.supplier}.`);
+  const yearly = yearlyCost(it);
+  if (yearly !== null) {
+    facts.push(`At ${money(it.cost)} each, ${replaceLabel(it.replaceDays)}: about ${money(yearly)} a year.`);
+  } else if (it.cost) {
+    facts.push(`${money(it.cost)} each. No yearly figure: an as-needed supply has no cycle to reckon from.`);
+  }
+  $('itemFacts').innerHTML = facts.map(t => `<p class="hint">${esc(t)}</p>`).join('');
+
+  /* Newest first — the last thing you did is the thing you are checking. */
+  const events = [...(it.history || [])].reverse();
+  $('itemHistory').innerHTML = events.length
+    ? `<ul class="hist">${events.map(historyLine).join('')}</ul>`
+    : `<p class="hint">Nothing recorded yet. History is written when you press Mark cleaned,
+       Mark replaced or Mark ordered — editing a date by hand deliberately writes nothing,
+       because correcting a record is not the same as doing the thing.</p>`;
+}
+
+$('itemActions').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-d]');
+  if (!btn) return;
+  const it = items.find(i => i.id === detailsId);
+  if (!it) return;
+  switch (btn.dataset.d) {
+    case 'pause':
+      it.paused = !it.paused;
+      toast(it.paused ? `${it.emoji} ${it.name} paused` : `${it.emoji} ${it.name} back on schedule`);
+      break;
+    case 'snooze':
+      it.snoozeUntil = toISO(addDays(today(), 7));
+      toast(`Reminders snoozed until ${fmtDate(parseDate(it.snoozeUntil))}`);
+      break;
+    case 'unsnooze':
+      it.snoozeUntil = null;
+      toast('Reminders back on');
+      break;
+    case 'ordered':
+      it.lastOrdered = toISO(today());
+      logEvent(it, 'o');
+      toast(`${it.emoji} ${it.name} marked ordered`);
+      break;
+  }
+  save();
+  render();
+  renderDetails();
+});
+$('itemCloseBtn').addEventListener('click', () => $('itemDialog').close());
+closeOnBackdropClick($('itemDialog'));
+
+/* ---------------- CSV ----------------
+   A one-way door, and said so in the dialog: it is for a spreadsheet, not for restoring.
+
+   Every cell goes through csvCell, and the leading apostrophe on =, +, - and @ is not
+   decoration. A spreadsheet reads a cell starting with one of those as a FORMULA, so a
+   supply named `=cmd|...` becomes an instruction the moment the file is opened — the same
+   free text this app escapes on the way to innerHTML, in a file format with its own
+   execution model. The apostrophe is the standard defusal and is invisible in the sheet. */
+function csvCell(v) {
+  const s = String(v ?? '');
+  const risky = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  return `"${risky.replace(/"/g, '""')}"`;
+}
+function csvRows(rows) {
+  // CRLF, which is what RFC 4180 asks for and what Excel is happiest with.
+  return rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
+function downloadSuppliesCSV() {
+  const head = ['Supply', 'Notes', 'Clean every (days)', 'Last cleaned', 'Replace every (days)',
+    'Last replaced', 'Next replacement', 'Spares', 'Reorder at', 'Paused', 'Snoozed until',
+    'Supplier', 'Reorder link', 'Cost each', 'Last ordered', 'Average days between replacements'];
+  const rows = items.map(it => [
+    `${it.emoji} ${it.name}`, it.notes, it.cleanDays, it.lastCleaned || '', it.replaceDays,
+    it.lastReplaced, it.replaceDays > 0 ? toISO(nextReplace(it)) : '', it.stock, it.lowAt,
+    it.paused ? 'yes' : '', it.snoozeUntil || '', it.supplier, it.orderUrl,
+    it.cost || '', it.lastOrdered || '', averageReplaceGap(it) ?? '',
+  ]);
+  downloadBlob(new Blob([csvRows([head, ...rows])], { type: 'text/csv' }),
+    `paptrack-supplies-${toISO(today())}.csv`);
+  toast('Supplies CSV downloaded');
+}
+function downloadHistoryCSV() {
+  const head = ['Date', 'Supply', 'What happened'];
+  const rows = items.flatMap(it => (it.history || []).map(e => [e.d, `${it.emoji} ${it.name}`, HISTORY_KINDS[e.k]]))
+    .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0));   // newest first
+  if (!rows.length) { toast('No history recorded yet'); return; }
+  downloadBlob(new Blob([csvRows([head, ...rows])], { type: 'text/csv' }),
+    `paptrack-history-${toISO(today())}.csv`);
+  toast('History CSV downloaded');
+}
+$('csvSuppliesBtn').addEventListener('click', downloadSuppliesCSV);
+$('csvHistoryBtn').addEventListener('click', downloadHistoryCSV);
 
 /* Its own function because the delete-all dialog offers the same download as its
    safety net — one press away from losing everything is exactly when a backup is
@@ -2219,7 +2604,7 @@ catch (e) { /* cross-origin parent — not the harness */ }
    script's `const`s, so the one number it writes is mirrored here. It is pinned
    to SCHEMA by tests.html — two constants that must agree is exactly the kind of
    thing that drifts silently. */
-const PAP_SCHEMA = 1;
+const PAP_SCHEMA = 2;
 
 /* A page halted on data from a newer build must not start a session: the halt is
    only as good as everything that writes checking it. */
