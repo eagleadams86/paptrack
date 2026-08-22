@@ -96,16 +96,44 @@ t('a missing lastReplaced falls back to today instead of crashing render', () =>
   eq(w.normalizeItem({ name: 'x' }).lastReplaced, iso(0));
 });
 t('numbers are clamped into range and junk becomes the default', () => {
-  const it = w.normalizeItem({ name: 'x', stock: 500, lowAt: -3, cleanDays: 'lots', replaceDays: 9999, lastReplaced: iso(0) });
-  eq(it.stock, 99);
+  const it = w.normalizeItem({ name: 'x', stock: 5000, lowAt: -3, cleanDays: 'lots', replaceDays: 99999, lastReplaced: iso(0) });
+  eq(it.stock, 999);
   eq(it.lowAt, 0);
   eq(it.cleanDays, 0);
-  eq(it.replaceDays, 1095);
+  eq(it.replaceDays, 3650);
+});
+/* The bounds are a three-app contract, and this boundary is the silent one: it
+   runs on every load, import and synced document, so anything the phones allow
+   and this app does not is rewritten here and pushed back — the phone loses it
+   too, with nothing said. Until 2026-08-22 that was every numeric field (spares
+   999 -> 99, reorder-at 999 -> 20, both day fields 3650 -> 365/1095). These
+   figures are the phones' own ceilings; if a phone raises one, this fails. */
+t('the numeric ceilings are the ones the phones use', () => {
+  eq(w.__papTestHooks.LIMITS.stock, 999, 'iOS SupplyItem.stockRange / Android MAX_STOCK');
+  eq(w.__papTestHooks.LIMITS.lowAt, 999, 'same ceiling as stock, on both phones');
+  eq(w.__papTestHooks.LIMITS.cleanDays, 3650, 'NumberField range on both phones');
+  eq(w.__papTestHooks.LIMITS.replaceDays, 3650);
+});
+/* The form's HTML attributes are the fourth copy of these numbers and the one a
+   refactor can't see: markup holds literals, so nothing links them to LIMITS but
+   this test. A stricter attribute would stop the typing before any clamp ran. */
+t('the form lets you type everything the boundary would keep', () => {
+  const d = w.document, L = w.__papTestHooks.LIMITS;
+  eq(Number(d.getElementById('fClean').max), L.cleanDays, 'fClean max');
+  eq(Number(d.getElementById('fReplace').max), L.replaceDays, 'fReplace max');
+  eq(Number(d.getElementById('fStock').max), L.stock, 'fStock max');
+  eq(Number(d.getElementById('fLowAt').max), L.lowAt, 'fLowAt max');
+  eq(Number(d.getElementById('fName').maxLength), L.name, 'fName maxlength');
+  eq(Number(d.getElementById('fNotes').maxLength), L.notes, 'fNotes maxlength');
+  for (const id of ['fClean', 'fReplace', 'fStock', 'fLowAt'])
+    eq(Number(d.getElementById(id).min), 0, id + ' min');
 });
 t('strings are truncated to their field limits', () => {
   const it = w.normalizeItem({ name: 'n'.repeat(200), notes: 'm'.repeat(500), lastReplaced: iso(0) });
   eq(it.name.length, 60);
   eq(it.notes.length, 140);
+  eq(it.name.length, w.__papTestHooks.LIMITS.name, 'and both phones cap at the same figure');
+  eq(it.notes.length, w.__papTestHooks.LIMITS.notes);
 });
 t('normalizeItems drops non-objects and re-ids duplicates', () => {
   const list = w.normalizeItems([

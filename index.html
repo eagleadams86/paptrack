@@ -886,7 +886,7 @@
       <div class="sec-card">
         <div class="field">
           <label for="fClean">Clean every (days)</label>
-          <input type="number" id="fClean" min="0" max="365" value="0">
+          <input type="number" id="fClean" min="0" max="3650" value="0">
           <div class="quick">
             <button type="button" data-clean="1">Daily</button>
             <button type="button" data-clean="7">Weekly</button>
@@ -906,7 +906,7 @@
       <div class="sec-card">
         <div class="field">
           <label for="fReplace">Replace every (days)</label>
-          <input type="number" id="fReplace" min="0" max="1095" required value="90">
+          <input type="number" id="fReplace" min="0" max="3650" required value="90">
           <div class="quick">
             <button type="button" data-replace="14">2 wk</button>
             <button type="button" data-replace="30">1 mo</button>
@@ -929,11 +929,11 @@
         <div class="grid2">
           <div class="field">
             <label for="fStock">On hand</label>
-            <input type="number" id="fStock" min="0" max="99" value="0">
+            <input type="number" id="fStock" min="0" max="999" value="0">
           </div>
           <div class="field">
             <label for="fLowAt">Reorder at</label>
-            <input type="number" id="fLowAt" min="0" max="20" value="1">
+            <input type="number" id="fLowAt" min="0" max="999" value="1">
           </div>
         </div>
       </div>
@@ -1058,6 +1058,33 @@ const STORAGE_KEY = 'pap-items';
    stopping. iOS `DataSchema.current`, Android `DataSchema.CURRENT`. */
 const SCHEMA = 1;
 const SCHEMA_KEY = 'pap-schema';
+
+/* ---------------- Field bounds — a three-app contract ----------------
+   Every stored field's ceiling, in one place. This is not tidiness: the four
+   places that clamp (the form's HTML attributes, the save handler, the card's
+   +/- stepper, and normalizeItem below) each held their own copy, and the copies
+   here were TIGHTER than the phones'. normalizeItem runs on every load, every
+   import and every synced document, so a spare count of 150 or a reorder
+   threshold of 30 typed on a phone was silently rewritten to 99 / 20 the first
+   time the web app saw it — and then pushed back, so the phone lost it too.
+   Nothing warned anyone, because clamping is what this boundary is FOR.
+
+   The numbers below are the phones' (`SupplyItem.stockRange` on iOS,
+   `SupplyItem.MAX_STOCK` on Android, 3650 on both day fields); the two string
+   caps are the web's, and were added to both phones the same day, since neither
+   capped a name or a note at all. Changing any of these means changing it in all
+   three apps together — a bound is as much a cross-app contract as a field name
+   is, and the tighter side always wins silently. `tests.html` pins the form's
+   HTML attributes against this object so the markup can't drift back. */
+const LIMITS = {
+  cleanDays: 3650,   // 10 years; a cleaning cycle longer than that is a typo, not a schedule
+  replaceDays: 3650,
+  stock: 999,
+  lowAt: 999,        // deliberately the same ceiling as stock: a threshold above your
+                     // shelf count is harmless, and one constant can't disagree with itself
+  name: 60,
+  notes: 140,
+};
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /* Capitalizes just the first letter — used on the lowercase schedule labels for display. */
@@ -1220,14 +1247,14 @@ function normalizeItem(raw) {
   return {
     id: str(raw.id, 64).replace(/[^A-Za-z0-9_-]/g, '') || uid(),
     emoji: str(raw.emoji, 8) || '🔧',
-    name: str(raw.name, 60).trim() || 'Untitled',
-    cleanDays: int(raw.cleanDays, 0, 365, 0),
-    replaceDays: int(raw.replaceDays, 0, 1095, 0),
+    name: str(raw.name, LIMITS.name).trim() || 'Untitled',
+    cleanDays: int(raw.cleanDays, 0, LIMITS.cleanDays, 0),
+    replaceDays: int(raw.replaceDays, 0, LIMITS.replaceDays, 0),
     lastCleaned: isoOrNull(raw.lastCleaned),
     lastReplaced: isoOrNull(raw.lastReplaced) || toISO(today()),
-    stock: int(raw.stock, 0, 99, 0),
-    lowAt: int(raw.lowAt, 0, 20, 1),
-    notes: str(raw.notes, 140),
+    stock: int(raw.stock, 0, LIMITS.stock, 0),
+    lowAt: int(raw.lowAt, 0, LIMITS.lowAt, 1),
+    notes: str(raw.notes, LIMITS.notes),
     createdAt: int(raw.createdAt, 0, Number.MAX_SAFE_INTEGER, Date.now()),
   };
 }
@@ -1514,7 +1541,7 @@ $('list').addEventListener('click', (e) => {
     }
     case 'stock+':
     case 'stock-':
-      it.stock = act === 'stock+' ? Math.min(99, it.stock + 1) : Math.max(0, it.stock - 1);
+      it.stock = act === 'stock+' ? Math.min(LIMITS.stock, it.stock + 1) : Math.max(0, it.stock - 1);
       save(); renderKeepingFocus(id, act);
       // The count sits in markup that was just replaced, so announce the new value through
       // the toast — it's the one live region that survives a re-render.
@@ -1871,12 +1898,12 @@ $('itemForm').addEventListener('submit', () => {
   const clampInt = (v, min, max) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
   const data = {
     name: $('fName').value.trim() || 'Untitled',
-    cleanDays: clampInt($('fClean').value, 0, 365),
+    cleanDays: clampInt($('fClean').value, 0, LIMITS.cleanDays),
     lastCleaned: notFuture($('fLastClean').value) || null,
-    replaceDays: clampInt($('fReplace').value, 0, 1095),
+    replaceDays: clampInt($('fReplace').value, 0, LIMITS.replaceDays),
     lastReplaced: notFuture($('fLast').value) || iso,
-    stock: clampInt($('fStock').value, 0, 99),
-    lowAt: clampInt($('fLowAt').value, 0, 20),
+    stock: clampInt($('fStock').value, 0, LIMITS.stock),
+    lowAt: clampInt($('fLowAt').value, 0, LIMITS.lowAt),
     notes: $('fNotes').value.trim(),
   };
   if (editingId) {
@@ -2046,7 +2073,7 @@ $('clearConfirm').addEventListener('click', () => {
    a classic script, so the suite could never see it — and so the one function
    standing between a supply name and innerHTML went untested. Nothing in the
    app reads this object. Same pattern as __svTestHooks and __ghTestHooks. */
-window.__papTestHooks = { esc, raisesKeyboard };
+window.__papTestHooks = { esc, raisesKeyboard, LIMITS };
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
