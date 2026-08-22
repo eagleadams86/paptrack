@@ -253,13 +253,25 @@
      2026-08-22 and in ours after; caught on an iPhone, because a fine pointer
      never takes this path. Focus inside the dialog still rings normally. */
   dialog:focus { outline: none; }
-  /* The third container, and the only one that is CONDITIONAL. A supply card is
-     focused when the button that was pressed has removed itself — see
-     `renderKeepingFocus`. From the keyboard that focus needs to be visible; from
-     a finger it must not be, and iOS Safari draws it anyway. The class is set by
-     the app for the pointer case only. Two classes plus a pseudo-class, so it
-     beats the single-class `:focus-visible` above. */
-  .card.quiet-focus:focus { outline: none; }
+  /* The third container, and the only one that is CONDITIONAL — so it is written
+     as OPT IN, not opt out. A card never rings just because focus arrived; it rings
+     only when this app deliberately put focus there from the keyboard, and says so
+     with a class.
+
+     It was the other way round until 2026-08-22 (a class that SUPPRESSED the ring on
+     the pointer path) and that only covered the paths the app drives. It missed the
+     one that matters most: coming back from the Edit dialog. Nothing here focuses the
+     card on that path — **WebKit does**. The dialog closes, the browser restores focus
+     to the Edit button that opened it, `render()` then rebuilds the list and removes
+     that button, and WebKit promotes focus to the nearest focusable ANCESTOR rather
+     than dropping it to <body>. The nearest one is the card, because it carries
+     `tabindex="-1"` for `renderKeepingFocus`. So the card took focus and rang, with no
+     line in this file involved. Opting in cannot have that failure mode: any path
+     nobody thought about lands on the quiet default.
+
+     Two classes plus a pseudo-class, so it beats the single-class `:focus-visible`. */
+  .card:focus { outline: none; }
+  .card.ring-focus:focus { outline: 2px solid var(--focus-border); outline-offset: 2px; }
 
   .sr-only {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -2307,11 +2319,17 @@ function renderKeepingFocus(id, act, fromPointer) {
      does not**, and rings the card on every tap. So the app says which it was
      rather than trusting the heuristic — `fromPointer` comes from the click
      event's `detail`, which is 0 when a button was activated from the keyboard
-     and non-zero for a real mouse or finger. Cleared on the way out so it
-     cannot outlive the focus that needed it. */
-  if (target === card && fromPointer) {
-    card.classList.add('quiet-focus');
-    card.addEventListener('blur', () => card.classList.remove('quiet-focus'), { once: true });
+     and non-zero for a real mouse or finger.
+
+     The class ADDS the ring rather than removing it, and that is the whole
+     design: a card is quiet unless this line ran. Suppressing instead meant
+     every path that reaches the card WITHOUT going through here still rang —
+     which is how the Edit dialog got through, where WebKit moves focus to the
+     card on its own. Cleared on blur so it cannot outlive the focus that
+     needed it. */
+  if (target === card && !fromPointer) {
+    card.classList.add('ring-focus');
+    card.addEventListener('blur', () => card.classList.remove('ring-focus'), { once: true });
   }
   target.focus();
 }

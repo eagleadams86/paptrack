@@ -1097,17 +1097,25 @@ t('a dialog focused as a container does not ring itself', () => {
     'openModal focuses the dialog on a coarse pointer, so without this every phone rings the whole window');
   ok(/dlg\.focus\(\)/.test(APP_SRC), 'and that is still how the keyboard is kept down');
 });
-t('a card focused after a TAP does not ring, and after a keypress still can', () => {
-  ok(/\.card\.quiet-focus:focus \{ outline: none/.test(APP_SRC),
-    'iOS Safari rings a programmatically-focused container whatever the modality, so the app has to say');
+t('a card rings only when this app put focus there from the keyboard', () => {
+  /* OPT IN, not opt out. Suppress-on-pointer covered only the paths the app drives and
+     missed the one that mattered: coming back from Edit, where WebKit moves focus to the
+     card by itself because render() removed the button focus was restored to. */
+  ok(/\.card:focus \{ outline: none/.test(APP_SRC),
+    'a card must be quiet by default — a path nobody thought of must not be able to ring it');
+  ok(/\.card\.ring-focus:focus \{ outline: 2px solid var\(--focus-border\)/.test(APP_SRC),
+    'and the ring is added back only for the keyboard case');
+  ok(!/quiet-focus/.test(APP_SRC), 'the old suppress-on-pointer class is gone, not left alongside');
   ok(/renderKeepingFocus\(id, act, fromPointer\)|function renderKeepingFocus\(id, act, fromPointer\)/.test(APP_SRC),
     'the modality has to reach the function that moves focus');
   const calls = APP_SRC.match(/renderKeepingFocus\([^)]*\)/g).filter((c) => !c.includes('fromPointer'));
   ok(calls.length > 1, 'there are several call sites');
   ok(calls.every((c) => /e\.detail > 0/.test(c)),
     'every call site must pass the modality — one that forgets rings the card on a phone');
-  ok(/classList\.add\('quiet-focus'\)/.test(APP_SRC) && /classList\.remove\('quiet-focus'\)/.test(APP_SRC),
+  ok(/classList\.add\('ring-focus'\)/.test(APP_SRC) && /classList\.remove\('ring-focus'\)/.test(APP_SRC),
     'and the class must be cleared, or it outlives the focus that needed it');
+  ok(/if \(target === card && !fromPointer\)/.test(APP_SRC),
+    'the ring goes on for the KEYBOARD case — inverting this silently rings every phone');
 });
 t('Notes is a textarea, and it lives with the Name box', () => {
   const d = w.document;
