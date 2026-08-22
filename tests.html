@@ -247,6 +247,67 @@ t('CSV cells that a spreadsheet would run are defused', () => {
   eq(w.csvCell(null), '""');
 });
 
+group('Profiles — one account, more than one person');
+/* `pap-items` still means "the list in front of you". That is the whole design: the
+   phone widgets read that key directly and neither needed a line changed, and every
+   other profile's supplies sit beside it under `pap-items:<id>`. */
+t('a browser that has never seen profiles gets exactly one, and keeps its supplies', () => {
+  const list = w.normalizeProfiles(null);
+  eq(list.length, 1);
+  ok(list[0].id === 'default', 'the first profile keeps the id the cloud path depends on');
+});
+t('a corrupt profiles key is one profile, not none', () => {
+  eq(w.normalizeProfiles([]).length, 1, 'an empty list would leave nowhere to put the supplies');
+  eq(w.normalizeProfiles('nonsense').length, 1);
+  eq(w.normalizeProfiles([{ id: '', name: 'x' }, null, 42]).length, 1);
+});
+/* A profile id is a localStorage key suffix AND a Firestore document id — and Firestore
+   rejects a document id containing a slash, so this is not only the item-id rule. */
+t('a profile id is scrubbed to the plain charset', () => {
+  const list = w.normalizeProfiles([{ id: 'a/b c<>', name: 'Jamie' }]);
+  eq(list[0].id, 'abc');
+  eq(list[0].name, 'Jamie');
+});
+t('duplicate ids are dropped, not re-issued', () => {
+  /* Unlike items: two profiles with one id would be two rows pointing at ONE archive
+     key, so re-issuing would silently hand the second one the first one's supplies. */
+  const list = w.normalizeProfiles([{ id: 'a', name: 'One' }, { id: 'a', name: 'Two' }]);
+  eq(list.length, 1);
+  eq(list[0].name, 'One');
+});
+t('names are capped and never blank', () => {
+  eq(w.normalizeProfiles([{ id: 'a', name: 'n'.repeat(80) }])[0].name.length, 24);
+  eq(w.normalizeProfiles([{ id: 'a', name: '   ' }])[0].name, 'Untitled');
+});
+t('the list is capped, so one key cannot grow without limit', () => {
+  const many = Array.from({ length: 30 }, (_, i) => ({ id: 'p' + i, name: 'P' + i }));
+  eq(w.normalizeProfiles(many).length, 8);
+});
+/* The cloud half of "don't disturb the common case": the first profile keeps writing to
+   the document every build of every app has always used. Read as text — the suite must
+   not open a Firestore session to find out. */
+t('the first profile still syncs to the path older builds read', async () => {
+  /* Fetched here rather than read off APP_SRC: that is filled in by the service-worker
+     group further down, and a test that runs before it would be checking an empty
+     string — which passes nothing and fails everything, depending on the assertion. */
+  const code = stripComments(await (await fetch('index.html')).text());
+  ok(/id === 'default'[\s\S]{0,80}F\.doc\(db, 'paptrack', user\.uid\)/.test(code),
+    "the first profile must keep /paptrack/{uid}, or an older build finds an empty document");
+  ok(/F\.doc\(db, 'paptrack', user\.uid, 'profiles', id\)/.test(code),
+    'and the others must go to the subcollection');
+  ok(/window\.paptrackProfileChanged/.test(code),
+    'switching profile must restart sync — the document it was listening to is the other one');
+});
+/* The rules file is the other half of that path, and Firestore rules do NOT cascade into
+   a subcollection: without its own match block, every extra profile's write is refused. */
+t('the checked-in rules cover the subcollection the app writes', async () => {
+  const rules = await (await fetch('firestore.rules')).text();
+  ok(/match \/paptrack\/\{uid\}\/profiles\/\{profileId\}/.test(rules),
+    'the profiles path has no rule, so an extra profile could never sync');
+  ok(/request\.auth\.uid == uid/.test(rules.split('profiles/{profileId}')[1] || ''),
+    'and it must compare the uid, or one account could read another\u2019s profiles');
+});
+
 group('escICS / foldICS — RFC 5545 text rules');
 t('backslash, semicolon, comma, and newlines are escaped', () => {
   eq(w.escICS('a;b,c\\d\r\ne'), 'a\\;b\\,c\\\\d\\ne');

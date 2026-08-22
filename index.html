@@ -524,6 +524,22 @@
     background: var(--surface-alt); margin-bottom: 6px; font-size: 0.85rem;
   }
   .hist .hk { font-weight: 600; }
+  /* One row per person in the profile dialog: their name, and the two things you can
+     do to them. The name field takes the room; the buttons keep their own width. */
+  .prow {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface-alt); margin-bottom: 6px;
+  }
+  .prow .pname {
+    flex: 1 1 140px; min-width: 0; padding: 6px 8px; border-radius: 8px;
+    border: 1px solid var(--input-border); background: var(--surface); color: var(--text-primary);
+  }
+  .prow .phint { font-size: 0.78rem; color: var(--text-secondary); }
+  #profileNew {
+    flex: 1 1 160px; min-width: 0; padding: 8px 10px; border-radius: 10px;
+    border: 1px solid var(--input-border); background: var(--surface); color: var(--text-primary);
+  }
   .hist .hd { color: var(--text-secondary); }
   /* The reorder link is an <a> wearing the .act button style, so it needs the bits a
      button gets for free: no underline, and the same centred single line. */
@@ -790,6 +806,14 @@
         <option value="midnight" selected>✦ Midnight</option>
         <option value="sepia">📜 Sepia</option>
       </select>
+      <!-- Whose supplies these are. First in the row because it governs everything
+           below it: change this and the whole list changes, where the theme only
+           changes its colours. Hidden until the script at the foot fills it in — its
+           options are the saved profiles, so unlike the theme picker there is nothing
+           sensible to paint before the script runs, and an empty select flashing in
+           the header is worse than a control that arrives with the list. -->
+      <label class="sr-only" for="profileSel">Whose supplies</label>
+      <select class="theme-sel" id="profileSel" hidden></select>
       <!-- Backing up used to be two underlined links at the very foot of the page, which
            is nowhere near where you look for it. It sits beside the other app-level
            controls now, the same place every sibling app keeps it. -->
@@ -1025,6 +1049,26 @@
   </form>
 </dialog>
 
+<!-- ── Who the supplies belong to ───────────────────────────────────────────────
+     Two people on one CPAP machine's worth of app: each profile is its own supply
+     list, its own countdowns, its own spares. Reached from the header picker's last
+     option rather than from a button of its own, because managing them is rare and
+     switching between them is not. -->
+<dialog id="profileDialog" aria-labelledby="profileDialogTitle">
+  <h2 id="profileDialogTitle">Whose Supplies</h2>
+  <p class="hint">Each person has their own supplies, their own countdowns and their own
+    spares. Everything else — the theme, your reminders, your backups — is shared.</p>
+  <div id="profileList"></div>
+  <div class="datarow" style="margin-top:12px">
+    <input type="text" id="profileNew" maxlength="24" data-keep-caret placeholder="Add someone — their name">
+    <button type="button" class="act" id="profileAddBtn">Add</button>
+  </div>
+  <p class="hint" id="profileNote" style="margin-top:12px"></p>
+  <div class="formfoot">
+    <button type="button" class="btn" id="profileCloseBtn">Done</button>
+  </div>
+</dialog>
+
 <!-- ── One supply's details, opened from its card ───────────────────────────────
      Everything about a single supply that isn't its schedule: what has actually been done
      to it, whether it's paused or snoozed or on order, and what it costs to keep running.
@@ -1153,7 +1197,14 @@ const STORAGE_KEY = 'pap-items';
    the same day, rather than one bump per feature: a build that doesn't know a field strips
    it, so the number exists to stop that, and five separate bumps would have meant five
    windows in which two of the apps were halted. */
-const SCHEMA = 2;
+/* 3 (2026-08-22) — profiles. The ITEM shape is unchanged; what changed is that there
+   can now be more than one list, and a backup file carries all of them. That is why this
+   bump exists: an older build restoring a 3 backup would take the `items` array, ignore
+   the `profiles` beside it, and silently drop everybody else's supplies. The cloud needed
+   no equivalent, deliberately: the first profile keeps writing to `paptrack/{uid}`, the
+   document every build has always used, so an older build goes on syncing the same list
+   it always did rather than halting on the common case. */
+const SCHEMA = 3;
 const SCHEMA_KEY = 'pap-schema';
 
 /* ---------------- Field bounds — a three-app contract ----------------
@@ -1325,6 +1376,158 @@ function haltForNewerData(found) {
 let items = load();
 let filter = 'all';
 let query = '';
+
+/* ---------------- Profiles (schema 3) ------------------------------------
+   Two people on one CPAP machine's worth of app. Before this the only way to keep two
+   sets of supplies apart was two Google accounts, which also means two of everything
+   else — two sign-ins, two backups, two phones set up.
+
+   **`pap-items` still means "the list in front of you".** That is the whole design, and
+   it is what keeps the change small and the widgets working: the iOS and Android
+   home-screen widgets read that key directly, and neither needed a line changed to show
+   the active profile. Every OTHER profile's supplies live beside it under
+   `pap-items:<id>`, written when you switch away and read when you switch back. Those
+   archive copies are touched at exactly those two moments and nowhere else — the live
+   list has one home, and there is no second copy to drift.
+
+   The cloud follows the same "don't disturb the common case" rule. The FIRST profile
+   syncs to `paptrack/{uid}`, the document every build of every app has always used, so
+   an older build (or a phone that hasn't updated) goes on syncing the same list it
+   always did. Additional profiles get `paptrack/{uid}/profiles/{id}` — a path the
+   deployed Firestore rules must be told about, see firestore.rules; until they are, an
+   extra profile syncs nothing and says so through the usual "not syncing" warning, while
+   the first profile is unaffected. */
+const PROFILES_KEY = 'pap-profiles';
+const ACTIVE_PROFILE_KEY = 'pap-profile';
+/* The id of the profile that predates profiles. It is not special anywhere except in the
+   cloud path above, and it is never shown — only its name is. */
+const FIRST_PROFILE_ID = 'default';
+const PROFILE_NAME_MAX = 24;
+/* Enough for a household, and a bound on the storage this feature can grow into: each
+   profile is a full supply list. */
+const PROFILE_MAX = 8;
+
+/* Same charset rule as an item id, for the same reason plus one more: a profile id is
+   also a localStorage key suffix and a Firestore document id, and Firestore rejects a
+   document id containing a slash. */
+function normalizeProfiles(raw) {
+  const list = Array.isArray(raw) ? raw : [];
+  const seen = new Set();
+  const out = [];
+  for (const p of list) {
+    if (!p || typeof p !== 'object') continue;
+    let id = String(p.id ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push({ id, name: String(p.name ?? '').slice(0, PROFILE_NAME_MAX).trim() || 'Untitled' });
+    if (out.length >= PROFILE_MAX) break;
+  }
+  /* There is always at least one. A saved list that decoded to nothing is a corrupt key,
+     not an instruction to lose the supplies sitting in `pap-items`. */
+  return out.length ? out : [{ id: FIRST_PROFILE_ID, name: 'Mine' }];
+}
+
+function loadProfiles() {
+  try {
+    return normalizeProfiles(JSON.parse(localStorage.getItem(PROFILES_KEY) || 'null'));
+  } catch { return normalizeProfiles(null); }
+}
+
+let profiles = loadProfiles();
+let activeProfileId = (() => {
+  try {
+    const saved = localStorage.getItem(ACTIVE_PROFILE_KEY);
+    return profiles.some((p) => p.id === saved) ? saved : profiles[0].id;
+  } catch { return profiles[0].id; }
+})();
+
+function activeProfile() {
+  return profiles.find((p) => p.id === activeProfileId) || profiles[0];
+}
+
+/** Where a profile's items sit when it is NOT the one in front of you. */
+function archiveKey(id) { return STORAGE_KEY + ':' + id; }
+
+function saveProfiles() {
+  try {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+    localStorage.setItem(ACTIVE_PROFILE_KEY, activeProfileId);
+  } catch (e) { console.warn('Could not save profiles', e); }
+}
+
+function readArchive(id) {
+  try {
+    return normalizeItems(JSON.parse(localStorage.getItem(archiveKey(id)) || '[]'));
+  } catch { return []; }
+}
+
+/** Swaps the live list for another profile's, archiving the one on screen first. */
+function switchProfile(id) {
+  if (halted || id === activeProfileId || !profiles.some((p) => p.id === id)) return;
+  try { localStorage.setItem(archiveKey(activeProfileId), JSON.stringify(items)); }
+  catch (e) { console.warn('Could not archive the current profile', e); }
+  activeProfileId = id;
+  items = readArchive(id);
+  saveProfiles();
+  save();
+  render();
+  /* The picker is refreshed HERE rather than by each caller: the header must never name
+     a profile that isn't the one on screen, and "every caller remembers to redraw it"
+     is the kind of contract that holds until the day something new calls this. */
+  renderProfilePicker();
+  /* The cloud document is per profile, so the live listener and the reconciliation both
+     belong to the profile that has just left the screen. Sync restarts on the new one. */
+  if (window.paptrackProfileChanged) window.paptrackProfileChanged();
+  toast(`Switched to ${activeProfile().name}`);
+}
+
+function addProfile(name) {
+  if (profiles.length >= PROFILE_MAX) { toast(`That's the limit — ${PROFILE_MAX} people`); return null; }
+  const p = { id: uid(), name: String(name || '').slice(0, PROFILE_NAME_MAX).trim() || 'Untitled' };
+  profiles = [...profiles, p];
+  saveProfiles();
+  renderProfilePicker();
+  /* A new profile starts empty, and switching to it is what anyone adding one wants —
+     otherwise the only sign anything happened is a longer list in a picker. */
+  switchProfile(p.id);
+  return p;
+}
+
+function renameProfile(id, name) {
+  const clean = String(name || '').slice(0, PROFILE_NAME_MAX).trim();
+  if (!clean) return;
+  profiles = profiles.map((p) => (p.id === id ? { ...p, name: clean } : p));
+  saveProfiles();
+  renderProfilePicker();
+}
+
+/* Deleting a profile deletes a whole supply list, so it is behind a confirmation like
+   the other irreversible action in this app. The last one cannot go: the app has to have
+   somewhere to put the supplies. */
+function deleteProfile(id) {
+  if (profiles.length <= 1) return false;
+  const gone = profiles.find((p) => p.id === id);
+  if (!gone) return false;
+  profiles = profiles.filter((p) => p.id !== id);
+  try { localStorage.removeItem(archiveKey(id)); } catch (e) { /* nothing to clean up */ }
+  if (activeProfileId === id) {
+    /* The live list belongs to the profile being deleted, so it goes with it — and the
+       first remaining profile's archive becomes the list on screen. */
+    activeProfileId = profiles[0].id;
+    items = readArchive(activeProfileId);
+    saveProfiles();
+    save();
+    if (window.paptrackProfileChanged) window.paptrackProfileChanged();
+  } else {
+    saveProfiles();
+  }
+  renderProfilePicker();
+  /* Its cloud document is deliberately NOT deleted here. Deleting a Firestore document
+     from a page that may be offline, signed out, or mid-reconcile is the kind of write
+     that half-succeeds; "Start again" is the deliberate, confirmed path for clearing the
+     cloud, and it stays the only one. A profile removed here simply stops being synced. */
+  return true;
+}
 let editingId = null;
 
 function load() {
@@ -2357,6 +2560,113 @@ $('itemActions').addEventListener('click', (e) => {
 $('itemCloseBtn').addEventListener('click', () => $('itemDialog').close());
 closeOnBackdropClick($('itemDialog'));
 
+/* ---------------- The profile picker and its dialog ----------------------
+   The picker is the switch; the dialog behind its last option is where profiles are
+   added, renamed and removed. One control in the header rather than two, because
+   switching is the frequent act and managing is the rare one. */
+const MANAGE_PROFILES = '__manage__';
+
+function renderProfilePicker() {
+  const sel = $('profileSel');
+  /* Shown only once there is a choice to make. A household of one has nothing to
+     switch between, and a picker with a single option is a control that does nothing
+     — so for them this is a line in the Back up dialog and nothing in the header. */
+  sel.hidden = profiles.length < 2;
+  sel.innerHTML = profiles
+    .map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`)
+    .join('') + `<option value="${MANAGE_PROFILES}">⚙ Manage people…</option>`;
+  sel.value = activeProfileId;
+  sel.setAttribute('aria-label', `Whose supplies — ${activeProfile().name}`);
+}
+
+$('profileSel').addEventListener('change', (e) => {
+  if (e.target.value === MANAGE_PROFILES) {
+    /* Put the picker back before opening the dialog: the "manage" row is a door, not a
+       choice, and leaving it selected would leave the header naming a profile that
+       isn't the one on screen. */
+    e.target.value = activeProfileId;
+    openProfiles();
+    return;
+  }
+  switchProfile(e.target.value);
+  renderProfilePicker();
+});
+
+function openProfiles() {
+  renderProfiles();
+  openModal($('profileDialog'));
+}
+
+function renderProfiles() {
+  const rows = profiles.map((p) => {
+    const active = p.id === activeProfileId;
+    return `<div class="prow" data-id="${esc(p.id)}">
+      <input type="text" class="pname" value="${esc(p.name)}" maxlength="${PROFILE_NAME_MAX}"
+             data-keep-caret aria-label="Name for ${esc(p.name)}">
+      ${active
+        ? '<span class="phint">on screen</span>'
+        : `<button type="button" class="act" data-p="use">Switch to</button>`}
+      ${profiles.length > 1
+        ? `<button type="button" class="act danger" data-p="del" aria-label="Remove ${esc(p.name)}">Remove</button>`
+        : '<span class="phint">the only one</span>'}
+    </div>`;
+  }).join('');
+  $('profileList').innerHTML = rows;
+  $('profileNew').disabled = profiles.length >= PROFILE_MAX;
+  $('profileNote').textContent = profiles.length >= PROFILE_MAX
+    ? `That's the limit — ${PROFILE_MAX} people.`
+    : 'Removing someone deletes their supplies from this browser, and cannot be undone. '
+      + 'Signed in, each person syncs separately — only the one on screen at the time.';
+}
+
+$('profileList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-p]');
+  if (!btn) return;
+  const id = btn.closest('.prow').dataset.id;
+  const p = profiles.find((x) => x.id === id);
+  if (!p) return;
+  if (btn.dataset.p === 'use') {
+    switchProfile(id);
+    renderProfilePicker();
+    renderProfiles();
+    return;
+  }
+  /* The one irreversible action here, and it takes a whole supply list with it. */
+  const count = id === activeProfileId ? items.length : readArchive(id).length;
+  const what = count === 1 ? '1 supply' : `${count} supplies`;
+  if (!confirm(`Remove ${p.name} and their ${what}? This cannot be undone.`)) return;
+  if (deleteProfile(id)) {
+    renderProfilePicker();
+    renderProfiles();
+    render();
+    toast(`${p.name} removed`);
+  }
+});
+
+/* Renaming saves as you type — there is no Save button in this dialog, and a name you
+   typed and then closed the window on is a name you meant. */
+$('profileList').addEventListener('input', (e) => {
+  const field = e.target.closest('input.pname');
+  if (!field) return;
+  renameProfile(field.closest('.prow').dataset.id, field.value);
+  renderProfilePicker();
+});
+
+$('profileAddBtn').addEventListener('click', () => {
+  const name = $('profileNew').value.trim();
+  if (!name) { $('profileNew').focus(); return; }
+  if (!addProfile(name)) return;
+  $('profileNew').value = '';
+  renderProfilePicker();
+  renderProfiles();
+});
+$('profileNew').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('profileAddBtn').click(); }
+});
+$('profileCloseBtn').addEventListener('click', () => $('profileDialog').close());
+closeOnBackdropClick($('profileDialog'));
+renderProfilePicker();
+
 /* ---------------- CSV ----------------
    A one-way door, and said so in the dialog: it is for a spreadsheet, not for restoring.
 
@@ -2404,7 +2714,27 @@ $('csvHistoryBtn').addEventListener('click', downloadHistoryCSV);
    safety net — one press away from losing everything is exactly when a backup is
    worth taking. */
 function downloadBackup() {
-  const blob = new Blob([JSON.stringify({ app: 'paptrack', version: SCHEMA, exported: new Date().toISOString(), items }, null, 2)], { type: 'application/json' });
+  /* `items` is still the top-level field, and still the ACTIVE profile's list: every
+     build ever written reads that key, and a backup that moved it would be a backup
+     older builds and both phones could not restore. `profiles` rides alongside as the
+     complete picture — the active list appears in both, which costs a few kilobytes
+     and buys a file that either kind of reader can open correctly.
+
+     This is what schema 3 exists for: an older build restoring this file takes `items`
+     and silently ignores everyone else, so the version number has to stop it. */
+  const payload = {
+    app: 'paptrack',
+    version: SCHEMA,
+    exported: new Date().toISOString(),
+    items,
+    activeProfile: activeProfileId,
+    profiles: profiles.map((p) => ({
+      id: p.id,
+      name: p.name,
+      items: p.id === activeProfileId ? items : readArchive(p.id),
+    })),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   downloadBlob(blob, `paptrack-backup-${toISO(today())}.json`);
   toast('Backup downloaded');
 }
@@ -2431,9 +2761,43 @@ $('importFile').addEventListener('change', async (e) => {
     const incoming = normalizeItems(raw);
     const dropped = raw.length - incoming.length;
     if (!incoming.length) throw new Error('no usable items');
-    if (!confirm(`Replace your ${items.length} item${items.length === 1 ? '' : 's'} with ${incoming.length} from the backup?`)) return;
-    items = incoming;
+    /* A file from a build that knew about profiles carries all of them; one from
+       before carries a single list, which restores as the profile that is on screen —
+       which is exactly what restoring meant before profiles existed. */
+    const incomingProfiles = Array.isArray(parsed && parsed.profiles) ? parsed.profiles : null;
+    const people = incomingProfiles ? normalizeProfiles(incomingProfiles) : null;
+    const extra = people ? people.length - 1 : 0;
+    const question = people && extra > 0
+      ? `Replace everything in this browser with the backup — ${people.length} people`
+        + `, ${incomingProfiles.reduce((n, p) => n + (Array.isArray(p.items) ? p.items.length : 0), 0)} supplies between them?`
+      : `Replace your ${items.length} item${items.length === 1 ? '' : 's'} with ${incoming.length} from the backup?`;
+    if (!confirm(question)) return;
+    if (people) {
+      /* Every profile in the file, and only those: a restore replaces, it does not
+         merge. The archives of profiles that were here and are not in the file go with
+         them, or they would linger as orphaned keys nothing can reach. */
+      for (const p of profiles) {
+        try { localStorage.removeItem(archiveKey(p.id)); } catch (e) { /* nothing to clean */ }
+      }
+      profiles = people;
+      const byId = new Map(incomingProfiles.map((p) => [String(p && p.id), p]));
+      activeProfileId = people.some((p) => p.id === parsed.activeProfile)
+        ? parsed.activeProfile : people[0].id;
+      for (const p of people) {
+        const list = normalizeItems((byId.get(p.id) || {}).items || []);
+        if (p.id === activeProfileId) items = list;
+        else {
+          try { localStorage.setItem(archiveKey(p.id), JSON.stringify(list)); }
+          catch (e) { console.warn('Could not restore a profile', e); }
+        }
+      }
+      saveProfiles();
+      renderProfilePicker();
+    } else {
+      items = incoming;
+    }
     save(); render();
+    if (window.paptrackProfileChanged) window.paptrackProfileChanged();
     dataDialog.close();
     toast(dropped ? `Backup restored — ${dropped} unreadable item${dropped === 1 ? '' : 's'} skipped` : 'Backup restored');
   } catch {
@@ -2456,8 +2820,14 @@ $('clearBtn').addEventListener('click', () => {
      business, and backing out of it should not drop you into the dialog you
      started from as though nothing had been asked. */
   dataDialog.close();
+  /* The count has to be everyone's, not the list on screen: this button empties every
+     profile, and a figure that named only the visible one would understate what is
+     about to happen. */
+  const total = profiles.reduce(
+    (n, p) => n + (p.id === activeProfileId ? items.length : readArchive(p.id).length), 0);
+  const people = profiles.length > 1 ? ` across all ${profiles.length} people` : '';
   $('clearBody').textContent =
-    `This deletes ${items.length} suppl${items.length === 1 ? 'y' : 'ies'}, with every cleaning `
+    `This deletes ${total} suppl${total === 1 ? 'y' : 'ies'}${people}, with every cleaning `
     + `date, replacement date and spares count on them. Your theme is kept. There is no undo — `
     + `a downloaded backup is the only way to get any of it back.`;
   /* Said plainly, because "clear this browser" and "clear every device I own"
@@ -2473,6 +2843,17 @@ $('clearBackupBtn').addEventListener('click', downloadBackup);
 $('clearCancel').addEventListener('click', () => clearDialog.close());
 $('clearConfirm').addEventListener('click', () => {
   items = [];
+  /* "Everything" means everything: the other profiles' archived lists go too, and the
+     people themselves with them. Leaving them would make "delete all data" a phrase
+     that meant "delete the list you happen to be looking at", which is precisely the
+     kind of quiet exception this dialog exists to avoid. */
+  for (const p of profiles) {
+    try { localStorage.removeItem(archiveKey(p.id)); } catch (e) { /* nothing to clean */ }
+  }
+  profiles = normalizeProfiles(null);
+  activeProfileId = profiles[0].id;
+  saveProfiles();
+  renderProfilePicker();
   save();                 // the one write path, so this pushes to the cloud too
   /* …but save() debounces its push, and a delete must not sit in that window:
      clearing then closing the tab inside 1.2s would leave the cloud copy intact,
@@ -2493,6 +2874,8 @@ window.__papTestHooks = { esc, raisesKeyboard, LIMITS };
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
+/* Read by the sync module to pick this profile's document — see `docRef` there. */
+window.paptrackProfileId = () => activeProfileId;
 window.paptrackAdopt = (newItems, ts, schema) => {
   /* The copy-from-the-future check, live edition. The boot check only guards the
      load, but onSnapshot can hand a page running yesterday's cached code a
@@ -2635,7 +3018,7 @@ catch (e) { /* cross-origin parent — not the harness */ }
    script's `const`s, so the one number it writes is mirrored here. It is pinned
    to SCHEMA by tests.html — two constants that must agree is exactly the kind of
    thing that drifts silently. */
-const PAP_SCHEMA = 2;
+const PAP_SCHEMA = 3;
 
 /* A page halted on data from a newer build must not start a session: the halt is
    only as good as everything that writes checking it. */
@@ -2959,7 +3342,20 @@ async function onClick() {
   tokenClient.requestAccessToken();
 }
 
-const docRef = () => F.doc(db, 'paptrack', user.uid);
+/* Which document this profile's supplies live in.
+   The FIRST profile keeps `paptrack/{uid}` — the path every build of every app has
+   always written — so an older build, or a phone that hasn't updated, goes on syncing
+   the same list it always did rather than finding an empty document where its supplies
+   used to be. Additional profiles get a subcollection document. That path needs its own
+   rule in the deployed Firestore rules (see firestore.rules); until it is pasted in,
+   an extra profile's writes are refused and the app says so through the usual "not
+   syncing" warning, while the first profile is untouched. */
+const docRef = () => {
+  const id = window.paptrackProfileId ? window.paptrackProfileId() : 'default';
+  return id === 'default'
+    ? F.doc(db, 'paptrack', user.uid)
+    : F.doc(db, 'paptrack', user.uid, 'profiles', id);
+};
 
 /* Stamps this device's copy as the newest. "Keep this device" has to actually win
    everywhere, and pushNow() sends the timestamp the local copy already carries —
@@ -3055,6 +3451,23 @@ async function startSync() {
      "Not syncing" toast. Shipped for a day after the 08-17 re-attach fix. */
   if (!unsub) attachSnapshot();
 }
+
+/* Switching profile changes which document this browser is talking to, so the live
+   listener and the once-per-account reconciliation both belong to the profile that has
+   just left the screen. Tear down, then start again on the new one — the same sequence
+   an auth change runs, minus the sign-in.
+
+   `reconciled` is reset with it: the "keep this device or keep Google's?" question is
+   asked once per account per browser, and a second profile is a second document that
+   has never been reconciled with this browser, whatever the first one already agreed. */
+window.paptrackProfileChanged = () => {
+  if (!user) return;
+  if (unsub) { unsub(); unsub = null; }
+  if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+  reconciled = false;
+  pendingLocalPush = false;
+  startSync().catch(setSyncError).finally(reconciliationDone);
+};
 
 /* The live listener, its own function because startSync is not its only caller:
    once the error callback drops it, the next successful pushNow() re-attaches. */

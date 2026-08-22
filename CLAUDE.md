@@ -171,6 +171,35 @@ This is a real, shipped product — the flagship web build alongside the native 
 - The scope is `./`, never absolute: on the local server the app is at the root,
   not under `/paptrack/`, and an absolute scope is simply invalid there.
 
+## Profiles, and why `pap-items` did not move (schema 3, 2026-08-22)
+
+More than one person, one app. The design decision that keeps this small:
+
+- **`pap-items` still means "the list in front of you".** It was not turned into a map of
+  profiles, and that is deliberate: both phone widgets read that key directly and neither
+  needed a line changed. Every other profile's supplies sit under `pap-items:<id>`,
+  written when you switch away and read when you switch back — touched at exactly those
+  two moments and nowhere else, so the live list has one home and nothing can drift.
+- **The first profile keeps `paptrack/{uid}` in the cloud.** Its id is the literal
+  `default`, and `docRef()` special-cases it. An older build, or a phone that hasn't
+  updated, therefore goes on syncing the same document it always did rather than finding
+  an empty one. Additional profiles get `paptrack/{uid}/profiles/{id}`.
+- **Firestore rules do NOT cascade into a subcollection.** The profiles path needs its own
+  `match` block in the deployed rules or every extra profile's write is refused —
+  `firestore.rules` carries it, and it must be pasted into the console. Until it is, the
+  first profile is unaffected and the others report the usual "not syncing" warning.
+  `tests.html` pins the rules file against the path the app writes.
+- **Only the active profile syncs.** Switching tears the listener down and restarts
+  reconciliation on the new document, because "keep this device or keep Google's?" is a
+  question about one document and a second profile has never been asked it.
+- **Schema 3 exists for the backup file, not for the items.** The item shape is unchanged;
+  what changed is that a backup carries `profiles` alongside `items`, and an older build
+  restoring one would take `items` and silently drop everybody else.
+- **A profile id is scrubbed harder than an item id** — it is a localStorage key suffix
+  AND a Firestore document id, and Firestore rejects an id containing a slash. Duplicate
+  profile ids are DROPPED rather than re-issued (unlike items): two rows sharing one id
+  means two people pointing at one archive key.
+
 ## Schema 2 (2026-08-22)
 
 Seven stored fields landed in one bump, in all three apps the same day: `history`, `paused`,
