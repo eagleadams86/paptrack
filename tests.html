@@ -843,12 +843,33 @@ t('midnight is pre-selected, matching the pre-paint boot in <head>', () => {
   ok(opt.defaultSelected,
     'midnight must carry `selected` in the markup, or the row reads "Dark" until JS runs');
 });
-t('the four glyphs are plain text characters, not emoji-presentation ones', () => {
+t('the glyphs are plain text characters, not emoji-presentation ones', () => {
   const labels = [...w.document.querySelectorAll('#themeSel option')]
     .map((o) => o.textContent);
-  eq(labels, ['☾ Dark', '☀ Light', '✦ Midnight', '📜 Sepia'],
+  eq(labels, ['◐ Auto', '☾ Dark', '☀ Light', '✦ Midnight', '📜 Sepia'],
     'the picker labels drifted from the family\u2019s — \u2600\uFE0F is the colour-font sun, a '
     + 'different weight and baseline from the \u263E and \u2726 beside it');
+});
+/* "auto" is the pack's fifth picker entry and NOT a fifth theme: theme.css resolves it
+   to Light, or to Midnight under prefers-color-scheme: dark, before any script runs.
+   The failure this pins is the silent one the pack warns about — an app that offers the
+   option but leaves it out of the boot script's valid list, so choosing Auto saves a
+   preference the next load quietly turns back into midnight. */
+t('auto survives the boot script instead of being normalised to midnight', () => {
+  const boot = APP_SRC.match(/var valid = \[([^\]]*)\]/);
+  ok(boot, 'the boot script no longer has a valid-theme list to check');
+  ok(/'auto'/.test(boot[1]), "'auto' must be a valid saved theme id, or the picker lies");
+  ok(w.document.querySelector('#themeSel option[value="auto"]'), 'and the option must exist');
+});
+/* The one thing CSS can't do for us: the installed window's title bar and the Android
+   address bar are painted from the theme-color meta tag, which is written once from the
+   computed --bg. On 'auto' the palette can change while the page is open. */
+t('a system light/dark flip while the page is open repaints the title bar', () => {
+  const code = stripComments(APP_SRC);
+  ok(/matchMedia\('\(prefers-color-scheme: dark\)'\)[\s\S]{0,120}addEventListener\('change'/.test(code),
+    'nothing is listening for the system flip, so theme-color goes stale on auto');
+  ok(/=== 'auto'\) applyThemeColor\(\)/.test(code),
+    'and it must only repaint on auto — an explicit choice does not follow the system');
 });
 
 /* ── Runner ───────────────────────────────────────────────────────────────── */

@@ -76,7 +76,16 @@
   (function () {
     var t = localStorage.getItem('pap-theme');
     if (t === 'slate') t = 'dark'; // Slate was renamed Dark when the themes unified (Aug 2026)
-    var valid = ['midnight', 'dark', 'light', 'sepia'];
+    /* 'auto' is in this list and is NOT a fifth theme: theme.css carries a
+       [data-theme="auto"] block holding Light's values and a
+       @media (prefers-color-scheme: dark) copy holding Midnight's, so the engine
+       resolves it before this script — or any script — runs. That is the whole
+       reason it lives in the pack's CSS rather than in a matchMedia call here:
+       a theme decided in JavaScript arrives after first paint, which is the
+       flash this block exists to prevent. Leaving 'auto' OUT of the list is the
+       silent failure the pack warns about — the picker would offer it and the
+       page would quietly fall back to midnight. */
+    var valid = ['auto', 'midnight', 'dark', 'light', 'sepia'];
     if (valid.indexOf(t) === -1) t = 'midnight'; // covers the retired forest/solarized/synthwave
     document.documentElement.setAttribute('data-theme', t);
   })();
@@ -760,6 +769,11 @@
            and the picker reads "Dark" over a midnight page until the script at
            the foot of the file sets .value. -->
       <select class="theme-sel" id="themeSel" aria-label="Theme">
+        <!-- Alphabetical, so Auto leads — the pack's rule, and it happens to put the
+             one option that isn't a colour at the top. ◐ is a plain text glyph like
+             ☾ and ☀, not an emoji: the colour-font variants are a different weight
+             and baseline from the characters beside them. -->
+        <option value="auto">◐ Auto</option>
         <option value="dark">☾ Dark</option>
         <option value="light">☀ Light</option>
         <option value="midnight" selected>✦ Midnight</option>
@@ -2207,6 +2221,12 @@ function applyThemeColor() {
   if (bar && bg) bar.setAttribute('content', bg);
 }
 applyThemeColor();
+/* On 'auto' the palette can change while the page is open — the reader switches their
+   phone to dark at sunset, and the CSS follows on its own. The address bar / installed
+   window title bar does not: applyThemeColor read --bg once. This re-reads it, and only
+   that; the theme itself is still resolved entirely by CSS. */
+window.matchMedia('(prefers-color-scheme: dark)')
+  .addEventListener('change', () => { if ($('themeSel').value === 'auto') applyThemeColor(); });
 $('themeSel').value = document.documentElement.getAttribute('data-theme');
 $('themeSel').addEventListener('change', (e) => {
   document.documentElement.setAttribute('data-theme', e.target.value);
