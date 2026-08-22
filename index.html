@@ -329,7 +329,7 @@
   }
   .theme-sel:hover, .top-actions .act:hover { border-color: var(--text-muted); }
   .theme-sel {
-    height: var(--chrome-h); padding: 0 10px; font-size: var(--fs-xs); cursor: pointer;
+    height: var(--chrome-h); padding: 4px 9px; font-size: var(--fs-xs); cursor: pointer;
   }
   /* The header row is ONE height, pinned on the buttons and the picker alike.
      A native <select> ignores line-height, so pinning it on one and not the
@@ -346,7 +346,7 @@
        14px content box, which the coarse-pointer 16px label below does not fit
        into. The button is sized by its height either way — the padding is only
        there to keep the label off the sides. */
-    padding: 4px 12px;
+    padding: 4px 9px;
     /* inline-flex rather than trusting a button to centre its own label: with a
        fixed height and 8px of vertical padding the text box is smaller than the
        button, and only a flex line box centres it reliably across engines. */
@@ -581,7 +581,7 @@
   .act.danger:hover { background: var(--err-bg); border-color: var(--err); }
 
   /* ---- Empty state ---- */
-  .empty { text-align: center; padding: 40px 12px; color: var(--text-secondary); }
+  .empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
   /* No app mark here. It was a 72px copy of the one now worn in the header two
      inches above it, on the ONE screen where both are visible at once — the
      empty state is what a first-time visitor sees, so the icon was shown twice
@@ -607,7 +607,20 @@
      `1.5em` of a 16px root, which is not a step on the scale and would drift the
      moment anything touched the root. Declared, and the same declaration in every
      app. */
-  .card > .empty h2 { font-size: var(--fs-xl); }
+  /* MARGIN 0, and that is the other half of lining these up. The h2 kept the
+     browser's own ~0.83em top margin in three apps and had it zeroed in a fourth,
+     so the same welcome heading started 59px down the card in one app and 81px in
+     another. At 0 it sits exactly at the card's padding, and the first paragraph's
+     own 1em top margin is the gap under it — one number, in one place, five apps. */
+  .card > .empty h2 { font-size: var(--fs-xl); margin: 0; }
+  /* THE WELCOME CARD IS ONE COMPONENT ACROSS FIVE APPS, so its box is pinned here
+     rather than left to whatever each app's ordinary `.card` happens to use. Those
+     differ on purpose — 18px in the three planners, 16px in Golf Handicap, 14px on
+     PAPTrack's dense supply cards — and the welcome heading was landing 58px, 56px
+     and 54px from the top of the card in three different apps as a result. Same
+     number everywhere now, so the title starts at the same place on the page
+     whichever one you open. */
+  .card.welcome { padding: 18px; }
 
   /* ---- Buttons / FAB ----
      The family's rule, byte-for-byte off Sprint Predictability, Flow Metrics and
@@ -964,7 +977,7 @@
        of the three buttons, and Start Fresh keeps its family meaning: begin with
        nothing and add your own. Restore a Backup stays in the ⇩ window rather
        than becoming a fourth button. -->
-  <div class="card" id="empty" hidden><div class="empty">
+  <div class="card welcome" id="empty" hidden><div class="empty">
     <h2>Welcome to PAPTrack</h2>
     <p>A tracker for the kit you sleep with: every mask, cushion, filter, hose and chamber on
       its own schedule — what to wash today and what to wash this week, how long each part has
