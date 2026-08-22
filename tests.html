@@ -85,7 +85,7 @@ function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy');
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 89;
+const EXPECTED = 93;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1066,6 +1066,31 @@ t('the card grid keeps its badge floor and its three-column ceiling', () => {
   ok(/max\(/.test(rule), 'the two terms are combined with max(), so the larger one wins');
   const gap = (rule.match(/gap: (\d+)px/) || [])[1];
   eq(String(Number(gap) * 2), '24', 'the 24px in the cap is the two gaps in a three-column row');
+});
+
+group('Accessibility: the parts an automated scan cannot see');
+/* axe-core reports this app clean on every theme, every screen and every dialog —
+   and axe cannot test a focus indicator, because it never focuses anything. Audited
+   with Playwright from the scratchpad on 2026-08-22; these four are what it found. */
+t('one focus indicator covers the whole app, in the pack\u2019s focus colour', () => {
+  ok(/:focus-visible \{[^}]*outline:[^}]*var\(--focus-border\)/.test(APP_SRC),
+    'a global :focus-visible rule is what stops a button falling back to the browser\u2019s own ring');
+  ok(!/var\(--ring\)/.test(APP_SRC),
+    '--ring was this app\u2019s own TRANSLUCENT focus colour and measured 1.28\u20131.60:1 \u2014 WCAG 1.4.11 asks 3:1');
+  ok(!/--ring:/.test(APP_SRC), 'and the token itself is gone, not just its uses');
+});
+t('the placeholder is a token that clears 4.5:1, not the browser\u2019s default', () => {
+  const rule = (APP_SRC.match(/::placeholder \{[^}]*\}/) || [''])[0];
+  ok(/var\(--text-muted\)/.test(rule), 'left to the UA it measured 3.58:1 on dark');
+  ok(/opacity: 1/.test(rule), 'without this the UA applies its own opacity and undoes the colour');
+});
+t('a filter chip is drawn on the same edge as every other button here', () => {
+  const rule = (APP_SRC.match(/\.filter-chip \{[^}]*\}/) || [''])[0];
+  ok(/border: 1px solid var\(--border-strong\)/.test(rule),
+    'plain --border measured 1.21:1 against the bar and made the chips the odd button out');
+});
+t('motion is dropped for anyone who has asked the system for none', () => {
+  ok(/@media \(prefers-reduced-motion: reduce\)/.test(APP_SRC), 'the toast fades, and a fade is still motion');
 });
 
 group('The header picker reads the theme the page is actually showing');

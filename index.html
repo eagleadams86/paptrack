@@ -91,7 +91,7 @@
   })();
 </script>
 <!-- The palette is the theme pack's generated file, LINKED. It must come before
-     the app's own <style>, which overrides --shadow and adds --ring. -->
+     the app's own <style>, which adds --shadow. -->
 <link rel="stylesheet" href="theme.css">
 <style>
   /* ── Palette ──────────────────────────────────────────────────────────────
@@ -120,10 +120,16 @@
      Never retune a colour here or there: change the pack's tokens.json, run its
      check_contrast.py gate, rebuild, and re-copy into every app.
   ─────────────────────────────────────────────────────────────────────────── */
-  /* The two this app owns. NEITHER is a pack token — `--shadow` in particular
-     is not in the pack at all, so these per-theme shadows are an ADDITION
-     rather than an override of anything, and there is nothing here to diverge
-     from. Flow Metrics and Financial Plan add their own the same way. */
+  /* The one colour-ish thing this app owns. `--shadow` is not a pack token at
+     all, so these per-theme shadows are an ADDITION rather than an override of
+     anything, and there is nothing here to diverge from. Flow Metrics and
+     Financial Plan add their own the same way.
+
+     There WAS a second, `--ring`, a translucent focus colour this app had
+     invented for itself. It went on 2026-08-22: the pack already ships a solid
+     `--focus-border` per theme, three sibling apps were already using it, and
+     the translucent version failed WCAG 1.4.11 at 1.28–1.60:1. See the
+     :focus-visible rule below. One app-local token fewer is the point. */
   /* ...and a third, added 2026-08-20: one height for everything in the header
      row. Sprint Predictability, Flow Metrics, Money Map and Golf Handicap all
      carry a `--chrome-h` for exactly this; this app was the one that didn't,
@@ -161,27 +167,38 @@
      quietly.
      Note the pairing follows the PALETTE, not the theme's name: sepia is a warm
      LIGHT theme and takes `light`. */
-  :root, [data-theme="midnight"] { color-scheme: dark; --ring: rgba(129,140,248,0.28);
+  :root, [data-theme="midnight"] { color-scheme: dark;
     --shadow: 0 1px 3px rgba(0,0,0,0.5); }
-  [data-theme="dark"] { color-scheme: dark; --ring: rgba(238,240,245,0.16);
+  [data-theme="dark"] { color-scheme: dark;
     --shadow: 0 1px 3px rgba(0,0,0,0.5); }
-  [data-theme="light"] { color-scheme: light; --ring: rgba(38,109,195,0.30);
+  [data-theme="light"] { color-scheme: light;
     --shadow: 0 1px 3px rgba(17,17,16,0.06), 0 4px 14px rgba(17,17,16,0.05); }
-  [data-theme="sepia"] { color-scheme: light; --ring: rgba(58,48,32,0.14);
+  [data-theme="sepia"] { color-scheme: light;
     --shadow: 0 1px 3px rgba(58,48,32,0.08), 0 4px 14px rgba(58,48,32,0.06); }
   /* Auto has no palette of its own — theme.css resolves it to Light or, under
-     prefers-color-scheme: dark, to Midnight. These three have to resolve the same way,
-     or an Auto page in light mode would wear a dark page's shadow, ring its focus in
-     the wrong blue, and tell the browser to draw the date picker's calendar button
-     dark on a light field. Same structure as the pack's own auto block. */
-  [data-theme="auto"] { color-scheme: light; --ring: rgba(38,109,195,0.30);
+     prefers-color-scheme: dark, to Midnight. These two have to resolve the same way,
+     or an Auto page in light mode would wear a dark page's shadow and tell the
+     browser to draw the date picker's calendar button dark on a light field. Same
+     structure as the pack's own auto block. */
+  [data-theme="auto"] { color-scheme: light;
     --shadow: 0 1px 3px rgba(17,17,16,0.06), 0 4px 14px rgba(17,17,16,0.05); }
   @media (prefers-color-scheme: dark) {
-    [data-theme="auto"] { color-scheme: dark; --ring: rgba(129,140,248,0.28);
+    [data-theme="auto"] { color-scheme: dark;
       --shadow: 0 1px 3px rgba(0,0,0,0.5); }
   }
 
   * { box-sizing: border-box; }
+  /* Nothing here moves much — the toast fades and that is the lot — but "not much"
+     is not the same as "none", and a fade is still motion to somebody who has asked
+     the system for none. Written as the blanket rule the WCAG technique suggests so
+     it keeps covering whatever gets added later, rather than naming the toast and
+     going stale the next time something animates. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+    }
+  }
   [hidden] { display: none !important; }
   /* Visible to screen readers only — carries the text equivalents for content that is
      shown graphically (emoji tiles) or implied by layout (the list's section heading). */
@@ -205,8 +222,27 @@
   }
   /* Focus lands on <main id="maincontent" tabindex="-1">, which must not then
      draw a focus ring around the entire page — the link itself already showed
-     where focus went. */
+     where focus went. Beats the global :focus-visible below on specificity. */
   main:focus { outline: none; }
+
+  /* ONE FOCUS INDICATOR FOR THE WHOLE APP, and this app was the last without it
+     (2026-08-22). Flow Metrics, Golf Handicap and Money Map all carry this exact
+     rule; here only the search box, the theme picker and the form fields drew a
+     ring of their own, so every BUTTON, LINK and FILTER CHIP fell back to whatever
+     ring the browser happens to draw. Chrome's is decent, which is why this went
+     unnoticed — but it is the browser's decision, not the app's, and a keyboard
+     user on another engine could be left guessing where they are.
+
+     `--focus-border` and NOT the local `--ring` it replaces. `--ring` was a
+     TRANSLUCENT version of the same hue (0.14–0.30 alpha), which composited
+     against its own field to 1.28–1.60:1 — WCAG 1.4.11 asks for 3:1, so the one
+     indicator the app did draw was the weakest thing on the screen, and worst on
+     sepia. `--focus-border` is the pack's own solid focus colour, per theme, and
+     the skip link above was already using it. No colour was invented for this:
+     the token existed and this app simply was not reading it.
+
+     `:focus-visible`, not `:focus`, so a mouse click doesn't leave a ring behind. */
+  :focus-visible { outline: 2px solid var(--focus-border); outline-offset: 2px; }
 
   .sr-only {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -243,6 +279,14 @@
      size and weight — every control here that cares states its own size after this
      rule, so nothing is left to the UA's 13.33px default either. */
   button, select, input, textarea { font: inherit; color: inherit; }
+  /* A placeholder is TEXT, so it answers to the 4.5:1 rule like any other. Left to
+     the browser it is `--text-primary` at the UA's own opacity, which measured
+     3.58:1 on dark, 3.84 on midnight and 4.24 on sepia — a hint nobody with low
+     vision could read, on the one control that tells you what the box is for.
+     `--text-muted` is the token the app already uses for exactly this job (the
+     "Filters:" caption beside it), and it clears the bar on all four themes.
+     `opacity: 1` because the UA applies its own otherwise and would undo it. */
+  ::placeholder { color: var(--text-muted); opacity: 1; }
 
   /* Width lives with the other layout tokens at the top of the file. The 64px of
      bottom padding is the siblings' number. It used to do a second job — keeping
@@ -371,7 +415,9 @@
      The floor is the widest of them, so the button only ever grows past it for
      a long account name. Golf Handicap pins the same button the same way. */
   #syncBtn { min-width: 148px; }
-  .theme-sel:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
+  /* The outline is the global :focus-visible rule's; this is the extra tell a
+     field gives, and it stays on plain :focus so a click shows it too. */
+  .theme-sel:focus { border-color: var(--accent); }
 
   /* ---- Stat tiles ---- */
   /* Three equal, center-aligned tiles — one per filter chip (clean / replace / reorder),
@@ -412,7 +458,7 @@
     width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--surface); color: var(--text-primary); font-size: var(--fs-sm);
   }
-  .search:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
+  .search:focus { border-color: var(--accent); }
   .filter-block { display: flex; flex-direction: column; gap: 4px; }
   /* One short word and a colon. It was "Filter — tap to toggle", which said what a
      chip does; the chips say that themselves the first time one is pressed, and the
@@ -420,8 +466,15 @@
   .filters-cap { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
   /* Three chips stretched full-width so the row never scrolls (matches iOS). */
   .filters { display: flex; gap: 6px; }
+  /* `--border-strong`, which is what every other button in this app wears — `.btn`
+     and `.act` both take it. The chips were on plain `--border`, and that measured
+     1.21–1.46:1 against the bar behind them: under the 3:1 WCAG 1.4.11 asks of the
+     boundary that tells you a control is a control, and the chips have no fill of
+     their own to fall back on. It also made them the one button here drawn on a
+     different edge from all the others. No new colour — the token was already in
+     the file twice over. */
   .filter-chip {
-    flex: 1 1 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
+    flex: 1 1 0; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-secondary);
     padding: 6px 8px; border-radius: var(--radius-sm); font-size: var(--fs-xs); cursor: pointer; white-space: nowrap;
     text-align: center; overflow: hidden; text-overflow: ellipsis;
   }
@@ -774,8 +827,8 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--bg); color: var(--text-primary); font-size: var(--fs-sm);
   }
-    .field input:focus, .field select:focus,
-  .sec-card > input:focus, .sec-card > select:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
+  .field input:focus, .field select:focus,
+  .sec-card > input:focus, .sec-card > select:focus { border-color: var(--accent); }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .quick button {
     border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-secondary);
