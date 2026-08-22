@@ -481,9 +481,13 @@
           gap: 12px; }
   /* A flex column, so the quadrant block can be told to take whatever height the
      row hands the card beyond its title and note. */
+  /* 18px, the family's card. Golf Handicap was --sp-6 (16px) and PAPTrack
+     14px 14px 12px, so a card was a slightly different box in three of the five
+     apps — which is what the .card.welcome pin below was working around rather
+     than fixing. */
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 14px 14px 12px; box-shadow: var(--shadow);
+    padding: 18px; box-shadow: var(--shadow);
     display: flex; flex-direction: column;
   }
 /* SEMIBOLD, not the browser's own bold. Headings had no weight declared here,
