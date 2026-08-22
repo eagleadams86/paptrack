@@ -570,42 +570,19 @@
      to the only person who hasn't seen it before. Removing it also took the
      second copy of the base64 image out of the file. */
   .empty h2 { color: var(--text-primary); margin: 0 0 6px; }
-  .empty p { font-size: 0.9rem; max-width: 44ch; margin: 0 auto 16px; }
-  .empty-actions { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .empty .kits { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-  /* Wide screens get the same words in a PANEL rather than a centred column.
-     Every other block on this page — the tiles, the toolbar, each card — is a
-     bordered box the width of the content, and the empty state was a narrow
-     stack of centred text floating in the middle of 1500px of nothing, which
-     read as a page that had failed to load rather than as an invitation. Two
-     columns: what the app does on the left, the three ways to start it on the
-     right. Same elements, same order in the markup, so the phone layout above
-     is untouched and a screen reader hears no difference.
+  /* The family's welcome measure. An empty state is nothing but centred
+     sentences — there is no table under it whose position a wrapped line would
+     cost — and a CENTRED line is the hard one to read back, because both ends
+     move and the eye has nothing to return to. 80ch, centred in the card, and
+     the paragraphs at the page's own size: 0.9rem and a 44ch column were for
+     the narrow floating stack this replaced. Money Map's rule and its number.
 
-     `align-items: center` on a two-row-tall right column, so the buttons sit
-     against the middle of the prose beside them rather than at its cap height. */
-  @media (min-width: 720px) {
-    .empty {
-      display: grid; grid-template-columns: minmax(0, 1fr) auto;
-      column-gap: 40px; align-items: center; text-align: left;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; box-shadow: var(--shadow); padding: 28px 32px;
-    }
-    .empty h2 { grid-column: 1; grid-row: 1; }
-    /* 80ch, not the centred layout's 44ch and not uncapped. Uncapped it ran the
-       full ~1100px of the left column as ONE line, which is roughly twice the
-       measure small text can be read down comfortably; 44ch is the cap for a
-       narrow centred column and left this one looking like the old floating
-       stack again. 80ch wraps it to two lines that still start at the panel's
-       left edge. */
-    .empty p { grid-column: 1; grid-row: 2; margin: 0; max-width: 80ch; }
-    .empty-actions { grid-column: 2; grid-row: 1 / span 2; align-items: stretch; }
-    /* Stacked, not side by side: two pill buttons in a row is a wide object to
-       hang off the end of a sentence, and stacked they line up with the third
-       way in below them. */
-    .empty .kits { flex-direction: column; }
-    .empty-actions .act { text-align: center; }
-  }
+     What went with the old markup: `.empty-actions`, `.empty .kits`, and the
+     720px two-column panel they were laid out in — prose on the left, the
+     buttons stacked on the right, on a breakpoint nothing else on this page
+     uses. The card IS the panel now, and the family's card is one column. */
+  .card > .empty { max-width: 80ch; margin-left: auto; margin-right: auto; }
+  .card > .empty p { margin: 1em 0 0; }
 
   /* ---- Buttons / FAB ----
      The family's rule, byte-for-byte off Sprint Predictability, Flow Metrics and
@@ -804,33 +781,41 @@
     <h1 class="brand"><img class="logo" src="data:image/png;base64,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" alt="" aria-hidden="true" width="22" height="22"
       >PAPTrack <span>&middot; Charlie&rsquo;s Epic Supply Tracker</span></h1>
     <div class="top-actions">
-      <!-- Order, pinned 2026-08-21: theme, then back up, then sync. It runs
-           least-consequential to most, and it is also the order that keeps the
-           row still — the sync button is the ONLY control here that changes
-           width as you use it ("Sign in to sync" → an account name → "⚠️ Not
-           syncing"), so it goes last, where its growing and shrinking moves
-           nothing but itself. Put anything after it and that control shifts
-           sideways every time sync changes state. -->
-      <!-- The four unified themes, listed alphabetically (matches every sibling
-           app). ☀ is the plain text sun, not ☀️ — the emoji-presentation
-           variant is drawn from the colour font, which is a different weight
-           and baseline from the ☾ and ✦ beside it and made the row read as
-           three different sets of glyphs. Midnight carries `selected`, because
-           the boot script in <head> has ALREADY applied midnight by the time
-           this row paints; without it the browser pre-selects the first option
-           and the picker reads "Dark" over a midnight page until the script at
-           the foot of the file sets .value. -->
-      <select class="theme-sel" id="themeSel" aria-label="Theme">
-        <!-- Alphabetical, so Auto leads — the pack's rule, and it happens to put the
-             one option that isn't a colour at the top. ◐ is a plain text glyph like
-             ☾ and ☀, not an emoji: the colour-font variants are a different weight
-             and baseline from the characters beside them. -->
-        <option value="auto">◐ Auto</option>
-        <option value="dark">☾ Dark</option>
-        <option value="light">☀ Light</option>
-        <option value="midnight" selected>✦ Midnight</option>
-        <option value="sepia">📜 Sepia</option>
-      </select>
+      <!-- ── The family's header order ─────────────────────────────────────────
+           Every app in the family lays this row out the same way, so a control
+           is in the same place whichever one you have open. Right to left,
+           because the row is right-aligned and the right-hand end is the fixed
+           one:
+
+             theme · Share · Back up · ⚙ settings · ☰ manage · the record
+             picker · zoom · find · everything else
+
+           An app skips whatever it hasn't got and the rest close up. The THEME
+           PICKER IS ALWAYS LAST — it is the one control that changes nothing
+           but how the page looks, so it sits at the far end, out of the way of
+           the controls that do something.
+
+           This row read theme · back up · sync until 2026-08-22, pinned on the
+           argument that sync goes LAST because it is the only control here that
+           changes width as you use it ("Sign in to sync" → an account name →
+           "⚠️ Not syncing"), and at the end its growing moves nothing but
+           itself. That argument survives the reordering intact and points the
+           other way: sync is "everything else", so it goes to the far LEFT of a
+           right-aligned row, where growing pushes into empty space rather than
+           shoving three controls sideways. -->
+      <!-- VISIBLE by default, and hidden on failure — not the other way round.
+           It shipped with `hidden` here and was revealed once the Firebase SDK
+           had loaded, which meant the header was painted without it and then
+           grew a button a moment later: the whole control cluster jumped left,
+           on every single refresh. Nothing about this button's SIZE depends on
+           the SDK, so it can be laid out at its final size immediately and
+           taken away in the two cases that can't use it (see the boot branch in
+           the sync module). The same rule as Golf Handicap, Sprint
+           Predictability and Flow Metrics: everything in this row is written
+           into the markup at its final size, because the header paints long
+           before anything else runs and a growing header is the one thing it
+           must never do. -->
+      <button class="act" id="syncBtn">☁️ Sign in to sync</button>
       <!-- Whose supplies these are. First in the row because it governs everything
            below it: change this and the whole list changes, where the theme only
            changes its colours.
@@ -859,19 +844,26 @@
          in to sync keeps its emoji: the sync module rewrites that label as the
          state changes, and it is the one control here about somewhere else. -->
       <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data"><span aria-hidden="true">⇩</span> Back up</button>
-      <!-- VISIBLE by default, and hidden on failure — not the other way round.
-           It shipped with `hidden` here and was revealed once the Firebase SDK
-           had loaded, which meant the header was painted without it and then
-           grew a button a moment later: the whole control cluster jumped left,
-           on every single refresh. Nothing about this button's SIZE depends on
-           the SDK, so it can be laid out at its final size immediately and
-           taken away in the two cases that can't use it (see the boot branch in
-           the sync module). The same rule as Golf Handicap, Sprint
-           Predictability and Flow Metrics: everything in this row is written
-           into the markup at its final size, because the header paints long
-           before anything else runs and a growing header is the one thing it
-           must never do. -->
-      <button class="act" id="syncBtn">☁️ Sign in to sync</button>
+      <!-- The four unified themes, listed alphabetically (matches every sibling
+           app). ☀ is the plain text sun, not ☀️ — the emoji-presentation
+           variant is drawn from the colour font, which is a different weight
+           and baseline from the ☾ and ✦ beside it and made the row read as
+           three different sets of glyphs. Midnight carries `selected`, because
+           the boot script in <head> has ALREADY applied midnight by the time
+           this row paints; without it the browser pre-selects the first option
+           and the picker reads "Dark" over a midnight page until the script at
+           the foot of the file sets .value. -->
+      <select class="theme-sel" id="themeSel" aria-label="Theme">
+        <!-- Alphabetical, so Auto leads — the pack's rule, and it happens to put the
+             one option that isn't a colour at the top. ◐ is a plain text glyph like
+             ☾ and ☀, not an emoji: the colour-font variants are a different weight
+             and baseline from the characters beside them. -->
+        <option value="auto">◐ Auto</option>
+        <option value="dark">☾ Dark</option>
+        <option value="light">☀ Light</option>
+        <option value="midnight" selected>✦ Midnight</option>
+        <option value="sepia">📜 Sepia</option>
+      </select>
     </div>
   </div>
 </header>
@@ -924,27 +916,64 @@
   <h2 class="sr-only">Your Supplies</h2>
   <div class="list" id="list"></div>
 
-  <div class="empty" id="empty" hidden>
-    <h2>Set Up Your CPAP Kit in One Tap</h2>
-    <p>PAPTrack keeps every supply on schedule — daily and weekly cleaning reminders, replacement countdowns, and a spares count so you reorder before you run out.</p>
-    <!-- One wrapper round all three ways in. It used to be the .kits row plus a
-         lone <p style="margin-top:14px"> holding the third button — a paragraph
-         standing in for a layout gap, and a second thing `.empty p` had to match.
-         Grouped, the three move together into the right-hand column of the wide
-         layout without either rule knowing about the other. -->
-    <div class="empty-actions">
-      <div class="kits">
-        <button class="btn primary" id="kitFull">Load full-face kit</button>
-        <button class="btn" id="kitNasal">Load nasal kit</button>
-      </div>
-      <button class="act" id="emptyAdd">or add items one at a time</button>
-    </div>
-  </div>
+  <!-- ══════════════════ THE FIRST SCREEN ══════════════════
+       The family's welcome card, to the shape Money Map settled on: what the app
+       IS, then where the figures go, then the ways in, then a line for each of
+       them in the button's own words. A reader deciding whether this is the
+       thing they want is deciding off the first paragraph, so it says what gets
+       tracked rather than promising "peace of mind"; the second is the privacy
+       claim the footer three inches below already makes, and the two must never
+       disagree — this app HAS optional sign-in, so "unless you sign in" is the
+       whole of the exception, exactly as the README and privacy.html put it.
+
+       The two-column panel this replaced was this app's own invention: prose on
+       the left, the three buttons stacked on the right, on a 720px breakpoint
+       nothing else here uses. Five apps opened side by side did not read as one
+       family, which is the same argument that took the accent-purple pill off
+       the buttons.
+
+       Three ways in, but NOT the family's three words. Money Map's Start Fresh
+       lays out a starter set of rows; here the starter set depends on something
+       only the reader knows — which mask they wear — and a button that guessed
+       would be setting up the wrong kit half the time. So the kit choice IS two
+       of the three buttons, and Start Fresh keeps its family meaning: begin with
+       nothing and add your own. Restore a Backup stays in the ⇩ window rather
+       than becoming a fourth button. -->
+  <div class="card" id="empty" hidden><div class="empty">
+    <h2>Welcome to PAPTrack</h2>
+    <p>A tracker for the kit you sleep with: every mask, cushion, filter, hose and chamber on
+      its own schedule — what to wash today and what to wash this week, how long each part has
+      left before it should be replaced, and how many spares you have, so an order goes in
+      before you run out rather than after.</p>
+    <p>Everything you enter stays in this browser. Nothing is uploaded unless you sign in,
+      which syncs it privately to your own account.</p>
+    <p style="margin-top:16px">
+      <button class="btn primary" id="emptyAdd">Start Fresh</button>
+      <button class="btn" id="kitFull">Load Mask Kit</button>
+      <button class="btn" id="kitNasal">Load Nasal Kit</button></p>
+    <p><strong>Start Fresh</strong> opens the Add Supply form with nothing set up, so you build
+      the list yourself — the presets in it carry the usual cleaning and replacement schedules
+      for each part.</p>
+    <p><strong>Load Mask Kit</strong> sets up a full-face kit in one press: mask, headgear,
+      tubing, filters, full-face cushions, humidifier chamber and distilled water, each on its
+      standard schedule. Rename, add or delete any of them.</p>
+    <p><strong>Load Nasal Kit</strong> is the same list with nasal cushions and pillows in
+      place of the mask and its full-face cushions.</p>
+  </div></div>
 
   </main>
 
   <footer>
-    <div id="privacyNote">🔒 100% private — everything is stored only in this browser. No account, no server, works offline.</div>
+    <!-- The SIGNED-OUT line, which is what the sync module writes into this
+         element the moment it knows nobody is signed in — so the markup ships
+         it rather than flashing a different claim first. It used to read "100%
+         private — everything is stored only in this browser. No account, no
+         server, works offline", which stopped being true the day sync landed
+         and disagreed with the welcome card three inches above it. Two
+         sentences on one screen disagreeing about where somebody's data goes is
+         the worst kind of wrong this app can be; Money Map's card records the
+         same correction. -->
+    <div id="privacyNote">🔒 Private — stored in this browser; sign in to sync your own devices. No account required to use the app.</div>
     <div class="links"><a href="privacy.html">Privacy policy</a>
       <a href="https://github.com/eagleadams86/paptrack" target="_blank" rel="noopener noreferrer">How it works</a></div>
     <!-- Authorship line, mirroring the sibling apps. Its own element, not part of

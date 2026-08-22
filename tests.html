@@ -904,15 +904,63 @@ t('the policy says WHEN Google\u2019s code loads, because it is not on sign-in',
     + 'the two is now wrong');
 });
 
+group('The welcome card \u2014 the first screen');
+/* Every app in the family opens on this same card, in the same words and the same
+   order \u2014 what the app is, where the figures go, the ways in, then a line for
+   each button. This app's three are NOT the family's three words, and that is
+   deliberate: Money Map's Start Fresh lays out a starter set of rows, and here the
+   starter set depends on something only the reader knows \u2014 which mask they wear
+   \u2014 so the kit choice IS two of the three buttons. */
+t('is a .empty nested in a card, the family\u2019s shape', () => {
+  const card = w.document.getElementById('empty');
+  ok(!!card && card.classList.contains('card'), 'no #empty carrying the card class');
+  ok(!!card.querySelector(':scope > .empty'), 'and no .empty nested inside it');
+});
+t('names the app, in Title Case', () => {
+  eq(w.document.querySelector('#empty h2').textContent, 'Welcome to PAPTrack');
+});
+t('offers three ways in, in order and in Title Case', () => {
+  eq(['emptyAdd', 'kitFull', 'kitNasal']
+       .map((id) => w.document.getElementById(id).textContent.trim()).join(' \u00b7 '),
+     'Start Fresh \u00b7 Load Mask Kit \u00b7 Load Nasal Kit');
+});
+/* THE claim on the screen, and the one that must never disagree with the footer
+   three inches below it. This app HAS optional sign-in, so a flat "nothing is
+   uploaded anywhere" would be a lie to anyone who has used it \u2014 and the
+   footer said exactly that until 2026-08-22. */
+t('makes the same privacy claim the footer does, conditional on sign-in', () => {
+  const card = w.document.getElementById('empty').textContent;
+  ok(/stays in this browser/.test(card) && /uploaded unless you sign in/.test(card),
+     'the card no longer says where the data goes');
+  const foot = w.document.getElementById('privacyNote').textContent;
+  ok(/stored in this browser/.test(foot) && /sign in to sync/.test(foot), foot);
+  ok(!/no server|100% private/i.test(foot),
+     'the footer is back to claiming there is no server, which stopped being true '
+     + 'the day sync landed \u2014 and the card above it says otherwise');
+});
+/* The two-column 720px panel this replaced was the app's own invention, and the
+   classes that laid it out went with it. */
+t('is one column \u2014 the old two-column panel and its classes are gone', () => {
+  /* The RULES, not the words: the comment that records why they went names them
+     both, and a bare mention would fail against its own explanation. */
+  ok(!/\.empty-actions\s*\{|\.empty \.kits\s*\{/.test(APP_SRC),
+     'the .empty-actions / .kits rules are still in the stylesheet');
+  ok(/\.card > \.empty \{ max-width: 80ch/.test(APP_SRC),
+     'and the family\u2019s 80ch measure is not');
+});
+
 group('Buttons wear the family\u2019s clothes');
 /* PAPTrack was the one app in the family whose primary button was an accent-purple
    pill while every sibling used a bordered `.btn` with a filled `.primary` variant —
    two of these apps open side by side did not look like one family. The rule is now
    Sprint Predictability's and Flow Metrics' byte-for-byte, and this pins the tokens
    rather than the hex, so a palette change in the pack carries without touching this. */
+/* #emptyAdd, not #kitFull: the welcome card took the family's shape on
+   2026-08-22 and with it the family's first button — Start Fresh leads, and the
+   two kits follow it as plain buttons. */
 t('the primary button is the pack\u2019s --btn-bg pair, not the accent', () => {
-  const el = w.document.getElementById('kitFull');
-  ok(el.classList.contains('primary'), 'the empty state has lost its primary button');
+  const el = w.document.getElementById('emptyAdd');
+  ok(el.classList.contains('primary'), 'the welcome card has lost its primary button');
   const s = w.getComputedStyle(el);
   const token = (n) => w.getComputedStyle(w.document.documentElement).getPropertyValue(n).trim();
   const rgb = (hex) => {

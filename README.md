@@ -32,9 +32,36 @@ This is the **web version** — `index.html` plus `theme.css` (the shared palett
 
 Every value is editable per item, and custom items are supported for anything else (chinstrap, SD card, wipes…).
 
+## The First Thing You See
+
+A browser with nothing in it opens on one card:
+
+> **Welcome to PAPTrack**
+>
+> A tracker for the kit you sleep with: every mask, cushion, filter, hose and chamber on its own
+> schedule — what to wash today and what to wash this week, how long each part has left before
+> it should be replaced, and how many spares you have…
+>
+> **Start Fresh** · **Load Mask Kit** · **Load Nasal Kit**
+
+**Start Fresh** opens the Add Supply form with nothing set up. **Load Mask Kit** and **Load
+Nasal Kit** are the one-tap setups below.
+
+Every app in the family opens on this same card, in the same words and the same order — what
+the app is, where the figures go, the ways in, then a line for each button. The three buttons
+here are not the family's three words, and that is deliberate: Money Map's *Start Fresh* lays
+out a starter set of rows, and here the starter set depends on something only you know — which
+mask you wear — so the kit choice **is** two of the three buttons. Restore stays where it was,
+in the ⇩ *Back Up & Restore* window.
+
+It replaced a two-column panel that was this app's own invention: prose on the left, the
+buttons stacked on the right, on a 720px breakpoint nothing else on the page used. Five apps
+open side by side did not read as one family — the same argument that took the accent-purple
+pill off the buttons.
+
 ## Features
 
-- **One-tap setup** — "Load full-face kit" (seven supplies) or "Load nasal kit" (six) adds the matching supplies at once; then set each item's real "last replaced" date via Edit. The nasal kit has no separate "Mask" item — on a nasal setup the cushion or pillows *are* the mask. Both kits include 💦 Distilled Water, which has no schedule at all: it carries no countdown, sorts last, and is driven purely by the spares count
+- **One-tap setup** — "Load Mask Kit" (seven supplies) or "Load Nasal Kit" (six) adds the matching supplies at once; then set each item's real "last replaced" date via Edit. The nasal kit has no separate "Mask" item — on a nasal setup the cushion or pillows *are* the mask. Both kits include 💦 Distilled Water, which has no schedule at all: it carries no countdown, sorts last, and is driven purely by the spares count
 - **Replacement and cleaning countdowns** — both badges on a card show the next due date, the days left, and the days overdue once it passes, with urgency-colored badges (red when overdue *or* nearly due, amber as the deadline approaches, otherwise green); the list sorts most-urgent first. Thresholds scale with each item's own cycle — the cleaning badge off "clean every N days", the replacement badge off "replace every N days" (amber at ≤40%, red at ≤20%, capped at 14/7 days and never covering the whole cycle), so a 2-week consumable isn't flagged "replace soon" the day it's replaced and a daily-cleaned mask isn't red the moment you wash it
 - **Badges carry their colour in the outline**, not just a dot, and each one names its own state in words. The four pale fills were nearly indistinguishable from one another for a red-green colourblind reader — on the dark themes all six pairings failed — so the border does that work instead: the strong status colours are far enough apart to tell at a glance. "Nearly due" and "overdue" deliberately share the same red; once the red-green axis is gone there is only room for about three levels, so a fourth was dropped rather than kept as a distinction that couldn't be seen
 - **As-needed consumables** — set "Replace every" to 0 (or tap the **As needed** chip) for items with no fixed schedule, like distilled water: no countdown or due date, they sort last, and reordering is driven purely by the spares count
