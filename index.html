@@ -214,8 +214,11 @@
   /* text-size-adjust: theme.css carries it (pack rule 9) — not declared here. */
   body {
     margin: 0; background: var(--bg); color: var(--text-primary);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    line-height: 1.45;
+    /* The shorthand carries the pack's line height, so the 1.45 that used to sit
+       under it is gone: it was this app's own number and the only one in the
+       family — every sibling is on --lh-base (1.5) — and a `line-height` after
+       the `font:` shorthand silently overrides the half of it that matters. */
+    font: var(--fw-normal) var(--fs-base)/var(--lh-base) var(--font-sans);
     /* No TOP inset here any more. The header is a sticky, full-width bar now, and
        an inset on the body would either push it away from the top of the screen
        or leave its background short of the status bar. The top inset moved onto
@@ -286,7 +289,7 @@
      lines tall where every sibling's is one — and a sticky bar pays for its
      height on every screen, so the stack cost more here than it did before.
      `margin: 0 auto 0 0` is what pushes the control cluster to the right edge. */
-  .brand { font-size: 17px; font-weight: 700; letter-spacing: -0.01em;
+  .brand { font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.01em;
            margin: 0 auto 0 0; }
   .brand span { color: var(--text-muted); font-weight: 500; }
   /* 22px, the siblings' number, and NOT a flex row (Sprint Predictability's note
@@ -326,7 +329,7 @@
   }
   .theme-sel:hover, .top-actions .act:hover { border-color: var(--text-muted); }
   .theme-sel {
-    height: var(--chrome-h); padding: 0 10px; font-size: 0.85rem; cursor: pointer;
+    height: var(--chrome-h); padding: 0 10px; font-size: var(--fs-xs); cursor: pointer;
   }
   /* The header row is ONE height, pinned on the buttons and the picker alike.
      A native <select> ignores line-height, so pinning it on one and not the
@@ -358,7 +361,7 @@
        bigger than the two buttons beside it at the same 40px height. Buttons
        have no zoom to avoid, so this is cosmetic: it exists only so the row
        reads as one row on a phone. */
-    .top-actions .act { font-size: 16px; }
+    .top-actions .act { font-size: var(--fs-base); }
   }
   /* The other half of not moving: this button's LABEL changes as you use it —
      "☁️ Sign in to sync", then "☁️ Charlie", then "⚠️ Not syncing" — and each
@@ -371,7 +374,14 @@
   /* ---- Stat tiles ---- */
   /* Three equal, center-aligned tiles — one per filter chip (clean / replace / reorder),
      each a category glyph + label, a count, and an emoji sub-line. Mirrors the iOS app. */
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  /* minmax(0, 1fr), not 1fr. A bare `1fr` is `minmax(auto, 1fr)`, so a column
+     refuses to go below its own min-content width — and three tiles whose labels
+     are "CLEAN", "REPLACE" and "REORDER" need about 350px between them, which
+     pushed the page 30px wider than a 320px screen and made it scroll sideways.
+     A page that scrolls in two dimensions at 320px fails WCAG 1.4.10 Reflow, and
+     320px is also the narrowest phone this is meant to be used on. With the min
+     at 0 the columns give way and the text inside them wraps instead. */
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
   .stat {
     background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
     padding: 10px; box-shadow: var(--shadow);
@@ -381,25 +391,33 @@
      --text-hint, which sit at about 4.5:1 and stop being legible below it. rem
      rather than the pack's px token so these still grow with a larger browser
      font size, the way every other size on this page does. */
-  .stat .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
-  .stat .value { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
-  .stat .sub { font-size: 0.75rem; color: var(--text-secondary); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat .label { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
+  .stat .value { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
+  /* WRAPS rather than truncating. It was `nowrap` with an ellipsis, which on a
+     320px screen turned "on schedule ✓" into "on sched…" and the reorder tile's
+     emoji list into a single "…" — content lost to a layout that had room for it
+     one line down. WCAG 1.4.10 asks for reflow WITHOUT loss of content, and a
+     three-across row of tiles has to give way somewhere; two short lines is the
+     honest place. The tiles are a flex column and stretch to the tallest, so a
+     wrapped line costs the row height, not alignment. */
+  .stat .sub { font-size: var(--fs-xs); color: var(--text-secondary); max-width: 100%;
+    overflow-wrap: anywhere; }
 
   /* ---- Toolbar ---- */
   /* Stacked on a phone, as it always was. */
   .toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
   .search {
     width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text-primary); font-size: 0.95rem;
+    background: var(--surface); color: var(--text-primary); font-size: var(--fs-sm);
   }
   .search:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
   .filter-block { display: flex; flex-direction: column; gap: 4px; }
-  .filters-cap { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .filters-cap { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
   /* Three chips stretched full-width so the row never scrolls (matches iOS). */
   .filters { display: flex; gap: 6px; }
   .filter-chip {
     flex: 1 1 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-secondary);
-    padding: 6px 8px; border-radius: 12px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+    padding: 6px 8px; border-radius: 12px; font-size: var(--fs-xs); cursor: pointer; white-space: nowrap;
     text-align: center; overflow: hidden; text-overflow: ellipsis;
   }
   .filter-chip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg); border-color: var(--text-primary); font-weight: 600; }
@@ -468,13 +486,13 @@
     padding: 14px 14px 12px; box-shadow: var(--shadow);
     display: flex; flex-direction: column;
   }
-  .card h3 { margin: 0; font-size: 1.02rem; }
+  .card h3 { margin: 0; font-size: var(--fs-base); }
   /* A paused supply reads as set aside without being made hard to read: the title drops to
      the secondary ink, which is a palette token the contrast gate already covers, rather
      than an opacity that would quietly take every line on the card below AA. */
   .card.paused h3 { color: var(--text-secondary); }
   .card.paused > .badge { margin-top: 8px; }
-  .card .notes { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 0; }
+  .card .notes { font-size: var(--fs-xs); color: var(--text-secondary); margin: 4px 0 0; }
   /* 2×2 quadrant grid — cleaning · replacing · spares · manage — on chip-bg tiles, matching
      the iOS card. align-items:stretch keeps the two tiles in a row the same height. */
   /* Three stretches, doing three different jobs. `align-items` is across a row —
@@ -488,8 +506,8 @@
     background: var(--surface-alt); border-radius: 12px; padding: 10px;
     display: flex; flex-direction: column; gap: 8px;
   }
-  .quad-h { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-  .quad-line { font-size: 0.8rem; color: var(--text-secondary); }
+  .quad-h { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .quad-line { font-size: var(--fs-xs); color: var(--text-secondary); }
   /* The 1.5px border is the badge's real status signal, not trim. The tint fills are pale
      washes built to sit behind text, and they barely differ from each other once red-green
      deficiency flattens them — 8.2 apart on the dark themes, 14.2 on the light ones, against
@@ -498,7 +516,7 @@
      surface to carry it. It doubles as the outline that lifts the pill off the card.
      Non-text contrast against the card runs 5.3-13.7, well over the 3:1 needed. */
   .badge {
-    display: flex; align-items: flex-start; gap: 6px; font-size: 0.78rem; line-height: 16px; font-weight: 600;
+    display: flex; align-items: flex-start; gap: 6px; font-size: var(--fs-xs); line-height: 16px; font-weight: 600;
     padding: 6px 10px; border-radius: 14px; width: 100%; color: var(--text-primary);
     border: 1.5px solid transparent;
   }
@@ -521,7 +539,7 @@
   .hist li {
     display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: space-between;
     padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px;
-    background: var(--surface-alt); margin-bottom: 6px; font-size: 0.85rem;
+    background: var(--surface-alt); margin-bottom: 6px; font-size: var(--fs-xs);
   }
   .hist .hk { font-weight: 600; }
   /* One row per person in the profile dialog: their name, and the two things you can
@@ -535,7 +553,7 @@
     flex: 1 1 140px; min-width: 0; padding: 6px 8px; border-radius: 8px;
     border: 1px solid var(--input-border); background: var(--surface); color: var(--text-primary);
   }
-  .prow .phint { font-size: 0.78rem; color: var(--text-secondary); }
+  .prow .phint { font-size: var(--fs-xs); color: var(--text-secondary); }
   #profileNew {
     flex: 1 1 160px; min-width: 0; padding: 8px 10px; border-radius: 10px;
     border: 1px solid var(--input-border); background: var(--surface); color: var(--text-primary);
@@ -547,15 +565,15 @@
   .stock { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .stock button {
     width: 30px; height: 30px; border-radius: 12px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text-primary); font-size: 1rem; cursor: pointer; line-height: 1;
+    background: var(--surface); color: var(--text-primary); font-size: var(--fs-base); cursor: pointer; line-height: 1;
   }
   .stock .count { font-weight: 700; min-width: 1.6ch; text-align: center; }
   .act {
     border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);
-    padding: 8px 12px; border-radius: 12px; font-size: 0.85rem; cursor: pointer;
+    padding: 8px 12px; border-radius: 12px; font-size: var(--fs-xs); cursor: pointer;
   }
   .act:hover { border-color: var(--text-muted); }
-  .quad .act { width: 100%; text-align: center; font-size: 0.82rem; }
+  .quad .act { width: 100%; text-align: center; font-size: var(--fs-xs); }
   /* Destructive buttons. Same shape as every other button — only the colour differs,
      from the existing --err token, so nothing here diverges from the theme pack.
      Mirrored in Sprint Predictability, Flow Metrics, Money Map and Golf Handicap. */
@@ -616,7 +634,7 @@
   .fab {
     position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
     box-shadow: 0 6px 20px rgba(0,0,0,0.35); z-index: 5;
-    padding: 12px 18px; border-radius: 999px; font-weight: 700; font-size: 0.95rem;
+    padding: 12px 18px; border-radius: 999px; font-weight: 700; font-size: var(--fs-sm);
   }
 
   /* ---- Dialog / form ---- */
@@ -647,19 +665,19 @@
      phone width it was a long scroll on a desktop screen. */
   #formDialog { width: min(820px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
-  dialog h2 { margin: 0 0 12px; font-size: 1.1rem; }
+  dialog h2 { margin: 0 0 12px; font-size: var(--fs-md); }
   .field { margin-bottom: 12px; }
-  .field label { display: block; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
+  .field label { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
   .field input, .field select, .sec-card > input, .sec-card > select {
     width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--border);
-    background: var(--bg); color: var(--text-primary); font-size: 0.95rem;
+    background: var(--bg); color: var(--text-primary); font-size: var(--fs-sm);
   }
     .field input:focus, .field select:focus,
   .sec-card > input:focus, .sec-card > select:focus { outline: 2px solid var(--ring); border-color: var(--accent); }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .quick button {
     border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-secondary);
-    padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; cursor: pointer;
+    padding: 4px 10px; border-radius: 999px; font-size: var(--fs-xs); cursor: pointer;
   }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .grid2 .field { margin-bottom: 0; }
@@ -667,14 +685,14 @@
      rounded card holding the fields, and a muted footer hint below it. */
   .formsec { margin-bottom: 16px; }
   .formsec .sec-h {
-    font-size: 0.95rem; color: var(--text-primary); font-weight: 700; margin: 0 0 8px; padding-left: 2px;
+    font-size: var(--fs-sm); color: var(--text-primary); font-weight: 700; margin: 0 0 8px; padding-left: 2px;
   }
   .sec-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; padding: 12px;
   }
   .sec-card .field:last-child { margin-bottom: 0; }
-  .sec-foot { font-size: 0.75rem; color: var(--text-muted); margin: 7px 0 0; padding-left: 2px; }
+  .sec-foot { font-size: var(--fs-xs); color: var(--text-muted); margin: 7px 0 0; padding-left: 2px; }
   .formfoot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
   /* Two columns of sections once the dialog is at its full 820px — 860px of
      window, so the pairing only happens when both columns are actually wide.
@@ -718,17 +736,17 @@
     }
   }
   /* ---- Back up & restore ---- */
-  dialog p.hint { font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 12px; }
+  dialog p.hint { font-size: var(--fs-xs); color: var(--text-secondary); margin: 0 0 12px; }
   .datarow { display: flex; gap: 10px; flex-wrap: wrap; }
   /* "Start again" inside the backup dialog. Folded away deliberately: the one
      irreversible action in the app should take a deliberate open, not sit a
      mis-click away from the export. Same pattern in the sibling apps. */
   details.danger-zone { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
   details.danger-zone > summary {
-    cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);
+    cursor: pointer; font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary);
   }
   details.danger-zone > summary:hover { color: var(--text-primary); }
-  .warn { color: var(--err); font-size: 0.82rem; margin: 0 0 12px; }
+  .warn { color: var(--err); font-size: var(--fs-xs); margin: 0 0 12px; }
   .warn:empty { display: none; }
   /* The delete-all footer holds three buttons, and on a phone they don't fit
      across one line: the safety net goes on a row of its own rather than
@@ -742,7 +760,7 @@
   /* ---- Footer ---- */
   /* Left-aligned, like the resupply tip below it and every sibling app's footer — the
      note wraps to two lines on a phone, and centred wrapped text has no edge to read down. */
-  footer { margin-top: 28px; font-size: 0.78rem; color: var(--text-muted); text-align: left; }
+  footer { margin-top: 28px; font-size: var(--fs-xs); color: var(--text-muted); text-align: left; }
   footer .links { margin-top: 8px; display: flex; gap: 8px; }
   /* Same padded target as the buttons below — a hairline footer link is no easier
      to hit than a hairline footer button. The padding is right-only so the link's text
@@ -755,20 +773,20 @@
   /* Padded out to clear the 24×24 minimum target size — these are the only route to a
      backup, so they need to be comfortably tappable rather than hairline-thin links. */
   footer button {
-    background: none; border: none; color: var(--accent); font-size: 0.82rem; cursor: pointer;
+    background: none; border: none; color: var(--accent); font-size: var(--fs-xs); cursor: pointer;
     text-decoration: underline; padding: 6px 10px; border-radius: 8px; min-height: 32px;
   }
   footer button:hover { background: var(--surface-alt); }
   .insurance {
     margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 12px;
-    font-size: 0.78rem; color: var(--text-secondary); text-align: left;
+    font-size: var(--fs-xs); color: var(--text-secondary); text-align: left;
   }
 
   /* ---- Toast ---- */
   .toast {
     position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: var(--text-primary); color: var(--bg); padding: 10px 16px; border-radius: 999px;
-    font-size: 0.85rem; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
+    font-size: var(--fs-xs); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
     max-width: calc(100vw - 40px); text-align: center;
   }
   .toast.show { opacity: 1; }
@@ -1195,7 +1213,7 @@
 
 <dialog id="syncChoiceDialog" aria-labelledby="syncChoiceTitle">
   <h2 id="syncChoiceTitle">Which Data Do You Want to Keep?</h2>
-  <p id="syncChoiceBody" style="color:var(--text-secondary); font-size:0.88rem; margin:0 0 16px;"></p>
+  <p id="syncChoiceBody" style="color:var(--text-secondary); font-size:var(--fs-sm); margin:0 0 16px;"></p>
   <div class="formfoot">
     <button type="button" class="act" id="syncKeepDeviceBtn">Keep this device</button>
     <button type="button" class="btn" id="syncKeepGoogleBtn">Keep Google's data</button>
@@ -1380,7 +1398,7 @@ function haltForNewerData(found) {
   card.setAttribute('style', 'max-width:34em;border:1px solid var(--border,#262f4a);'
     + 'border-radius:12px;padding:24px 26px;background:var(--surface,#121829)');
   const h = document.createElement('h1');
-  h.setAttribute('style', 'margin:0 0 12px;font-size:20px');
+  h.setAttribute('style', 'margin:0 0 12px;font-size:var(--fs-lg)');
   h.textContent = 'This Data Was Saved by a Newer Version';
   const p1 = document.createElement('p');
   p1.setAttribute('style', 'margin:0 0 12px');
