@@ -357,6 +357,19 @@ not.
   — it is navigation, not the document — but "outside main" is not the same as "outside every
   landmark", which is where it sat: axe-core's `region` rule found it on all six privacy pages
   at once. The `<nav>` carries an `aria-label` naming where it goes back to.
+- **Fields are styled by CONTAINER here, not by input type, and that is deliberately left
+  alone** (2026-08-22). `.field input`, `.sec-card > input` and the toolbar's `.search` are
+  element selectors, so a field of a type nobody has used yet is styled the moment it is
+  dropped in — this app already has a `type=url` that nothing had to be told about. The
+  sibling apps style by a TYPE WHITELIST and that list has silently gone stale twice (Flow
+  Metrics missing `date`, Golf Handicap missing `search`, each shipping a field wearing the
+  browser's own box); on 2026-08-22 all three were repointed at the theme pack's list. **This
+  app was surveyed in the same pass and needs none of it — don't "finish the job" by giving
+  it a type list.** The container approach has the opposite risk instead: `.field input`
+  would style a CHECKBOX if one were ever put inside a `.field`, so put one in a
+  `.checkline` or give it its own rule rather than letting it inherit a 100%-wide box.
+  `.search` keeps its own rule for the same reason it always had one — it is a toolbar
+  control, not a dialog field, and its padding, radius and background say so.
 - **Decorative glyphs on buttons are `aria-hidden` everywhere, not just in the header.** The
   header row got the treatment on 2026-08-21 and the rest of the app did not, so a screen
   reader still read "downwards black arrow, Export JSON" in every dialog. Around 50 buttons

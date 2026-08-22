@@ -607,14 +607,39 @@
     .empty-actions .act { text-align: center; }
   }
 
-  /* ---- Buttons / FAB ---- */
+  /* ---- Buttons / FAB ----
+     The family's rule, byte-for-byte off Sprint Predictability, Flow Metrics and
+     Money Map — and copied rather than admired because PAPTrack was the one app
+     whose primary button was an accent-purple pill (999px, bold, 0.95rem) while
+     every sibling used a bordered button with a filled `.primary` variant. Two of
+     these apps open side by side did not look like one family, and this was the
+     odd one out.
+
+     No new colour: `--btn-bg`/`--btn-text` are the pack's own primary pair, unused
+     here until now, and `--accent` keeps its other jobs (links, focus ring, the
+     menu checkmark). Nothing in the palette moved — this is an app catching up
+     with the pack, not a change to it. */
   .btn {
-    background: var(--accent); color: var(--on-accent); border: none; font-weight: 700;
-    padding: 12px 18px; border-radius: 999px; font-size: 0.95rem; cursor: pointer;
+    background: var(--surface-alt); color: var(--text-primary);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    padding: 7px 12px; cursor: pointer; white-space: nowrap;
   }
+  .btn:hover { border-color: var(--text-muted); }
+  /* The one thing a screen is actually asking for. Filled, so it reads first. */
+  .btn.primary { background: var(--btn-bg); color: var(--btn-text); border-color: var(--btn-bg); }
+  .btn.primary:hover { opacity: .88; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary:disabled:hover { opacity: .45; }
+  /* The floating add button keeps its own size and shape on top of `.btn primary`.
+     The family's 7px/13px button is a 31px target, and this is the one control here
+     meant to be hit with a thumb against a moving list — 44px is the floor the rest
+     of this app's accessibility work holds to, so the padding stays. The pill radius
+     stays with it: it is what makes a floating control read as floating rather than
+     as a panel that has come loose. */
   .fab {
     position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom));
     box-shadow: 0 6px 20px rgba(0,0,0,0.35); z-index: 5;
+    padding: 12px 18px; border-radius: 999px; font-weight: 700; font-size: 0.95rem;
   }
 
   /* ---- Dialog / form ---- */
@@ -909,7 +934,7 @@
          layout without either rule knowing about the other. -->
     <div class="empty-actions">
       <div class="kits">
-        <button class="btn" id="kitFull">Load full-face kit</button>
+        <button class="btn primary" id="kitFull">Load full-face kit</button>
         <button class="btn" id="kitNasal">Load nasal kit</button>
       </div>
       <button class="act" id="emptyAdd">or add items one at a time</button>
@@ -931,7 +956,7 @@
   </footer>
 </div>
 
-<button class="btn fab" id="addBtn">+ Add supply</button>
+<button class="btn primary fab" id="addBtn">+ Add supply</button>
 <div class="toast" id="toast" role="status"></div>
 
 <dialog id="formDialog" aria-labelledby="formTitle">
@@ -1049,7 +1074,7 @@
     </div>
     <div class="formfoot">
       <button type="button" class="act" id="cancelBtn">Cancel</button>
-      <button type="submit" class="btn" id="saveBtn">Save</button>
+      <button type="submit" class="btn primary" id="saveBtn">Save</button>
     </div>
   </form>
 </dialog>
@@ -1070,7 +1095,7 @@
   </div>
   <p class="hint" id="profileNote" style="margin-top:12px"></p>
   <div class="formfoot">
-    <button type="button" class="btn" id="profileCloseBtn">Done</button>
+    <button type="button" class="btn primary" id="profileCloseBtn">Done</button>
   </div>
 </dialog>
 
@@ -1086,7 +1111,7 @@
   <h3 class="sec-h" style="margin-top:18px">History</h3>
   <div id="itemHistory"></div>
   <div class="formfoot">
-    <button type="button" class="btn" id="itemCloseBtn">Done</button>
+    <button type="button" class="btn primary" id="itemCloseBtn">Done</button>
   </div>
 </dialog>
 
@@ -1120,7 +1145,7 @@
     </div>
   </details>
   <div class="formfoot">
-    <button type="button" class="btn" id="dataCloseBtn">Done</button>
+    <button type="button" class="btn primary" id="dataCloseBtn">Done</button>
   </div>
 </dialog>
 

@@ -904,6 +904,48 @@ t('the policy says WHEN Google\u2019s code loads, because it is not on sign-in',
     + 'the two is now wrong');
 });
 
+group('Buttons wear the family\u2019s clothes');
+/* PAPTrack was the one app in the family whose primary button was an accent-purple
+   pill while every sibling used a bordered `.btn` with a filled `.primary` variant —
+   two of these apps open side by side did not look like one family. The rule is now
+   Sprint Predictability's and Flow Metrics' byte-for-byte, and this pins the tokens
+   rather than the hex, so a palette change in the pack carries without touching this. */
+t('the primary button is the pack\u2019s --btn-bg pair, not the accent', () => {
+  const el = w.document.getElementById('kitFull');
+  ok(el.classList.contains('primary'), 'the empty state has lost its primary button');
+  const s = w.getComputedStyle(el);
+  const token = (n) => w.getComputedStyle(w.document.documentElement).getPropertyValue(n).trim();
+  const rgb = (hex) => {
+    const h = hex.replace('#', '');
+    return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`;
+  };
+  eq(s.backgroundColor, rgb(token('--btn-bg')), 'primary fill must be --btn-bg');
+  eq(s.color, rgb(token('--btn-text')), 'primary text must be --btn-text');
+  ok(s.backgroundColor !== rgb(token('--accent')), 'the accent is not a button fill in this family');
+});
+t('a plain button is the bordered one the siblings use', () => {
+  const s = w.getComputedStyle(w.document.getElementById('kitNasal'));
+  const token = (n) => w.getComputedStyle(w.document.documentElement).getPropertyValue(n).trim();
+  const rgb = (hex) => {
+    const h = hex.replace('#', '');
+    return `rgb(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)})`;
+  };
+  eq(s.backgroundColor, rgb(token('--surface-alt')));
+  eq(s.borderTopColor, rgb(token('--border-strong')));
+  eq(s.borderTopWidth, '1px');
+  eq(s.padding, '7px 12px', "the family's button padding");
+});
+/* The floating button deliberately does NOT take the family's 7px/13px size: it is the
+   one control here meant to be hit with a thumb against a moving list, and 31px is under
+   the 44px floor the rest of this app's accessibility work holds to. */
+t('the floating add button keeps a thumb-sized target', () => {
+  const el = w.document.getElementById('addBtn');
+  ok(el.classList.contains('primary'), 'it is still the screen\u2019s primary action');
+  const s = w.getComputedStyle(el);
+  eq(s.padding, '12px 18px');
+  eq(s.borderTopLeftRadius, '999px', 'a floating control reads as floating by being a pill');
+});
+
 group('The header picker reads the theme the page is actually showing');
 /* The picker had no `selected` and its ☀ was the emoji-presentation variant.
    Without `selected` the browser pre-selects the FIRST option, so the row
