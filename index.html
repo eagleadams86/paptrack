@@ -490,41 +490,48 @@
      quadrants would be over 1000px each to hold a date and a button. Flowing the
      cards into columns is what makes the extra width worth having.
 
-     auto-fill with a 400px floor rather than a fixed column count: the card is
-     the thing with a minimum readable width, not the page. Below 400px the two
-     quadrants in a row stop being able to hold a badge's date line in two lines
-     — the list drops to one column on its own there, so the phone layout is
-     unchanged and needs no media query of its own. Pairing at 400 rather than
-     the 460 first tried is what covers the 900px-ish laptop window: at 460 that
-     width fell one column short and showed a single card stretched across the
-     whole page, which is the shape the widening was meant to get rid of. Three
-     is the ceiling from ~1250px up — see the cap on `.list` itself.
-
-     `min(400px, 100%)` rather than a bare 400px, and it is load-bearing: a
-     minmax MINIMUM is not a suggestion, so on a 375px phone a bare 400 lays out
-     a 400px column anyway and the card hangs off the right of the screen —
-     which scrolls the whole page sideways. The min() lets the floor collapse to
-     the container when the container is the smaller of the two.
+     auto-fill against a measured floor rather than a fixed column count: the card
+     is the thing with a minimum width, not the page, and the list drops a column
+     on its own when the width stops paying for one — so the phone layout needs no
+     media query of its own. What that floor is measured against, and the
+     three-column ceiling above it, are both on the `.list` rule itself.
 
      Cards in a row are the SAME HEIGHT — the grid's default `stretch`, and it is
      left alone deliberately. Only some supplies carry a note, so sizing each
      card to its own content put a one-line step between neighbours and left the
      row with a ragged bottom edge. Where that spare height goes inside the card
      is the other half of it; see `.quadrants` below. */
-  /* THREE COLUMNS AT MOST, whatever the page is doing (2026-08-22). auto-fill on
-     its own gave five at the 2400px width, and a supply card does not want to be
-     one of five: the 2x2 tiles inside it were down to the width of their own
-     labels. The cap is written as the column MINIMUM rather than a fixed
-     `repeat(3, 1fr)`, so the responsive behaviour underneath is untouched — the
-     floor is the larger of the 400px card width and a third of the row, so a
-     third of the row wins from about 1250px up (three wide cards) and the 400px
-     floor wins below it (two, then one, exactly as before).
+  /* Two numbers, and both are measured rather than chosen.
 
-     `- 24px` is the two 12px gaps a three-column row carries. Keep it in step
-     with the `gap` below or the third column falls off the row at the width
-     where the two terms cross. */
+     THE FLOOR IS 660px, WHICH IS THE NARROWEST CARD THAT KEEPS A STATUS BADGE ON
+     ONE LINE (2026-08-22). It was 400px, which is the narrowest card whose 2x2
+     tiles still hold a date — and at 400 every badge in the app wrapped to two or
+     three lines ("Replace by Sep 5, 2026 · 14 days left" over three). A wrapped
+     badge is the thing the eye trips on in this list, so the badge is what the
+     column count should answer to: the row drops from three cards to two, and two
+     to one, at the width where the pills would otherwise start wrapping. 656px is
+     the measured figure over every badge the loaded kits produce, with the longest
+     of them ("Replace by <date> · 180 days left") the one that sets it; 660 is that
+     with a few pixels for the rounding a different platform's fonts do. A cycle
+     long enough to print four digits of "days left" needs ~680 and will wrap — that
+     is the deliberate stop, since designing for the 3650-day ceiling costs a whole
+     column at a 1400px window.
+
+     THREE COLUMNS IS THE CEILING. auto-fill on its own gave five at the 2400px page
+     width, and a supply card does not want to be one of five. The cap is written as
+     part of the column MINIMUM rather than as a fixed `repeat(3, 1fr)`, so the
+     responsive behaviour underneath is untouched: the larger of the two terms wins,
+     so a third of the row wins from about 2040px up and the 660px badge floor wins
+     below it. `- 24px` is the two 12px gaps a three-column row carries — keep it in
+     step with the `gap` or the third column falls off the row at the width where
+     the two terms cross.
+
+     `min(660px, 100%)` and not a bare 660: a minmax MINIMUM is not a suggestion, so
+     on a phone a bare 660 lays out a 660px column and the card hangs off the right
+     of the screen, scrolling the whole page sideways. Badges wrap on a phone, and
+     that is the one place they must. */
   .list { display: grid; gap: 12px;
-          grid-template-columns: repeat(auto-fill, minmax(max(min(400px, 100%), calc((100% - 24px) / 3)), 1fr)); }
+          grid-template-columns: repeat(auto-fill, minmax(max(min(660px, 100%), calc((100% - 24px) / 3)), 1fr)); }
   /* A flex column, so the quadrant block can be told to take whatever height the
      row hands the card beyond its title and note. */
   /* 18px, the family's card. Golf Handicap was --sp-6 (16px) and PAPTrack

@@ -1051,14 +1051,17 @@ t('the chip hover cannot repaint a pressed chip', () => {
 });
 
 /* Two things live in one `minmax()` on `.list`, and both read like arithmetic that
-   could be tidied away. `min(400px, 100%)` is the phone: a minmax MINIMUM is not a
-   suggestion, so a bare 400px lays out a 400px column on a 375px screen and scrolls
-   the whole page sideways. `max(..., (100% - 24px) / 3)` is the ceiling: without it
-   auto-fill puts five cards in a row at the 2400px page width. The 24px is the two
-   gaps a three-column row carries and has to match the `gap`. */
-t('the card grid keeps its phone floor and its three-column ceiling', () => {
+   could be tidied away. The 660px floor is MEASURED: it is the narrowest card that
+   keeps a status badge on one line, so the row loses a column exactly when the pills
+   would otherwise wrap. Wrapped inside `min(660px, 100%)` for the phone, because a
+   minmax MINIMUM is not a suggestion — a bare 660px lays out a 660px column on a
+   375px screen and scrolls the whole page sideways. `max(..., (100% - 24px) / 3)` is
+   the ceiling: without it auto-fill puts five cards in a row at the 2400px page
+   width. The 24px is the two gaps a three-column row carries and has to match the
+   `gap`. */
+t('the card grid keeps its badge floor and its three-column ceiling', () => {
   const rule = (APP_SRC.match(/\.list \{[^}]*\}/) || [''])[0];
-  ok(/min\(400px, 100%\)/.test(rule), 'the 400px floor must collapse to the container on a phone');
+  ok(/min\(660px, 100%\)/.test(rule), 'the badge floor must collapse to the container on a phone');
   ok(/calc\(\(100% - 24px\) \/ 3\)/.test(rule), 'three columns is the ceiling at any page width');
   ok(/max\(/.test(rule), 'the two terms are combined with max(), so the larger one wins');
   const gap = (rule.match(/gap: (\d+)px/) || [])[1];
