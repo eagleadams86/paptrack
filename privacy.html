@@ -35,11 +35,28 @@
   .card strong { color: var(--text-primary); }
   ul { padding-left: 20px; }
   .back { display: inline-block; margin-bottom: 26px; font-size: 14px; }
+  /* The footer every public page in this account carries. `margin`, not
+     `margin-top`: it is a real <footer> landmark, so the rule is spelled out
+     rather than left to depend on the element it happens to sit on. */
+  .foot { color: var(--text-muted); font-size: 12.5px; margin: 34px 0 0; }
+  .foot a { color: inherit; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="index.html">← Back to PAPTrack</a>
+  <!-- The back link stays OUTSIDE <main> — it is navigation, not the document —
+       but "outside main" is not the same as "outside every landmark", which is
+       where it sat until 2026-08-21: axe-core's `region` rule found it on all
+       six privacy pages at once. A <nav> is what it always was; now it says so,
+       and a reader moving by landmark can find the way back. -->
+  <nav aria-label="Back to PAPTrack"><a class="back" href="index.html">← Back to PAPTrack</a></nav>
+
+  <!-- A real <main>, so the policy itself is a landmark a screen reader can jump
+       straight to — and so the <footer> below is genuinely the OTHER end of the
+       document rather than the only landmark on a page with no main content.
+       A <footer> nested in main/article/section is not contentinfo at all, which
+       is why this closes before it and why .wrap stays an ordinary <div>. -->
+  <main>
   <h1>PAPTrack — Privacy Policy</h1>
   <p class="meta">Effective August 18, 2026</p>
 
@@ -86,9 +103,23 @@
     <li>No analytics or usage-tracking scripts</li>
     <li>No advertising or ad networks</li>
     <li>No selling or sharing data with third parties</li>
-    <li>No third-party code at all beyond Google's own sign-in and Firebase clients, and
-        those load only when you choose to sign in</li>
+    <li>No third-party code beyond Google's own sign-in and Firebase clients &mdash; and
+        see the note below about when those load</li>
   </ul>
+
+  <h2>When Google&rsquo;s Code Loads</h2>
+  <p>Google's Firebase and sign-in scripts load on <strong>every visit</strong>, not only
+  when you sign in. This page said the opposite until August 21, 2026, and that was wrong:
+  the app cannot know whether you are <em>already</em> signed in on this device without
+  asking Firebase, and it cannot ask without loading Firebase first. So the scripts are
+  fetched from <code>www.gstatic.com</code> and <code>accounts.google.com</code> as the page
+  opens.</p>
+  <p>What that means in practice: those two requests tell Google your IP address, your
+  browser's user-agent and which page asked &mdash; the ordinary information any request to
+  any server carries. <strong>None of your supplies goes with them</strong>, nothing is
+  stored or synced, and no account of yours is involved until you actually press
+  &ldquo;Sign in to sync&rdquo;. But the requests themselves happen whether you sign in or
+  not, and a policy that did not say so was not telling you the whole thing.</p>
 
   <h2>Your Choices</h2>
   <p>You can edit or delete anything in the app at any time — "Start again", inside the Back
@@ -103,6 +134,15 @@
 
   <h2>Contact</h2>
   <p><a href="mailto:eagleadams86@gmail.com">eagleadams86@gmail.com</a></p>
+  </main>
+
+  <!-- The footer every public page in this account carries. No "Privacy policy"
+       link in it, unlike the app's own: you are standing on that page. The repo
+       link is labelled "How it works" family-wide, and the authorship line is
+       the one the app's footer carries, verbatim. -->
+  <footer class="foot"><a href="https://github.com/eagleadams86/paptrack" target="_blank" rel="noopener noreferrer">How it works</a><br>
+    &copy; 2026 Charles Adams — an independent personal project,
+    <a href="https://github.com/eagleadams86/paptrack/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT licensed</a>.</footer>
 </div>
 </body>
 </html>

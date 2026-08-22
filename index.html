@@ -732,10 +732,19 @@
            syncing"), so it goes last, where its growing and shrinking moves
            nothing but itself. Put anything after it and that control shifts
            sideways every time sync changes state. -->
+      <!-- The four unified themes, listed alphabetically (matches every sibling
+           app). ☀ is the plain text sun, not ☀️ — the emoji-presentation
+           variant is drawn from the colour font, which is a different weight
+           and baseline from the ☾ and ✦ beside it and made the row read as
+           three different sets of glyphs. Midnight carries `selected`, because
+           the boot script in <head> has ALREADY applied midnight by the time
+           this row paints; without it the browser pre-selects the first option
+           and the picker reads "Dark" over a midnight page until the script at
+           the foot of the file sets .value. -->
       <select class="theme-sel" id="themeSel" aria-label="Theme">
         <option value="dark">☾ Dark</option>
-        <option value="light">☀️ Light</option>
-        <option value="midnight">✦ Midnight</option>
+        <option value="light">☀ Light</option>
+        <option value="midnight" selected>✦ Midnight</option>
         <option value="sepia">📜 Sepia</option>
       </select>
       <!-- Backing up used to be two underlined links at the very foot of the page, which
@@ -806,9 +815,9 @@
     <div class="filter-block">
       <div class="filters-cap">Filter — tap to toggle</div>
       <div class="filters" role="group" aria-label="Filter supplies">
-        <button class="filter-chip" data-filter="clean" aria-pressed="false">🧼 Clean due</button>
-        <button class="filter-chip" data-filter="replace" aria-pressed="false">↻ Replace due</button>
-        <button class="filter-chip" data-filter="reorder" aria-pressed="false">📦 Reorder due</button>
+        <button class="filter-chip" data-filter="clean" aria-pressed="false"><span aria-hidden="true">🧼</span> Clean due</button>
+        <button class="filter-chip" data-filter="replace" aria-pressed="false"><span aria-hidden="true">↻</span> Replace due</button>
+        <button class="filter-chip" data-filter="reorder" aria-pressed="false"><span aria-hidden="true">📦</span> Reorder due</button>
       </div>
     </div>
     <button class="act cleanall" id="cleanAllBtn" hidden>Mark all due items clean</button>
@@ -954,8 +963,8 @@
     copy you keep, independent of this browser and of any Google account. With no account
     needed to use PAPTrack, clearing your browser data is the one thing that will lose it.</p>
   <div class="datarow">
-    <button type="button" class="act" id="exportBtn">⬇︎ Download backup (JSON)</button>
-    <button type="button" class="act" id="importBtn">⬆︎ Restore from backup</button>
+    <button type="button" class="act" id="exportBtn"><span aria-hidden="true">⬇︎</span> Download backup (JSON)</button>
+    <button type="button" class="act" id="importBtn"><span aria-hidden="true">⬆︎</span> Restore from backup</button>
     <input type="file" id="importFile" accept=".json,application/json" aria-label="Choose a backup file" hidden>
   </div>
   <p class="hint" style="margin-top:12px">Restoring <strong>replaces every supply in this
@@ -983,7 +992,7 @@
   <p class="hint" id="clearBody"></p>
   <p class="warn" id="clearSyncWarn" role="status"></p>
   <div class="clearfoot">
-    <button type="button" class="act safety" id="clearBackupBtn">⬇︎ Download backup first</button>
+    <button type="button" class="act safety" id="clearBackupBtn"><span aria-hidden="true">⬇︎</span> Download backup first</button>
     <button type="button" class="act" id="clearCancel">Cancel</button>
     <button type="button" class="act danger" id="clearConfirm">Delete everything</button>
   </div>
@@ -1451,7 +1460,7 @@ function render() {
         </div>
         <div class="quad">
           <div class="quad-h">⚙️ Manage</div>
-          <button class="act" data-act="calendar" aria-label="Calendar — ${n}"><span aria-hidden="true">🗓</span> Calendar</button>
+          <button class="act" data-act="calendar" aria-label="Calendar — ${n}"><span aria-hidden="true">🗓️</span> Calendar</button>
           <button class="act" data-act="edit" aria-label="Edit — ${n}">Edit</button>
           <button class="act" data-act="delete" aria-label="Delete — ${n}">Delete</button>
         </div>
@@ -2375,17 +2384,28 @@ function clearSyncError() {
 }
 
 function updateUI() {
+  /* The leading glyph is decoration and must not reach the button's accessible
+     name — the rule every other control in the header follows with an
+     aria-hidden span. This one cannot use a span: the sync module rewrites the
+     label with textContent as the state changes (and textContent rather than
+     innerHTML on purpose — an account's display name reaches this line). So the
+     name is stated outright instead, and re-stated in every branch below so it
+     can never be left describing the previous state. */
   if (user && syncError) {
     btn.textContent = '⚠️ Not syncing';
+    btn.setAttribute('aria-label', 'Not syncing');
     btn.title = syncError.reason + ' ' + syncError.fix;
     privacyNote.textContent = `⚠️ Not syncing — ${syncError.reason} Everything is still saved in `
       + `this browser, but your other devices aren’t getting it. ${syncError.fix}`;
   } else if (user) {
     btn.textContent = `☁️ ${user.displayName ? user.displayName.split(' ')[0] : user.email}`;
+    btn.setAttribute('aria-label',
+      `Signed in as ${user.displayName ? user.displayName.split(' ')[0] : user.email}`);
     btn.title = 'Syncing across devices — tap to sign out';
     privacyNote.textContent = `☁️ Signed in as ${user.email} — your data syncs privately to your own account and still works offline.`;
   } else {
     btn.textContent = '☁️ Sign in to sync';
+    btn.setAttribute('aria-label', 'Sign in to sync');
     btn.title = 'Sign in with Google to see the same data on all your devices';
     privacyNote.textContent = '🔒 Private — stored in this browser; sign in to sync your own devices. No account required to use the app.';
   }

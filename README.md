@@ -42,6 +42,7 @@ Every value is editable per item, and custom items are supported for anything el
 - **Last cleaned & last replaced** — every card shows how long ago the last replacement and cleaning happened (today / yesterday / N days ago; "Not cleaned yet" until the first one)
 - **Inventory & reorder** — a spares counter with −/+ steppers on every card; items are flagged **Reorder** whenever spares fall to the item's threshold. **Replaced today** resets the countdown and consumes a spare automatically (and hides for the rest of the day so it can't be pressed twice)
 - **Card layout** — each supply is a 2×2 quadrant grid — 🧼 Cleaning · ↻ Replacing · 📦 Spares · ⚙️ Manage — matching the native iOS app
+- **The theme picker is written out at its final size, with Midnight pre-selected.** The header paints long before the script at the foot of the page runs, so an option list built by script made the row read "☾ Dark" over a midnight page for a moment on every load. The sun is `☀`, the plain text character, not the emoji-presentation `☀️` — the colour-font variant is a different weight and baseline from the `☾` and `✦` beside it, and the row read as three different sets of glyphs. Both fixed 2026-08-21 and pinned in `tests.html`; every sibling app follows the same two rules
 - **Fits the screen it's on** — the page is the same width as the sibling apps (Sprint Predictability, Flow Metrics), the supply cards flow into two or three columns as the window allows, and cards on the same row are the same height so a row has a straight bottom edge. On a phone it's the single column it always was. The header is a bar across the top that **stays put as you scroll**, so the theme picker, **Back up** and sync are always a click away rather than somewhere above the first supply
 - **Roomier editing** — the add/edit form is a wide window laying Cleaning beside Replacement and Spares beside Notes, so the whole form is visible at once on a desktop instead of being a long scroll; on a narrow window it stacks back into one column
 - **Dismissing a dialog** — clicking outside it cancels, the same as **Cancel** or Escape; nothing is saved. Clicks on the dialog's own padding or scrollbar don't count as outside, and neither does releasing outside after starting a drag inside a field, so a stray gesture can't throw away edits. The same rule covers the add/edit form, the backup dialog and the delete-all confirmation; the sync "which data do you want to keep?" dialog deliberately still requires an explicit choice
@@ -179,6 +180,28 @@ page.
 
 ---
 
+## What Google's Code Does on an Ordinary Visit (2026-08-21)
+
+A network trace of a plain page load — no clicking, no signing in — shows four requests to
+Google: `firebase-app.js`, `firebase-auth.js` and `firebase-firestore.js` from
+`www.gstatic.com`, and the sign-in client from `accounts.google.com`. That is not a bug. The
+app cannot know whether you are **already** signed in on this device without asking Firebase,
+and it cannot ask without loading Firebase first, so `init()` runs on load.
+
+What was wrong was the **privacy policy**, which said Google's code loaded "only when you
+choose to sign in". It now says what actually happens, names the two hosts so the claim can be
+checked against a trace of your own, and is explicit that no app data goes with those requests
+and nothing is stored or synced until you press the button. `tests.html` ties the two
+together: while the CSP still admits `gstatic.com` and `accounts.google.com` — the app's own
+record that it loads them — the policy has to carry the "every visit" paragraph, and the old
+wording fails the suite.
+
+**If this should stop being true**, the change is to defer `init()` until either the sign-in
+button is pressed or a stored flag says this browser has signed in before. That keeps a
+returning user signed in while giving a first-time visitor a page that talks to nobody. It is
+a real refactor of the sync module, not a wording change, and the test above is written to be
+revisited rather than deleted if it happens.
+
 ## Privacy Policy
 
 [`privacy.html`](privacy.html) is the web app's privacy policy, linked from the footer — what
@@ -186,6 +209,16 @@ the app stores, what the optional Google sign-in puts in Firestore, and how to h
 copy deleted. It exists because other people can sign in with their own Google accounts. The
 iOS app has its own policy in the [paptrack-support](https://github.com/eagleadams86/paptrack-support)
 repo; if what either app stores changes, update both in the same commit.
+
+Since 2026-08-21 it carries **the family footer and the family landmarks**, which it had never
+had — the repo under **How it works**, the authorship line, and a real `<main>` / `<footer>`
+pair. It is a public page reached by a link in the app's own footer, so somebody who followed
+that link landed on a document with no way back to what it documents and no statement of who
+wrote it. `</main>` closes **before** the `<footer>`: a `<footer>` nested inside `main` is not
+contentinfo at all, it is a plain footer for that section — so `.wrap` stays an ordinary
+`<div>`. There is deliberately no privacy link in it; you are standing on that page.
+`tests.html` asserts the elements *and* their order, with HTML comments stripped first, because
+the notes beside both elements name them in prose.
 
 ## Commit Messages
 

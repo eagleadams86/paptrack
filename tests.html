@@ -573,6 +573,97 @@ t('a control you press or pick does not', () => {
   eq(w.__papTestHooks.raisesKeyboard(null), false, 'nothing focused is not a keyboard');
 });
 
+group('privacy.html — the family footer and its landmarks');
+/* Added 2026-08-21. The app's own footer had carried the family lines for a
+   while; this page carried none of them, and it is a public page reached by a
+   link in that very footer — so somebody who followed it landed on a document
+   with no way back to what it documents and no statement of who wrote it. It
+   also had no <main> at all, which makes a contentinfo footer worse than none:
+   the policy itself would sit in no landmark. Both went in together, matching
+   every sibling app. */
+let PRIV_SRC = '';
+t('the privacy page reads back as text', async () => {
+  const r = await fetch('privacy.html');
+  ok(r.ok, 'privacy.html is missing — the app footer links straight at it');
+  PRIV_SRC = await r.text();
+});
+t('it carries How it works and the authorship line, but not a link to itself', () => {
+  ok(/>How it works</.test(PRIV_SRC),
+    'the repo link must be labelled "How it works" family-wide');
+  ok(/MIT licensed/.test(PRIV_SRC), 'and the authorship line every public page has');
+  ok(!/href="privacy\.html"/.test(PRIV_SRC),
+    'and NOT a privacy link, which on the privacy page points at itself');
+});
+t('the policy sits in <main>, and the footer comes after it', () => {
+  /* Comments stripped FIRST, and the footer matched by its CLASS. The notes
+     beside both elements name them in prose — and one of those notes is in the
+     <style> block, which an HTML-comment strip does not reach — so a bare
+     /<main>/ or a bare '<footer' would pass on a page that had lost the element
+     and kept the comment explaining it, which is the one way this could rot.
+
+     Looped rather than a single .replace(): one pass over a multi-character
+     delimiter can leave a NEW opener behind that the pass already went past.
+     CodeQL's js/incomplete-multi-character-sanitization flags the single-pass
+     form, and the same helper is in every sibling repo's suite. */
+  const strip = (str) => {
+    let out = String(str), prev;
+    do { prev = out; out = out.replace(/<!--[\s\S]*?-->/g, ''); } while (out !== prev);
+    return out;
+  };
+  const bare = strip(PRIV_SRC);
+  ok(/<main>/.test(bare),
+    'no main landmark, so contentinfo would be the only one on the page');
+  ok(/<footer class="foot">/.test(bare),
+    'the footer is a real <footer> — a contentinfo landmark, not a styled paragraph');
+  ok(bare.indexOf('</main>') < bare.indexOf('<footer class="foot"'),
+    'with main CLOSED before it: a <footer> inside main is not contentinfo at all');
+});
+
+t('the policy says WHEN Google\u2019s code loads, because it is not on sign-in', () => {
+  /* The claim this pins was FALSE until 2026-08-21: the policy said Google's
+     code loaded "only when you choose to sign in", and a network trace of an
+     ordinary visit showed firebase-app/auth/firestore fetched from
+     www.gstatic.com and the sign-in client from accounts.google.com before
+     anyone had touched anything. The app cannot know whether you are ALREADY
+     signed in without asking Firebase, and cannot ask without loading it — so
+     the code is right and the sentence was wrong. This ties the two together:
+     while the CSP admits those two hosts, which is the app's own record that it
+     loads them, the policy has to say so. */
+  const cspEager = (APP_SRC.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/) || [])[1] || '';
+  ok(/gstatic\.com/.test(cspEager) && /accounts\.google\.com/.test(cspEager),
+    'this test assumes the app still loads Google code on every visit. If it no longer '
+    + 'does, the CSP should have stopped naming those hosts — and then this test, and the '
+    + 'paragraph it pins, both want revisiting rather than deleting.');
+  const policySrc = PRIV_SRC;
+  ok(/every visit/i.test(policySrc),
+    'the policy must say Google\u2019s code loads on EVERY visit, not only on sign-in — the '
+    + 'page fetches it before anyone signs in, and a trace shows it');
+  ok(/gstatic/.test(policySrc) && /accounts\.google\.com/.test(policySrc),
+    'and must name the two hosts, so the claim is checkable against a network trace');
+  ok(!/only when you (choose to )?sign in/i.test(policySrc),
+    'the old, untrue wording is back: Google\u2019s code does NOT load only on sign-in');
+});
+
+group('The header picker reads the theme the page is actually showing');
+/* The picker had no `selected` and its ☀ was the emoji-presentation variant.
+   Without `selected` the browser pre-selects the FIRST option, so the row
+   painted "☾ Dark" over a midnight page until the script at the foot of the
+   file set .value — the header is drawn long before that runs. Every sibling
+   app writes the attribute in for exactly this reason. */
+t('midnight is pre-selected, matching the pre-paint boot in <head>', () => {
+  const opt = w.document.querySelector('#themeSel option[value="midnight"]');
+  ok(opt, 'no midnight option in the theme picker');
+  ok(opt.defaultSelected,
+    'midnight must carry `selected` in the markup, or the row reads "Dark" until JS runs');
+});
+t('the four glyphs are plain text characters, not emoji-presentation ones', () => {
+  const labels = [...w.document.querySelectorAll('#themeSel option')]
+    .map((o) => o.textContent);
+  eq(labels, ['☾ Dark', '☀ Light', '✦ Midnight', '📜 Sepia'],
+    'the picker labels drifted from the family\u2019s — \u2600\uFE0F is the colour-font sun, a '
+    + 'different weight and baseline from the \u263E and \u2726 beside it');
+});
+
 /* ── Runner ───────────────────────────────────────────────────────────────── */
 
 /* The localhost gate. Booting the app is itself the side effect worth guarding:
