@@ -9,13 +9,11 @@ rules_version = '2';
 // pattern as the sprint-velocity, team-dashboard, golf-handicap and
 // financial-plan repos.)
 //
-// WRITTEN 2026-08-20, and honestly: PAPTrack was the only syncing app in the
-// family with no checked-in copy, so this was reconstructed from the path the
-// app actually writes (`F.doc(db, 'paptrack', user.uid)` in index.html) and the
-// wording its four siblings already use — it is NOT a transcription of a
-// console screen anyone read that day. Confirm it against the console and
-// replace this paragraph with a "verified against the deployed rules on
-// <date>" line, the way sprint-velocity's copy carries one.
+// Verified against the deployed rules on 2026-08-22: this file was pasted into
+// the console and published that day, profiles block included. (It was written
+// on 2026-08-20 by reconstruction rather than transcription — PAPTrack was the
+// only syncing app in the family with no checked-in copy — and that paragraph
+// asked for exactly this line once someone had confirmed it. Now they have.)
 //
 // PASTE THESE INTO THE CONSOLE BEFORE SIGNING IN FOR THE FIRST TIME. Firestore's
 // default rules for a new project either deny everything (sync silently fails)
@@ -45,7 +43,7 @@ service cloud.firestore {
     // Firestore rules do NOT cascade to subcollections — a match on /paptrack/{uid} says
     // nothing about what is underneath it — so without this block those writes are
     // refused. The app handles that: the refusal surfaces as the usual "not syncing"
-    // warning and the first profile is unaffected. PASTE THIS INTO THE CONSOLE.
+    // warning and the first profile is unaffected. Pasted and published 2026-08-22.
     match /paptrack/{uid}/profiles/{profileId} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
