@@ -107,19 +107,25 @@
         see the note below about when those load</li>
   </ul>
 
-  <h2>When Google&rsquo;s Code Loads</h2>
-  <p>Google's Firebase and sign-in scripts load on <strong>every visit</strong>, not only
-  when you sign in. This page said the opposite until August 21, 2026, and that was wrong:
-  the app cannot know whether you are <em>already</em> signed in on this device without
-  asking Firebase, and it cannot ask without loading Firebase first. So the scripts are
-  fetched from <code>www.gstatic.com</code> and <code>accounts.google.com</code> as the page
-  opens.</p>
-  <p>What that means in practice: those two requests tell Google your IP address, your
-  browser's user-agent and which page asked &mdash; the ordinary information any request to
-  any server carries. <strong>None of your supplies goes with them</strong>, nothing is
-  stored or synced, and no account of yours is involved until you actually press
-  &ldquo;Sign in to sync&rdquo;. But the requests themselves happen whether you sign in or
-  not, and a policy that did not say so was not telling you the whole thing.</p>
+    <h2>When Google&rsquo;s Code Loads</h2>
+  <p><strong>Only when you ask for it.</strong> Nothing of Google&rsquo;s is fetched on an
+  ordinary visit: open PAPTrack, use it, close it, and your browser never speaks to Google at
+  all. The Firebase and sign-in scripts are downloaded from <code>www.gstatic.com</code> and
+  <code>accounts.google.com</code> the moment you reach for the &ldquo;Sign in to sync&rdquo;
+  button &mdash; when your pointer arrives on it, when you tab to it, or when you press it
+  &mdash; and not before.</p>
+  <p>There is one exception, and it is the only way this can work: if you are
+  <strong>already signed in on this device</strong>, the app has to load Firebase as the page
+  opens, because asking Firebase whether your session is still good is the only way to find
+  out. It knows to do that from a note it keeps in your own browser, written every time your
+  sign-in state changes &mdash; so <strong>signing out stops the requests too</strong>, not
+  just the syncing. A browser that has signed in at some point but has no such note yet gets
+  one page load that asks, once, and then settles.</p>
+  <p>When those requests do happen they tell Google your IP address, your browser&rsquo;s
+  user-agent and which page asked &mdash; the ordinary information any request to any server
+  carries. <strong>None of your supplies goes with them</strong>, and nothing is stored or synced until you sign in.
+  Until August 22, 2026 this code loaded on every visit; the page said otherwise, which was
+  wrong, and the app was changed rather than the sentence softened.</p>
 
   <h2>Your Choices</h2>
   <p>You can edit or delete anything in the app at any time — "Start again", inside the Back

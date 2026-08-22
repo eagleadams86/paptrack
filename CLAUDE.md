@@ -301,3 +301,22 @@ This is a real, shipped product — the flagship web build alongside the native 
   proves it: its label is rewritten with `textContent` as the state changes, so a span there
   would be blown away — it carries an `aria-label`, re-stated in every branch of `updateUI()`
   so it can never be left describing the previous state.
+
+- **Google's code is fetched when it is asked for, not on every visit (2026-08-22).** `init()`
+  used to run unconditionally, so Firebase and the sign-in client were downloaded before
+  anyone had touched anything — which is what made the privacy page's wording false. The boot
+  branch now asks `shouldBootSync()`, which reads `pap-sync-live`: `'1'` load now, `'0'`
+  load nothing, absent → fall back to the legacy `pap-sync-uid` marker (the migration, worth
+  at most ONE eager load per browser). `onAuthStateChanged` writes the flag on EVERY report,
+  including the null one after signing out — that is what makes signing out stop the requests
+  rather than just the syncing.
+  - **The warming is load-bearing.** `requestAccessToken()` must be called inside the click
+    handler or the popup is blocked, and awaiting a cold import would spend the gesture — so
+    the load starts on `pointerenter` / `pointerdown` / `focus`, which all fire before click.
+    `onClick` still awaits `ensureInit()` for a keyboard user who never hovers.
+  - **The click listener is wired at the boot branch, not at the end of `init()`** — `init()`
+    may not have run, and the button has to be pressable in order to be what runs it.
+  - `ensureInit()` is idempotent, or a hover and a click start two Firebase apps.
+- **Firebase is pinned in `package.json` AND in the `firebasejs/…` URL, and a test holds them
+  equal.** Dependabot cannot rewrite a URL, so a manifest-only bump has to fail. All three sync
+  apps move to the same version together, like the vendored Chart.js.

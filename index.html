@@ -2173,7 +2173,7 @@ const FIREBASE_CONFIG = {
    production — register the port there first if local sign-in matters. */
 const GOOGLE_CLIENT_ID = "663133445971-sgln0546cos1ugg51najvifs8rm3ue21.apps.googleusercontent.com";
 
-const SDK = 'https://www.gstatic.com/firebasejs/12.16.0/';
+const SDK = 'https://www.gstatic.com/firebasejs/12.18.0/';
 const GIS = 'https://accounts.google.com/gsi/client';
 const btn = document.getElementById('syncBtn');
 const privacyNote = document.getElementById('privacyNote');
@@ -2199,8 +2199,82 @@ const PAP_SCHEMA = 1;
 /* The button is visible in the markup now (see the note on it there), so THIS
    is what takes it away when there is nothing behind it: fully-local mode with
    FIREBASE_CONFIG null, the test harness, and a page halted on newer data. */
+/* ── When Google's code is fetched ──────────────────────────────────────────
+   NOT on every visit any more (2026-08-22). init() used to run here
+   unconditionally, which meant firebase-app, firebase-auth, firebase-firestore
+   and the Google sign-in client were downloaded from gstatic.com and
+   accounts.google.com before anyone had touched anything — four requests to
+   Google, carrying this visitor's IP and user-agent, on a page that might never
+   sync at all. The privacy policy said the opposite and had to be corrected;
+   this is the change that lets the stronger sentence be true again.
+
+   It cannot be made fully lazy, and that is the whole difficulty: a returning
+   signed-in reader has to be recognised WITHOUT clicking anything, and the only
+   thing that knows whether this browser holds a live Firebase session is
+   Firebase. So the app records the answer itself, in `pap-sync-live`:
+
+     '1'      a session was live at last report        → load Firebase now
+     '0'      there was none, or they signed out       → load nothing
+     absent   never asked, or a browser from before    → fall back to the
+              legacy `pap-sync-uid` marker below
+
+   onAuthStateChanged writes '1' or '0' on every single auth report, so the
+   answer is never more than one load stale, and signing out genuinely stops the
+   requests rather than merely stopping the syncing.
+
+   The `absent` case is the migration, and it costs at most ONE eager load per
+   browser. A browser that was signing in before this shipped has no flag yet,
+   and a live session is invisible from here. `pap-sync-uid` is written on the
+   first successful sync for an account and never removed, so its presence means
+   "this browser has signed in at some point" — good enough to justify asking
+   once. That load resolves the flag either way, and every load after it is
+   decided by the flag alone. A browser that has NEVER signed in has neither key
+   and never takes this path: for a first-time reader the app now talks to
+   nobody at all until they press the button. */
+const SYNC_LIVE = 'pap-sync-live';
+const LEGACY_SYNC_UID = 'pap-sync-uid';
+
+function shouldBootSync() {
+  try {
+    const flag = localStorage.getItem(SYNC_LIVE);
+    if (flag === '1') return true;
+    if (flag === '0') return false;
+    return localStorage.getItem(LEGACY_SYNC_UID) !== null;
+  } catch (e) { return false; }
+}
+
+/* init() exactly once, however many paths ask for it. Every caller awaits the
+   same promise, so a hover that starts the load and a click a moment later do
+   not race into two Firebase apps. */
+let initPromise = null;
+function ensureInit() {
+  if (!initPromise) initPromise = init();
+  return initPromise;
+}
+
+/* Warming, and it is what keeps the sign-in popup opening. requestAccessToken()
+   has to be called from inside the click handler or the browser judges the popup
+   unsolicited and blocks it — and awaiting a cold SDK import first would spend
+   that gesture. So the load starts on the events that fire BEFORE click:
+   pointerenter for a mouse, focus for the keyboard, pointerdown for a touch. By
+   the time click arrives the SDK is usually in hand and the popup opens on the
+   gesture. When it is not, onClick awaits and the popup may be refused — which
+   is what the popup_failed_to_open branch of onSignInFailed already explains,
+   and the second press always works because everything is loaded by then.
+
+   Reaching for the sign-in button is a deliberate act, so this is still the
+   reader asking for Google rather than the page fetching it on their behalf. */
+function armSync() { ensureInit().catch(() => { /* onClick reports it */ }); }
+
 if (FIREBASE_CONFIG && !inTestHarness && !window.papHalted) {
-  init().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
+  if (shouldBootSync()) {
+    ensureInit().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
+  } else {
+    for (const ev of ['pointerenter', 'pointerdown', 'focus'])
+      btn.addEventListener(ev, armSync, { once: true, passive: true });
+  }
+  /* Wired HERE, not at the end of init(), which may not have run yet. */
+  btn.addEventListener('click', onClick);
 } else {
   btn.hidden = true;
 }
@@ -2271,6 +2345,11 @@ async function init() {
   db = F.getFirestore(app);
   A.onAuthStateChanged(auth, (u) => {
     user = u;
+    /* What the next load reads to decide whether to fetch Google's code at all
+       (see shouldBootSync above). Written on EVERY report, including the null
+       one that follows signing out — so signing out stops the requests, not
+       just the syncing. */
+    try { localStorage.setItem(SYNC_LIVE, u ? '1' : '0'); } catch (e) {}
     /* A fresh session starts clean: signing out and back in is the remedy this
        app suggests for half of the causes, so a stale warning must not survive it. */
     syncError = null;
@@ -2303,8 +2382,10 @@ async function init() {
     },
   });
   /* No `btn.hidden = false` here any more — it is visible from first paint, and
-     revealing it at the end of init() is exactly what made the header jump. */
-  btn.addEventListener('click', onClick);
+     revealing it at the end of init() is exactly what made the header jump.
+     The click listener is wired at the boot branch above rather than here:
+     init() may not have run yet, and the button has to be pressable in order to
+     be what causes it to run. */
 }
 
 function onSignInFailed(e) {
@@ -2411,10 +2492,22 @@ function updateUI() {
   }
 }
 
-function onClick() {
+async function onClick() {
   if (user) {
     if (confirm('Sign out? The app keeps working with the local copy on this device.')) A.signOut(auth);
     return;
+  }
+  /* The load may not have been started, or may not have finished — see armSync.
+     Awaiting here is what makes the button work for someone who tabs straight to
+     it and presses Enter without the pointer ever going near it. */
+  if (!tokenClient) {
+    try {
+      await ensureInit();
+    } catch (e) {
+      console.warn('Sync unavailable:', e);
+      window.toast('Couldn’t reach Google — sync is unavailable right now');
+      return;
+    }
   }
   /* Everything after this happens in the token client's callbacks — the popup
      goes to accounts.google.com and comes back with a token, and
