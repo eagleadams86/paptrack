@@ -726,7 +726,18 @@
       <!-- Backing up used to be two underlined links at the very foot of the page, which
            is nowhere near where you look for it. It sits beside the other app-level
            controls now, the same place every sibling app keeps it. -->
-      <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data">Back up</button>
+    <!-- Every button in this row wears a glyph in front of its word, the way Money
+         Map's does. They are plain text characters, not emoji and not an icon
+         font — one more file to fetch is the last thing a header painted this
+         early needs, and a text glyph inherits the theme's colour for free, so it
+         can never become the thing that carries a meaning by hue. Each is
+         aria-hidden: a screen reader announcing "downwards white arrow, Back up"
+         is noise, and the word beside it is already the whole label. The glyphs
+         are Money Map's own where the button exists there — ⇩ Back up, ↗ Share,
+         ⚙ for settings — so the same action looks the same in every app. ☁️ Sign
+         in to sync keeps its emoji: the sync module rewrites that label as the
+         state changes, and it is the one control here about somewhere else. -->
+      <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data"><span aria-hidden="true">⇩</span> Back up</button>
       <!-- VISIBLE by default, and hidden on failure — not the other way round.
            It shipped with `hidden` here and was revealed once the Firebase SDK
            had loaded, which meant the header was painted without it and then
