@@ -85,7 +85,7 @@ function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy');
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 95;
+const EXPECTED = 98;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1093,6 +1093,34 @@ t('a dialog focused as a container does not ring itself', () => {
   ok(/dialog:focus \{ outline: none/.test(APP_SRC),
     'openModal focuses the dialog on a coarse pointer, so without this every phone rings the whole window');
   ok(/dlg\.focus\(\)/.test(APP_SRC), 'and that is still how the keyboard is kept down');
+});
+t('a card focused after a TAP does not ring, and after a keypress still can', () => {
+  ok(/\.card\.quiet-focus:focus \{ outline: none/.test(APP_SRC),
+    'iOS Safari rings a programmatically-focused container whatever the modality, so the app has to say');
+  ok(/renderKeepingFocus\(id, act, fromPointer\)|function renderKeepingFocus\(id, act, fromPointer\)/.test(APP_SRC),
+    'the modality has to reach the function that moves focus');
+  const calls = APP_SRC.match(/renderKeepingFocus\([^)]*\)/g).filter((c) => !c.includes('fromPointer'));
+  ok(calls.length > 1, 'there are several call sites');
+  ok(calls.every((c) => /e\.detail > 0/.test(c)),
+    'every call site must pass the modality — one that forgets rings the card on a phone');
+  ok(/classList\.add\('quiet-focus'\)/.test(APP_SRC) && /classList\.remove\('quiet-focus'\)/.test(APP_SRC),
+    'and the class must be cleared, or it outlives the focus that needed it');
+});
+t('Notes is a textarea, and it lives with the Name box', () => {
+  const d = w.document;
+  const notes = d.getElementById('fNotes');
+  eq(notes.tagName, 'TEXTAREA', 'a single-line input truncated the notes the app ships with');
+  eq(Number(notes.maxLength), 140, 'the boundary limit still applies');
+  ok(d.getElementById('nameField').contains(notes), 'Name and Notes are one section');
+  ok(d.getElementById('nameField').contains(d.getElementById('fName')), 'with the name box above it');
+  ok(d.querySelector('label[for="fNotes"]') && d.querySelector('label[for="fName"]'),
+    'two controls in one section cannot share the heading as their name, so each needs a real label');
+});
+t('no card in the form stretches past its content', () => {
+  ok(/#itemForm \.sec-card \{ flex: none; align-self: start; \}/.test(APP_SRC),
+    'subgrid aligns the sections; without align-self the grid still stretches the card and leaves dead space inside it');
+  ok(/#itemForm #presetField, #itemForm #nameField \{ grid-column: 1; \}/.test(APP_SRC),
+    'the preset sits on its own row, one column wide — the name pin is what pushes it there');
 });
 t('the form fields are the family\u2019s, and an empty date box cannot collapse', () => {
   const rule = (APP_SRC.match(/\.field input, \.field select[^{]*\{[^}]*\}/) || [''])[0];

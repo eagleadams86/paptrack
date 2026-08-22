@@ -253,6 +253,13 @@
      2026-08-22 and in ours after; caught on an iPhone, because a fine pointer
      never takes this path. Focus inside the dialog still rings normally. */
   dialog:focus { outline: none; }
+  /* The third container, and the only one that is CONDITIONAL. A supply card is
+     focused when the button that was pressed has removed itself — see
+     `renderKeepingFocus`. From the keyboard that focus needs to be visible; from
+     a finger it must not be, and iOS Safari draws it anyway. The class is set by
+     the app for the pointer case only. Two classes plus a pseudo-class, so it
+     beats the single-class `:focus-visible` above. */
+  .card.quiet-focus:focus { outline: none; }
 
   .sr-only {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -860,13 +867,18 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      In `em` on purpose — the pack lifts every field to 16px on a coarse pointer
      so iOS doesn't zoom the page, and a hard pixel min-height would go wrong
      there. Put a new field type in this form and it inherits the guard. */
-  .field input, .field select, .sec-card > input, .sec-card > select {
+  .field input, .field select, .field textarea, .sec-card > input, .sec-card > select {
     width: 100%; padding: 9px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
     background: var(--surface); color: var(--text-primary); font-size: var(--fs-sm);
     min-height: calc(1.5em + 20px);
   }
-  .field input:focus, .field select:focus,
+  .field input:focus, .field select:focus, .field textarea:focus,
   .sec-card > input:focus, .sec-card > select:focus { border-color: var(--accent); }
+  /* The Notes box. `vertical` only — a horizontal drag would push it out of its
+     column and break the two-column form beside it. `min-height` comes off the
+     rule above and is what a ONE-line field measures, so it can only ever raise a
+     shorter box, never shrink these three rows. */
+  .field textarea { resize: vertical; }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .quick button {
     border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-secondary);
@@ -920,17 +932,23 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      without subgrid still gets. */
   @media (min-width: 860px) {
     #itemForm { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
-    /* Preset and Name PAIR UP, like every other row in this dialog. They were
-       pinned full-width, which put two short controls on two full lines and
-       pushed everything below them down a screen for no gain — a select holding
-       "😷 Mask" and a name box holding "Mask" do not need 770px each. They are
-       the same shape of thing as Cleaning-beside-Replacement below them: one
-       control apiece, read together, and choosing a preset FILLS the name box,
-       so seeing both at once is the point rather than a convenience.
+    /* THE PRESET GETS ITS OWN ROW, one column wide (2026-08-22). It is the
+       question you answer first and then stop thinking about — "am I starting
+       from a standard supply or from nothing?" — and once Notes moved into the
+       Name section beside it, a single select sat next to a card holding a name
+       box AND a three-row textarea. It is NOT stretched across both columns:
+       full-width, it was a 770px box holding "😷 Mask", which is what this
+       layout replaced in the first place. One column, its own row, the same
+       width as the Name & Notes card that follows it.
 
-       The subgrid rule below lines them up part for part, so the two headings
-       sit on one row and the two cards on the next even though neither section
-       has a footnote. Only the button row still spans the full width. */
+       Both `grid-column: 1` declarations are needed and neither is redundant:
+       the preset's puts it in the left column, and the name's is what pushes
+       Name & Notes onto a NEW row — without it, auto-placement drops it into
+       the empty right-hand cell beside the preset, which is exactly the pairing
+       being undone here. Everything after them auto-places into pairs, and on
+       the Edit form (where the preset section is hidden) the run simply starts
+       at Name & Notes. Only the button row spans the full width. */
+    #itemForm #presetField, #itemForm #nameField { grid-column: 1; }
     #formDialog .formfoot { grid-column: 1 / -1; }
     #itemForm .formsec { display: flex; flex-direction: column; }
     #itemForm .sec-card { flex: 1 1 auto; }
@@ -938,7 +956,21 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   @supports (grid-template-rows: subgrid) {
     @media (min-width: 860px) {
       #itemForm .formsec { display: grid; grid-template-rows: subgrid; grid-row: span 3; }
-      #itemForm .sec-card { flex: none; }
+      /* NO CARD STRETCHES PAST ITS CONTENT. `flex: none` undoes the fallback
+         layout's stretch; `align-self: start` undoes the grid's own, which was
+         still running underneath it and is what subgrid alone does not fix.
+
+         Subgrid is what aligns the two sections — headings on one row, cards on
+         the next, footnotes on the last — and it does that whatever height the
+         cards themselves take. Stretching them on top of it only fills the taller
+         row's spare height INTO the shorter card, which is dead space inside a
+         bordered box: Spares carried 171px of it under two number fields because
+         it sits beside Ordering's three, and the preset card grew about 100px
+         under a single select once Name & Notes moved in beside it. `start`
+         leaves that gap outside the card, as plain dialog, where it reads as the
+         row simply being taller on one side. Section bottoms still line up,
+         because the subgrid rows do. */
+      #itemForm .sec-card { flex: none; align-self: start; }
     }
   }
   /* ---- Back up & restore ---- */
@@ -1219,8 +1251,10 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
 <dialog id="formDialog" aria-labelledby="formTitle">
   <h2 id="formTitle">Add Supply</h2>
   <form id="itemForm" method="dialog">
-    <!-- These three sections have a heading instead of a <label>, so the control points at
-         the heading with aria-labelledby — a placeholder is not an accessible name. -->
+    <!-- The preset section has a heading instead of a <label>, so its control points at
+         the heading with aria-labelledby — a placeholder is not an accessible name. The
+         Name & Notes section holds two controls, so it cannot borrow one heading for
+         both and each field carries its own <label> like every section below it. -->
     <div class="formsec" id="presetField">
       <h3 class="sec-h" id="presetH">Start from a Preset</h3>
       <div class="sec-card">
@@ -1229,9 +1263,27 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     </div>
 
     <div class="formsec" id="nameField">
-      <h3 class="sec-h" id="nameH">Name</h3>
+      <h3 class="sec-h" id="nameH">Name &amp; Notes</h3>
       <div class="sec-card">
-        <input type="text" id="fName" aria-labelledby="nameH" required maxlength="60" placeholder="e.g. Mask">
+        <div class="field">
+          <label for="fName">Name</label>
+          <input type="text" id="fName" required maxlength="60" placeholder="e.g. Mask">
+        </div>
+        <div class="field">
+          <label for="fNotes">Notes</label>
+          <!-- A TEXTAREA, so all 140 characters are readable at once. It was a single-line
+               input, and the notes the app ships with are longer than the box: "Cushions
+               break down and lose their seal over time." arrived truncated mid-word with
+               no way to see the end but to arrow through it.
+
+               data-keep-caret is belt and braces now — SELECT_ON_FOCUS is keyed on an
+               input's `type`, and a textarea has none, so it is already out. The attribute
+               stays because it records the INTENT (a note is prose you come back and add
+               to, not a value you retype), which would otherwise be lost if this ever went
+               back to being an input. -->
+          <textarea id="fNotes" maxlength="140" rows="3" data-keep-caret
+                    placeholder="size, model, supplier…"></textarea>
+        </div>
       </div>
     </div>
 
@@ -1320,15 +1372,6 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
         Details page; a link has to start with http:// or https:// to be kept.</p>
     </div>
 
-    <div class="formsec">
-      <h3 class="sec-h" id="notesH">Notes</h3>
-      <div class="sec-card">
-        <!-- data-keep-caret: a note is prose you come back and add to, not a value you retype.
-             See SELECT_ON_FOCUS. -->
-        <input type="text" id="fNotes" aria-labelledby="notesH" maxlength="140" data-keep-caret
-               placeholder="size, model, supplier…">
-      </div>
-    </div>
     <div class="formfoot">
       <button type="button" class="act" id="cancelBtn">Cancel</button>
       <button type="submit" class="btn primary" id="saveBtn">Save</button>
@@ -2243,12 +2286,32 @@ function toast(msg) {
    sends keyboard focus back to the top of the document. Put it back on the same button —
    or on the card, when the action was what removed that button (Mark cleaned, Mark
    replaced) — so a keyboard or screen-reader user keeps their place in the list. */
-function renderKeepingFocus(id, act) {
+function renderKeepingFocus(id, act, fromPointer) {
   render();
   const card = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
   if (!card) { $('addBtn').focus(); return; }
   const btn = act && card.querySelector(`button[data-act="${act}"]`);
-  (btn || card).focus();
+  const target = btn || card;
+  /* Falling back to the CARD means focusing a container as a mechanism — the
+     button that was pressed no longer exists (Mark Cleaned and Mark Replaced
+     both remove themselves), and this keeps a keyboard or screen-reader user
+     where they were instead of dumping them at the top of the document.
+
+     A keyboard user SHOULD see a ring on it: it is the only thing telling them
+     where they landed. Somebody who tapped it should not — they never had a
+     visible focus, and a ring around the whole card is just a panel that has
+     lit up for no reason. Chromium and desktop WebKit work that out on their
+     own and leave `:focus-visible` unmatched after a tap; **real iOS Safari
+     does not**, and rings the card on every tap. So the app says which it was
+     rather than trusting the heuristic — `fromPointer` comes from the click
+     event's `detail`, which is 0 when a button was activated from the keyboard
+     and non-zero for a real mouse or finger. Cleared on the way out so it
+     cannot outlive the focus that needed it. */
+  if (target === card && fromPointer) {
+    card.classList.add('quiet-focus');
+    card.addEventListener('blur', () => card.classList.remove('quiet-focus'), { once: true });
+  }
+  target.focus();
 }
 
 $('list').addEventListener('click', (e) => {
@@ -2262,21 +2325,21 @@ $('list').addEventListener('click', (e) => {
     case 'clean':
       it.lastCleaned = toISO(today());
       logEvent(it, 'c');
-      save(); renderKeepingFocus(id, act); toast(`${it.emoji} ${it.name} cleaned ✓`);
+      save(); renderKeepingFocus(id, act, e.detail > 0); toast(`${it.emoji} ${it.name} cleaned ✓`);
       break;
     case 'replace': {
       it.lastReplaced = toISO(today());
       logEvent(it, 'r');
       const usedSpare = it.stock > 0;
       if (usedSpare) it.stock -= 1;
-      save(); renderKeepingFocus(id, act);
+      save(); renderKeepingFocus(id, act, e.detail > 0);
       toast(`${it.emoji} ${it.name} replaced${usedSpare ? ` — ${it.stock} spare${it.stock === 1 ? '' : 's'} left` : ''} 🎉`);
       break;
     }
     case 'stock+':
     case 'stock-':
       it.stock = act === 'stock+' ? Math.min(LIMITS.stock, it.stock + 1) : Math.max(0, it.stock - 1);
-      save(); renderKeepingFocus(id, act);
+      save(); renderKeepingFocus(id, act, e.detail > 0);
       // The count sits in markup that was just replaced, so announce the new value through
       // the toast — it's the one live region that survives a re-render.
       toast(`${it.name} — ${it.stock} spare${it.stock === 1 ? '' : 's'}`);
@@ -2284,7 +2347,7 @@ $('list').addEventListener('click', (e) => {
     case 'ordered':
       it.lastOrdered = toISO(today());
       logEvent(it, 'o');
-      save(); renderKeepingFocus(id, null);
+      save(); renderKeepingFocus(id, null, e.detail > 0);
       toast(`${it.emoji} ${it.name} marked ordered — the reorder flag rests for ${ORDER_WINDOW_DAYS} days`);
       break;
     case 'calendar':
@@ -2299,7 +2362,7 @@ $('list').addEventListener('click', (e) => {
     case 'delete':
       if (confirm(`Delete "${it.name}"?`)) {
         items = items.filter(i => i.id !== id);
-        save(); renderKeepingFocus(id, null); toast('Deleted');
+        save(); renderKeepingFocus(id, null, e.detail > 0); toast('Deleted');
       }
       break;
   }
