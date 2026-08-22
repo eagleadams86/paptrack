@@ -361,7 +361,7 @@
        bigger than the two buttons beside it at the same 40px height. Buttons
        have no zoom to avoid, so this is cosmetic: it exists only so the row
        reads as one row on a phone. */
-    .top-actions .act { font-size: var(--fs-base); }
+    .top-actions .act { font-size: var(--fs-xs); }
   }
   /* The other half of not moving: this button's LABEL changes as you use it —
      "☁️ Sign in to sync", then "☁️ Charlie", then "⚠️ Not syncing" — and each
@@ -392,7 +392,7 @@
      rather than the pack's px token so these still grow with a larger browser
      font size, the way every other size on this page does. */
   .stat .label { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
-  .stat .value { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
+  .stat .value { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
   /* WRAPS rather than truncating. It was `nowrap` with an ellipsis, which on a
      320px screen turned "on schedule ✓" into "on sched…" and the reorder tile's
      emoji list into a single "…" — content lost to a layout that had room for it
@@ -486,7 +486,7 @@
     padding: 14px 14px 12px; box-shadow: var(--shadow);
     display: flex; flex-direction: column;
   }
-  .card h3 { margin: 0; font-size: var(--fs-base); }
+  .card h3 { margin: 0; font-size: var(--fs-md); }
   /* A paused supply reads as set aside without being made hard to read: the title drops to
      the secondary ink, which is a palette token the contrast gate already covers, rather
      than an opacity that would quietly take every line on the card below AA. */
@@ -601,6 +601,13 @@
      uses. The card IS the panel now, and the family's card is one column. */
   .card > .empty { max-width: 80ch; margin-left: auto; margin-right: auto; }
   .card > .empty p { margin: 1em 0 0; }
+  /* The welcome card's heading is the PAGE TITLE on the one screen it appears on,
+     so it takes the ramp's page-title step rather than the browser's own h2
+     default. All five apps rendered this at 24px — the same by accident, off
+     `1.5em` of a 16px root, which is not a step on the scale and would drift the
+     moment anything touched the root. Declared, and the same declaration in every
+     app. */
+  .card > .empty h2 { font-size: var(--fs-xl); }
 
   /* ---- Buttons / FAB ----
      The family's rule, byte-for-byte off Sprint Predictability, Flow Metrics and
@@ -786,7 +793,7 @@
   .toast {
     position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: var(--text-primary); color: var(--bg); padding: 10px 16px; border-radius: 999px;
-    font-size: var(--fs-xs); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
+    font-size: var(--fs-sm); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
     max-width: calc(100vw - 40px); text-align: center;
   }
   .toast.show { opacity: 1; }
