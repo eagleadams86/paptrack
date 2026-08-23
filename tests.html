@@ -85,7 +85,7 @@ function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy');
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 99;
+const EXPECTED = 104;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1365,6 +1365,65 @@ t('a click on the label still selects, exactly as before', () => {
 });
 t('a focus with no press behind it guards nothing — a Tab has no caret to place', () => {
   eq(spinProbe(w, (box) => { spinFocusIn(w, box); }), false);
+});
+
+group('⌘K reaches the search box, as it does in the other four apps');
+/* Money Map, Sprint Predictability, Flow Metrics and Golf Handicap open a Find
+   WINDOW on these keys (2026-08-23). This app has searched from the page since
+   the toolbar existed, so the keys reach the box rather than a second way to do
+   the same job — but they have to reach it, or the habit stops at four apps. */
+const cmdK = (over) => {
+  const doc = w.document;
+  const box = doc.getElementById('search');
+  const toolbar = doc.getElementById('toolbar');
+  const wasHidden = toolbar.hidden;
+  toolbar.hidden = false;
+  box.value = 'mask';
+  /* blur(), NOT body.focus(): the body is not focusable, so focusing it leaves
+     the caret exactly where it was — which made every negative case below
+     read as a pass on the focus the PREVIOUS test had put there. */
+  box.blur();
+  try {
+    if (over) over();
+    doc.dispatchEvent(new w.KeyboardEvent('keydown',
+      { key: 'k', metaKey: true, bubbles: true, cancelable: true }));
+    return doc.activeElement === box;
+  } finally { toolbar.hidden = wasHidden; }
+};
+t('⌘K puts the caret in the search box', () => { ok(cmdK()); });
+t('and it selects what is there, so typing replaces rather than appends', () => {
+  const doc = w.document, box = doc.getElementById('search');
+  cmdK();
+  eq([box.selectionStart, box.selectionEnd], [0, box.value.length]);
+});
+t('a modified press is not it — ⌘⇧K and ⌥⌘K are other things', () => {
+  const doc = w.document, box = doc.getElementById('search');
+  const toolbar = doc.getElementById('toolbar'), was = toolbar.hidden;
+  toolbar.hidden = false; box.blur();
+  doc.dispatchEvent(new w.KeyboardEvent('keydown',
+    { key: 'k', metaKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+  const shifted = doc.activeElement === box;
+  box.blur();
+  doc.dispatchEvent(new w.KeyboardEvent('keydown',
+    { key: 'k', metaKey: true, altKey: true, bubbles: true, cancelable: true }));
+  const alted = doc.activeElement === box;
+  toolbar.hidden = was;
+  eq([shifted, alted], [false, false]);
+});
+t('a dialog is open, so the keys are left alone — the form must not lose focus', () => {
+  const dlg = w.document.querySelector('dialog');
+  eq(cmdK(() => dlg.showModal()), false);
+  dlg.close();
+});
+t('nothing to search yet, so a hidden toolbar takes no focus either', () => {
+  const doc = w.document, box = doc.getElementById('search');
+  const toolbar = doc.getElementById('toolbar'), was = toolbar.hidden;
+  toolbar.hidden = true; box.blur();
+  doc.dispatchEvent(new w.KeyboardEvent('keydown',
+    { key: 'k', metaKey: true, bubbles: true, cancelable: true }));
+  const got = doc.activeElement === box;
+  toolbar.hidden = was;
+  eq(got, false);
 });
 
 async function run() {

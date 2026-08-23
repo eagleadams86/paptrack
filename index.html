@@ -2792,6 +2792,25 @@ $('addBtn').addEventListener('click', () => openForm());
 
 /* ---------------- Search & filters ---------------- */
 $('search').addEventListener('input', (e) => { query = e.target.value.trim(); render(); });
+/* ⌘K / Ctrl-K puts the caret in that box. Money Map, Sprint Predictability,
+   Flow Metrics and Golf Handicap all open a Find WINDOW on those keys
+   (2026-08-23); this app has had its searching in the page since the toolbar
+   existed, and a window over the top of it would be a second way to do one
+   thing. So the same keys reach the same job in all five — the difference is
+   only that here the box is already on the page.
+
+   Not while a dialog is open: the supply form is where those keys would be a
+   trap, and a shortcut that pulls focus out from under a half-typed record is
+   worse than no shortcut. The toolbar is hidden until there is something to
+   search, and a hidden box cannot take focus, so that case is guarded too. */
+document.addEventListener('keydown', (e) => {
+  if ((e.key !== 'k' && e.key !== 'K') || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey)
+    return;
+  if (document.querySelector('dialog[open]') || $('toolbar').hidden) return;
+  e.preventDefault();
+  $('search').focus();
+  $('search').select();
+});
 document.querySelector('.filters').addEventListener('click', (e) => {
   const chip = e.target.closest('.filter-chip');
   if (!chip) return;
