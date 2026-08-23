@@ -397,7 +397,12 @@
           border: 1px solid var(--border); }
   /* margin-left:auto rather than a flexible spacer: a spacer would sit on the
      first line and strand the buttons at the left edge of the second. */
-  .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  /* 12px, which is what every sibling app's header row uses. This row had 8px —
+     its buttons sat visibly tighter together than the same buttons in the app
+     beside it. The five apps put their controls straight in `.headbar` at
+     `gap: 12px`; the pages with a nested row have to say it themselves.
+     Reported 2026-08-23. */
+  .top-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
                  justify-content: flex-end; margin-left: auto; }
   /* ── The header controls wear the family's button, not this app's ──────────
      Sprint Predictability is the design lead and Golf Handicap, Flow Metrics and
