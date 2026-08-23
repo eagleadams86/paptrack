@@ -105,7 +105,7 @@
   })();
 </script>
 <!-- The palette is the theme pack's generated file, LINKED. It must come before
-     the app's own <style>, which adds --shadow. -->
+     the app's own <style>, which reads its tokens. -->
 <link rel="stylesheet" href="theme.css">
 <style>
   /* ── Palette ──────────────────────────────────────────────────────────────
@@ -134,10 +134,18 @@
      Never retune a colour here or there: change the pack's tokens.json, run its
      check_contrast.py gate, rebuild, and re-copy into every app.
   ─────────────────────────────────────────────────────────────────────────── */
-  /* The one colour-ish thing this app owns. `--shadow` is not a pack token at
-     all, so these per-theme shadows are an ADDITION rather than an override of
-     anything, and there is nothing here to diverge from. Flow Metrics and
-     Financial Plan add their own the same way.
+  /* THIS APP NOW OWNS NO COLOUR OF ITS OWN, and that is the point of the list
+     below rather than an accident of it.
+
+     There WAS one: `--shadow`, a per-theme drop shadow this app added on top of
+     the pack (as Flow Metrics, Money Map and Sprint Predictability each did,
+     with different numbers). All four are gone as of 2026-08-23 — Charles
+     compared a window with the shadow, without it, and with a deliberately
+     heavier one, and could not tell them apart: on a dark theme a black shadow
+     falls on a surface that is already almost black, and a modal's backdrop
+     hides what is left. Four apps' worth of invented colour values for
+     something nobody could see. The family carries no elevation shadow now, and
+     the pack's check_consumers.py fails a page that adds one.
 
      There WAS a second, `--ring`, a translucent focus colour this app had
      invented for itself. It went on 2026-08-22: the pack already ships a solid
@@ -181,24 +189,18 @@
      quietly.
      Note the pairing follows the PALETTE, not the theme's name: sepia is a warm
      LIGHT theme and takes `light`. */
-  :root, [data-theme="midnight"] { color-scheme: dark;
-    --shadow: 0 1px 3px rgba(0,0,0,0.5); }
-  [data-theme="dark"] { color-scheme: dark;
-    --shadow: 0 1px 3px rgba(0,0,0,0.5); }
-  [data-theme="light"] { color-scheme: light;
-    --shadow: 0 1px 3px rgba(17,17,16,0.06), 0 4px 14px rgba(17,17,16,0.05); }
-  [data-theme="sepia"] { color-scheme: light;
-    --shadow: 0 1px 3px rgba(58,48,32,0.08), 0 4px 14px rgba(58,48,32,0.06); }
+  :root, [data-theme="midnight"] { color-scheme: dark; }
+  [data-theme="dark"] { color-scheme: dark; }
+  [data-theme="light"] { color-scheme: light; }
+  [data-theme="sepia"] { color-scheme: light; }
   /* Auto has no palette of its own — theme.css resolves it to Light or, under
      prefers-color-scheme: dark, to Midnight. These two have to resolve the same way,
      or an Auto page in light mode would wear a dark page's shadow and tell the
      browser to draw the date picker's calendar button dark on a light field. Same
      structure as the pack's own auto block. */
-  [data-theme="auto"] { color-scheme: light;
-    --shadow: 0 1px 3px rgba(17,17,16,0.06), 0 4px 14px rgba(17,17,16,0.05); }
+  [data-theme="auto"] { color-scheme: light; }
   @media (prefers-color-scheme: dark) {
-    [data-theme="auto"] { color-scheme: dark;
-      --shadow: 0 1px 3px rgba(0,0,0,0.5); }
+    [data-theme="auto"] { color-scheme: dark; }
   }
 
   * { box-sizing: border-box; }
@@ -506,7 +508,7 @@
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
   .stat {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 10px; box-shadow: var(--shadow);
+    padding: 10px;
     display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
   }
   /* 0.75rem, not smaller: the theme pack's floor is 12px for --text-muted and
@@ -667,7 +669,7 @@
      than fixing. */
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 18px; box-shadow: var(--shadow);
+    padding: 18px;
     display: flex; flex-direction: column;
   }
 /* SEMIBOLD, not the browser's own bold. Headings had no weight declared here,
@@ -893,7 +895,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
        sibling app paints a dialog on --surface. Spotted on the Back Up window,
        but it was every dialog here. */
     border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); color: var(--text-primary);
-    width: min(560px, calc(100vw - 32px)); padding: 18px; box-shadow: var(--shadow);
+    width: min(560px, calc(100vw - 32px)); padding: 18px;
     /* A tall dialog on a short laptop screen opens already scrolled past its own
        heading — showModal() focuses the first control and drags it into view.
        Cap the height so the scrolling happens inside a dialog that fits. vh, not
