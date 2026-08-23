@@ -326,6 +326,46 @@ not.
   correct, still usable offline — so the native guard stops sync in both directions, says why,
   and leaves the app working. Don't "fix" that into a matching halt.
 
+## The Info Dots and the Help Window (2026-08-23)
+
+**Both are family-wide blocks, declared property by property, and the same in every app
+that has one. A change to either belongs in all of them.** This app had no help at all
+until a sweep across the family found it, together with the lottery portfolio page.
+
+- **Three dots and no more, all on the counts at the top of the page** — clean, replace,
+  reorder. That is deliberate and it is the criterion the family uses: a dot goes wherever a
+  number is the result of arithmetic the reader cannot see. Everything else here says its
+  own working out loud on the card — "Replace every 3 months · Last replaced yesterday ·
+  Replace by Nov 20 · 89 days left" — and a dot beside any of that would be noise. The three
+  counts are the exception: each is a rule the screen never states.
+  - **Clean** — zero days left is due, the clock starts at the LATER of the last wash and
+    the last replacement (a supply out of the packet is clean whether or not it was washed),
+    and paused supplies are out.
+  - **Replace** — zero days left is due, "as needed" never appears, and snoozing is not
+    pausing: it silences reminders while the card goes on telling the truth.
+  - **Reorder** — spares at or below the item's own "reorder at" number, nothing to do with
+    the replacement date, and marking it ordered takes it out for up to three weeks (or
+    until the spares go up, whichever comes first).
+- **The dot is `.tile-help`, a 16px outlined circled "i"** — never a "?", which is the glyph
+  a browser already puts on its own help cursor and in a form's validation bubble, and which
+  asks a question where this thing answers one. Golf Handicap and the NY calculator drew one
+  until this date. The 24px tap target comes from an unpainted `::after` so the line's height
+  never moves, and the 7px left margin is the standing preference that an icon never sits
+  flush against the word it follows.
+- **The stat labels stopped being `aria-hidden` and their WORDS moved onto a span.** The
+  emoji and the bare count mean nothing read aloud, which is why each tile has an sr-only
+  sentence instead — but a button inside an `aria-hidden` element is hidden with it, so the
+  dot would have been unreachable. Pinned.
+- **The window is sized by its TEXT**: `#helpBody` capped at a 66-character measure and
+  `#helpDialog` at `width: fit-content`, which lands at 662px here with the same 624px of
+  text as every sibling. Both rules or neither. Dismissed with **Got It**.
+- **Every body in `HELP` is a literal in `index.html` and nothing a reader typed may ever
+  reach that `innerHTML`.** Supply names and notes are free text; one of them arriving here
+  would be an injection. `tests.html` pins that the table reads nothing from the data.
+- **THE PHONES DO NOT HAVE THIS.** The iOS and Android ports have no help windows, so this
+  is a web-only divergence until somebody ports it — worth knowing before treating the three
+  as identical.
+
 ## Fields and Dialogs (2026-08-20)
 
 - **Every modal opens through `openModal(dlg)`, never `showModal()` directly.**

@@ -85,7 +85,7 @@ function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy');
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 104;
+const EXPECTED = 113;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1502,6 +1502,87 @@ t('nothing to search yet, so a hidden toolbar takes no focus either', () => {
   const got = doc.activeElement === box;
   toolbar.hidden = was;
   eq(got, false);
+});
+
+group('The info dots and the help window');
+/* This app had no help at all until 2026-08-23, when a sweep brought the two
+   family blocks — the circled "i" and the window sized by its own text — to
+   every app that has one. It earned three dots and no more: everything else
+   here says its own working out loud on the card ("Replace every 3 months ·
+   Last replaced yesterday · Replace by Nov 20 · 89 days left"), and the three
+   counts at the top are the one place where a number is the result of a rule
+   the screen never states. */
+t('the three counts each carry a dot, and each dot has words behind it', () => {
+  const doc = w.document;
+  const dots = [...doc.querySelectorAll('.tile-help')];
+  eq(dots.length, 3, 'one per count — clean, replace, reorder');
+  const H = w.__papTestHooks.HELP;
+  eq(dots.map((d) => d.dataset.help).filter((k) => !H[k]).join(', '), '',
+    'a dot with no entry opens an empty window, and nothing on screen can say so');
+  eq(Object.keys(H).filter((k) => !dots.some((d) => d.dataset.help === k)).join(', '), '',
+    'and an entry no dot points at is a second copy of an explanation waiting to drift');
+  eq(dots.filter((d) => d.textContent !== 'i').length, 0,
+    'every dot draws an "i" — "?" is the browser\'s own help cursor and a form '
+    + 'validation bubble, and it asks where this answers');
+  eq(dots.filter((d) => !d.getAttribute('aria-label')).length, 0,
+    'and each says what it explains — a bare glyph reads as nothing');
+});
+t('the dot is reachable by a screen reader, which the label around it was not', () => {
+  /* The three stat labels are aria-hidden — the emoji and the bare count mean
+     nothing read aloud, and an sr-only sentence per tile carries the meaning
+     instead. A button inside an aria-hidden element is hidden with it, so the
+     attribute moved onto a span around the words and the button sits beside it. */
+  const doc = w.document;
+  for (const d of doc.querySelectorAll('.tile-help')) {
+    const label = d.closest('.label');
+    ok(label && !label.hasAttribute('aria-hidden'),
+      'the label must not be aria-hidden, or the dot inside it is hidden too');
+    ok(label.querySelector('span[aria-hidden="true"]'),
+      'while the words themselves stay hidden, on a span of their own');
+  }
+});
+t('pressing one opens the window on its own text', () => {
+  const doc = w.document;
+  doc.querySelector('[data-help="reorderDue"]').click();
+  const dlg = doc.getElementById('helpDialog');
+  ok(dlg.open, 'the window opens');
+  eq(doc.getElementById('helpTitle').textContent, 'Due for Reorder');
+  ok(/reorder at/.test(doc.getElementById('helpBody').textContent),
+    'and it is that dot\'s words, not another one\'s');
+  dlg.close();
+});
+t('the window is sized by its text, and the dot is the family circle', () => {
+  ok(/#helpDialog \{ width: fit-content; max-width: calc\(100% - 32px\); \}/.test(APP_SRC),
+    'the window is sized by what is in it, and still fits a phone screen');
+  ok(/#helpBody \{ max-width: 66ch; font-size: var\(--fs-sm\); line-height: 1\.55; \}/.test(APP_SRC),
+    'the 66-character measure and the family reading size are what it is sized to');
+  ok(/#helpBody p, #helpBody li \{ font-size: inherit; line-height: inherit; \}/.test(APP_SRC),
+    'and the paragraphs inside the box follow it rather than the page default');
+  ok(/\.tile-help \{[^}]*width: 16px; height: 16px; min-height: 0;/.test(APP_SRC)
+    && /\.tile-help \{[^}]*border-radius: 50%;/.test(APP_SRC)
+    && /\.tile-help \{[^}]*background: transparent;/.test(APP_SRC),
+    'a 16px outlined circle, the same block as every sibling');
+  ok(/\.tile-help::after \{ content: ''; position: absolute; inset: -4px; \}/.test(APP_SRC),
+    "the 24px tap target, WCAG 2.2's, and not the circle's own size");
+  ok(/\.tile-help:hover \{ background: var\(--surface-alt\); border-color: var\(--text-secondary\);/
+    .test(APP_SRC),
+    'and the hover fills rather than borrowing --focus-border');
+  ok(/id="helpCloseBtn">Got It</.test(APP_SRC), '"Got It", as in every other app');
+});
+t('nothing a reader typed can reach the help window', () => {
+  /* The bodies are innerHTML, which is only safe because every one of them is a
+     literal in index.html. A supply name is free text and would be an injection
+     the moment one arrived here. */
+  const H = w.__papTestHooks.HELP;
+  eq(Object.keys(H).filter((k) => !Array.isArray(H[k]) || H[k].length !== 2).join(', '), '',
+    'each entry is [title, html] and nothing else');
+  eq(Object.keys(H).filter((k) => !H[k][0] || String(H[k][1]).length < 120).join(', '), '',
+    'each one is headed and actually explains something');
+  const code = stripComments(APP_SRC);
+  const at = code.indexOf('const HELP = {');
+  const table = code.slice(at, code.indexOf('\n};', at));
+  ok(at > 0 && !/\besc\(|\bit\.|\bitems\[|\bstate\./.test(table),
+    'the table reads nothing from the data — every body is a literal');
 });
 
 async function run() {

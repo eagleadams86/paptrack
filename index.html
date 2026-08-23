@@ -882,6 +882,52 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      The `.addbtn` class carries no size; it exists only for the alignment rule
      down in the 720px block. */
 
+  /* ── The info dot ─────────────────────────────────────────────────────────
+     A circled "i" beside a label, opening the help window rather than a hover
+     tooltip so it works the same on a phone. THE SAME BLOCK IS IN EVERY APP
+     THAT HAS ONE, PROPERTY BY PROPERTY (2026-08-23). This app had no help at
+     all until that date, which the audit that swept the family found: the three
+     counts at the top are the one place here where a number is the result of a
+     rule the screen never states.
+     "i" and not "?": "?" is the glyph a browser already puts on its own help
+     cursor and in a form's validation bubble, and it asks a question where this
+     thing answers one. Every property is declared here rather than left to
+     whatever this app styles a button with. ::after inflates the tap target to
+     WCAG 2.2's 24px without changing the line's height, and the 7px margin
+     keeps the circle off the word it follows (standing preference in every
+     app). A change to any of it belongs in all of them. */
+  .tile-help { display: inline-flex; align-items: center; justify-content: center;
+    position: relative; box-sizing: border-box; flex: none;
+    width: 16px; height: 16px; min-height: 0; padding: 0; margin-left: 7px;
+    border: 1px solid var(--border-control); border-radius: 50%;
+    background: transparent; color: var(--text-secondary);
+    font-family: inherit; font-size: var(--fs-xs); font-weight: 700;
+    line-height: 1; text-transform: none; cursor: pointer; vertical-align: 1px; }
+  .tile-help:hover { background: var(--surface-alt); border-color: var(--text-secondary);
+    color: var(--text-primary); }
+  .tile-help::after { content: ''; position: absolute; inset: -4px; }
+  /* A stat label is a centred column with the count under it, so the dot rides
+     on the label's own line. App-specific, outside the shared block. */
+  .stat .label { display: flex; align-items: center; justify-content: center; }
+
+  /* ── The help window ──────────────────────────────────────────────────────
+     THE SAME TWO RULES ARE IN EVERY APP THAT HAS ONE (2026-08-23), and they are
+     about the TEXT sizing the window rather than the window holding the text.
+     This is the one dialog that is nothing but prose, so `#helpBody` is capped
+     at a 66-character reading measure and `fit-content` makes the window take
+     that cap as its width. Both or neither: the cap alone leaves the paragraph
+     hugging the left of a window sized for a form with the rest of it empty
+     (which is how Money Map's looked until this date), and `fit-content` alone
+     lets the lines run the full width. `max-width` is restated because the base
+     `dialog` rule sets a `width` here, which is what is being overridden; on a
+     phone the window is still the screen less its margin. */
+  #helpDialog { width: fit-content; max-width: calc(100% - 32px); }
+  #helpBody { max-width: 66ch; font-size: var(--fs-sm); line-height: 1.55; }
+  #helpBody p, #helpBody li { font-size: inherit; line-height: inherit; }
+  #helpBody p { margin: 0 0 10px; }
+  #helpBody p:last-child { margin-bottom: 0; }
+  #helpBody strong { color: var(--text-primary); }
+
   /* ---- Dialog / form ---- */
   /* 560px, the siblings' number for a dialog that asks a question or offers a
      couple of buttons (Sprint Predictability's data and clear dialogs, Golf
@@ -1282,19 +1328,19 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
        accessibility tree and a single sr-only sentence per tile carries the same meaning. -->
   <div class="stats" id="stats" hidden>
     <div class="stat">
-      <div class="label" aria-hidden="true">🧼 Clean</div>
+      <div class="label"><span aria-hidden="true">🧼 Clean</span><button type="button" class="tile-help" data-help="cleanDue" aria-label="What counts as due for cleaning">i</button></div>
       <div class="value" id="statClean" aria-hidden="true">0</div>
       <div class="sub" id="statCleanSub" aria-hidden="true"></div>
       <span class="sr-only" id="statCleanSr"></span>
     </div>
     <div class="stat">
-      <div class="label" aria-hidden="true">↻ Replace</div>
+      <div class="label"><span aria-hidden="true">↻ Replace</span><button type="button" class="tile-help" data-help="replaceDue" aria-label="How the replacement countdown works">i</button></div>
       <div class="value" id="statReplace" aria-hidden="true">0</div>
       <div class="sub" id="statReplaceSub" aria-hidden="true"></div>
       <span class="sr-only" id="statReplaceSr"></span>
     </div>
     <div class="stat">
-      <div class="label" aria-hidden="true">📦 Reorder</div>
+      <div class="label"><span aria-hidden="true">📦 Reorder</span><button type="button" class="tile-help" data-help="reorderDue" aria-label="When a supply counts as needing a reorder">i</button></div>
       <div class="value" id="statReorder" aria-hidden="true">0</div>
       <div class="sub" id="statReorderSub" aria-hidden="true"></div>
       <span class="sr-only" id="statReorderSr"></span>
@@ -1674,6 +1720,18 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     <button type="button" class="act safety" id="clearBackupBtn"><span aria-hidden="true">⬇︎</span> Download Backup First</button>
     <button type="button" class="act" id="clearCancel">Cancel</button>
     <button type="button" class="act danger" id="clearConfirm">Delete Everything</button>
+  </div>
+</dialog>
+
+<!-- The help window. One window, filled from HELP by whichever info dot was
+     pressed — the shape every app in the family uses. It is not sized here: the
+     two rules in the stylesheet let its own text set its width. "Got It" is the
+     family's word for dismissing it, and the heading is replaced on open. -->
+<dialog id="helpDialog" aria-labelledby="helpTitle">
+  <h2 id="helpTitle">About</h2>
+  <div id="helpBody"></div>
+  <div class="formfoot">
+    <button type="button" class="act" id="helpCloseBtn">Got It</button>
   </div>
 </dialog>
 
@@ -3674,6 +3732,43 @@ async function refreshShareLink() {
 const shareDialog = $('shareDialog');
 closeOnBackdropClick(shareDialog);
 
+/* ── The info dots ──────────────────────────────────────────────────────────
+   Three counts sit at the top of the page and each is the result of a rule the
+   screen never states: a supply is due to clean at zero days left and not one
+   day later, the cleaning clock starts at the LATER of the last wash and the
+   last replacement, and a reorder is driven by the spares threshold alone with
+   three separate "don't bother me" states able to suppress it. Everything else
+   in this app says its own working out loud on the card — "Replace every 3
+   months · Last replaced yesterday · Replace by Nov 20 · 89 days left" — which
+   is why this is the only place that needed one.
+   The html here is a LITERAL in this file and nothing a reader typed ever
+   reaches this innerHTML: supply names are free text and would be an injection
+   the moment one arrived here. Keyed by `data-help`, opened by one delegated
+   listener, the shape every sibling app uses. */
+const HELP = {
+  cleanDue: ['Due for Cleaning', `<p>A supply counts here the day its cleaning is due and every day after — <strong>zero days left is due</strong>, not "due tomorrow". Anything with cleaning turned off never counts, however long it has sat there.</p>
+    <p>The clock starts at whichever came <strong>later</strong>, the last wash or the last replacement, because a supply fresh out of the packet is clean whether or not it was ever washed. Without that, replacing an overdue mask handed you a brand-new one already wearing a red "clean overdue" badge. "Last cleaned" stays a record of washes that actually happened and is never written by a replacement, so the two facts can't be confused for one another.</p>
+    <p>A <strong>paused</strong> supply is out of this count entirely — that is what pausing is for.</p>`],
+  replaceDue: ['Due for Replacement', `<p>Counted from the last replacement plus the cycle in days, and a supply lands here at <strong>zero days left</strong> and stays until you mark it replaced. A supply set to "as needed" has no cycle and never appears: there is no date to be past.</p>
+    <p>The date on the card is the same arithmetic written out — the cycle, the last replacement and the days left are all on screen beside it, so this count is only ever a total of what those cards already say.</p>
+    <p><strong>Paused</strong> supplies are left out. <strong>Snoozing</strong> is not the same thing and does not change this count: it silences the reminders while the card goes on telling the truth, because the card is something you went looking at.</p>`],
+  reorderDue: ['Due for Reorder', `<p>Low stock alone drives this: a supply counts when its <strong>spares are at or below its own "reorder at" number</strong>, which you set per supply and which starts at 1. It has nothing to do with the replacement date — running out of spares is the problem whether or not anything is due. The calendar reminders lead by about 30 days; this count does not.</p>
+    <p><strong>Marking it ordered takes it out for up to three weeks.</strong> Ordering doesn't change the count on the shelf, so without that the flag would go on nagging for the whole fortnight the box is in the post. It ends early the moment the spares go up — you unpacked it — and an order older than three weeks has either arrived or been forgotten, so the nag comes back either way.</p>
+    <p><strong>Paused</strong> supplies are left out here too.</p>`],
+};
+const helpDialog = $('helpDialog');
+closeOnBackdropClick(helpDialog);
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest ? e.target.closest('.tile-help') : null;
+  if (!btn) return;
+  const h = HELP[btn.dataset.help];
+  if (!h) return;
+  $('helpTitle').textContent = h[0];
+  $('helpBody').innerHTML = h[1];
+  openModal(helpDialog);
+});
+$('helpCloseBtn').addEventListener('click', () => helpDialog.close());
+
 $('shareBtn').addEventListener('click', () => {
   if (!items.length) { toast('There is nothing to share yet.'); return; }
   renderShareItems();
@@ -3736,7 +3831,12 @@ window.__papTestHooks = { esc, raisesKeyboard, LIMITS,
   /* Pure, and the only place a link's contents are decided — pinned directly
      rather than through the dialog, so the suite can prove what a link carries
      and what it must never carry without a DOM. */
-  buildSharePayload, SHARE_PAYLOAD_V, SHARE_FORMAT };
+  buildSharePayload, SHARE_PAYLOAD_V, SHARE_FORMAT,
+  /* The info-dot text, so the suite can hold the table against the dots that
+     open it: a dot with no entry opens an empty window, and the dot is written
+     in the markup rather than derived from the text, so nothing on screen
+     would say so. */
+  HELP };
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
