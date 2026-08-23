@@ -1026,6 +1026,15 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   @media (max-width: 460px) {
     .clearfoot .safety { flex: 1 0 100%; margin-right: 0; }
   }
+  /* The three buttons here take the pack's control size (--fs-base, 16px), not
+     the 13px `.act` wears everywhere else in this app. The delete-all dialog is
+     ONE dialog across five apps, and the other four sit at 16px because that is
+     what the pack gives "controls and buttons" — so at 13px this app was the odd
+     one out in the only window where the family is meant to look identical.
+     7/12 padding rather than 8/12 so the box lands on the same 40px as theirs.
+     Scoped to this dialog: every other `.act` in the app is untouched.
+     (Asked for 2026-08-23, when the five dialogs were lined up side by side.) */
+  #clearDialog .act { font-size: var(--fs-base); padding: 7px 12px; }
 
   /* ---- Footer ---- */
   /* Left-aligned, like the resupply tip below it and every sibling app's footer — the
