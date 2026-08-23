@@ -860,7 +860,6 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      560px, so the same dialog opened narrower here than in the app beside it.
      `width` rather than max-width, because the base `dialog` rule sets width
      and a max-width alone would lose to it. */
-  #dataDialog { width: min(700px, calc(100vw - 32px)); }
   #formDialog { width: min(820px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
   dialog h2 { margin: 0 0 12px; font-size: var(--fs-md); }
@@ -1034,7 +1033,21 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      7/12 padding rather than 8/12 so the box lands on the same 40px as theirs.
      Scoped to this dialog: every other `.act` in the app is untouched.
      (Asked for 2026-08-23, when the five dialogs were lined up side by side.) */
-  #clearDialog .act { font-size: var(--fs-base); padding: 7px 12px; }
+  #clearDialog .act, #dataDialog .act { font-size: var(--fs-base); padding: 7px 12px; }
+
+  /* ── Back Up & Restore: the family's window ────────────────────────────────
+     One window across six apps (2026-08-23) — PAPTrack's, to the pixel. What
+     varies between the apps is the CONTENT (what a backup holds, which extra
+     buttons the app offers), never the frame around it. Keep this block in step
+     with Sprint Predictability, Flow Metrics, Golf Handicap, Money Map and the
+     starter; the first line is the only one that differs between them, because
+     the base `dialog` rule here sets `width` rather than `max-width`. */
+  #dataDialog { width: min(700px, calc(100vw - 32px)); padding: 18px; }
+  #dataDialog p { font-size: var(--fs-xs); color: var(--text-secondary); margin: 0 0 12px; }
+  #dataDialog hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+  #dataDialog .datarow { display: flex; gap: 10px; flex-wrap: wrap; margin: 0; }
+  #dataDialog details.danger-zone > p { margin: 10px 0 12px; }
+  #dataDialog .datafoot { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 14px; }
 
   /* ---- Footer ---- */
   /* Left-aligned, like the resupply tip below it and every sibling app's footer — the
@@ -1452,7 +1465,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
 <!-- ── Back up / restore, opened from the header ─────────────────────────────── -->
 <dialog id="dataDialog" aria-labelledby="dataDialogTitle">
   <h2 id="dataDialogTitle">Back Up &amp; Restore</h2>
-  <p class="hint">One JSON file holding every supply, its schedule and its spares count — a
+  <p>One JSON file holding every supply, its schedule and its spares count — a
     copy you keep, independent of this browser and of any Google account. With no account
     needed to use PAPTrack, clearing your browser data is the one thing that will lose it.</p>
   <div class="datarow">
@@ -1460,27 +1473,27 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     <button type="button" class="act" id="importBtn"><span aria-hidden="true">⬆︎</span> Restore from Backup…</button>
     <input type="file" id="importFile" accept=".json,application/json" aria-label="Choose a backup file" hidden>
   </div>
-  <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
-  <p class="hint" style="margin-top:12px">Or take the same data to a spreadsheet. CSV is a
+  <hr>
+  <p>Or take the same data to a spreadsheet. CSV is a
     one-way door — it's for reading and charting, not for restoring, which is what the JSON
     file above is for.</p>
   <div class="datarow">
     <button type="button" class="act" id="csvSuppliesBtn"><span aria-hidden="true">⬇︎</span> Download Supplies (CSV)</button>
     <button type="button" class="act" id="csvHistoryBtn"><span aria-hidden="true">⬇︎</span> Download History (CSV)</button>
   </div>
-  <hr style="border:0;border-top:1px solid var(--border);margin:16px 0">
-  <p class="hint" style="margin-top:12px">Restoring <strong>replaces every supply in this
+  <hr>
+  <p>Restoring <strong>replaces every supply in this
     browser</strong>. You're told what the file holds and asked to confirm first — and if
     you're signed in, the restored copy becomes the one your other devices get.</p>
   <details class="danger-zone">
     <summary>Start Again</summary>
-    <p class="hint" style="margin-top:10px">Deletes every supply in this browser. Your theme
+    <p>Deletes every supply in this browser. Your theme
       is kept.</p>
     <div class="datarow">
       <button type="button" class="act danger" id="clearBtn">Delete All Data</button>
     </div>
   </details>
-  <div class="formfoot">
+  <div class="datafoot">
     <button type="button" class="btn primary" id="dataCloseBtn">Close</button>
   </div>
 </dialog>
