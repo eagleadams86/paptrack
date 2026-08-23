@@ -446,16 +446,29 @@
        button, and only a flex line box centres it reliably across engines. */
     display: inline-flex; align-items: center; justify-content: center;
   }
-  /* THE ONE THING STILL UNEVEN IN THIS ROW, on a phone only: theme.css puts every
-     <select> at 16px on a coarse pointer (pack rule 10 — under that, iOS zooms the
-     whole page when you focus one), and a <button> raises no keyboard so the pack
-     rightly leaves it alone. The picker's label is therefore a size bigger than
-     the two buttons beside it. There WAS a rule here raising the buttons to match;
-     the type audit of 2026-08-22 rewrote it to --fs-xs, which is what they already
-     were, so it has been doing nothing since. It is not simply restored, because
-     the row is a fixed 30px now (it was 40px when that rule was written) and 16px
-     text does not sit in a 30px box. Fixing it properly means a taller header on
-     touch, which is a change to every screen and not one to make in passing. */
+  /* ── The header row on TOUCH ───────────────────────────────────────────────
+     theme.css puts every <select> at 16px on a coarse pointer (pack rule 10, the
+     iOS focus-zoom floor) and rightly leaves <button> alone — a button raises no
+     keyboard, so it has no zoom to avoid. What that left, in every app in the
+     family at once, is a header row whose PICKERS carry a label a size bigger
+     than the buttons beside them. There WAS a rule here answering it; the type
+     audit of 2026-08-22 rewrote it to --fs-xs, which is what the buttons already
+     were, so it did nothing from that day until this one.
+
+     Answered properly now: on touch the buttons take the same 16px, and the
+     height the whole row is pinned to grows 30px → 34px, which is exactly what
+     16px text measures in this row's 4px/9px box (24px line + 8px padding + 2px
+     border). It could not simply be restored, because that rule was written when
+     the row was 40px and 16px text does not sit in the 30px it became on
+     2026-08-21. Mouse sizes are untouched, which is where the chrome height
+     actually reads — pack rule 10 says so in as many words.
+
+     The cost is stated rather than hidden: this sticky header on a 375px phone
+     grows by 4px a row. Fixed in all six apps on 2026-08-23. */
+  @media (pointer: coarse) {
+    :root { --chrome-h: 34px; }
+    .top-actions .act { font-size: var(--fs-base); }
+  }
   /* The other half of not moving: this button's LABEL changes as you use it —
      "☁️ Sign In to Sync", then "☁️ Charlie", then "⚠️ Not syncing" — and each
      one is a different width, so the row shifted every time sync changed state.
