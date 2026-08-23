@@ -1030,7 +1030,6 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   /* ---- Footer ---- */
   /* Left-aligned, like the resupply tip below it and every sibling app's footer — the
      note wraps to two lines on a phone, and centred wrapped text has no edge to read down. */
-  footer { margin-top: 28px; font-size: var(--fs-xs); color: var(--text-muted); text-align: left; }
   footer .links { margin-top: 8px; display: flex; gap: 8px; }
   /* Same padded target as the buttons below — a hairline footer link is no easier
      to hit than a hairline footer button. The padding is right-only so the link's text
@@ -1248,6 +1247,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   </main>
 
   <footer>
+  <div class="footnotes">
     <!-- The SIGNED-OUT line, which is what the sync module writes into this
          element the moment it knows nobody is signed in — so the markup ships
          it rather than flashing a different claim first. It used to read "100%
@@ -1257,15 +1257,18 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
          sentences on one screen disagreeing about where somebody's data goes is
          the worst kind of wrong this app can be; Money Map's card records the
          same correction. -->
-    <div id="privacyNote">🔒 Private — stored in this browser; sign in to sync your own devices. No account required to use the app.</div>
-    <div class="links"><a href="privacy.html">Privacy policy</a>
-      <a href="https://github.com/eagleadams86/paptrack" target="_blank" rel="noopener noreferrer">How it works</a></div>
+    <p class="privacy" id="privacyNote">🔒 Private — stored in this browser; sign in to sync your own devices. No account required to use the app.</p>
+    <p class="privacy privacy-links"><a href="privacy.html">Privacy policy</a> &middot;
+      <a href="https://github.com/eagleadams86/paptrack" target="_blank" rel="noopener noreferrer">How it works</a></p>
     <!-- Authorship line, mirroring the sibling apps. Its own element, not part of
          #privacyNote, whose textContent the sync code rewrites. -->
-    <div class="copyright">&copy; 2026 Charles Adams — an independent personal project,
-      <a href="https://github.com/eagleadams86/paptrack/blob/main/LICENSE"
-         target="_blank" rel="noopener noreferrer">MIT licensed</a>.</div>
-  </footer>
+    <p class="privacy privacy-links">&copy; 2026 Charles Adams — an
+    <a href="https://github.com/eagleadams86/paptrack/blob/main/NOTICE"
+       target="_blank" rel="noopener noreferrer">independent personal project</a>,
+    <a href="https://github.com/eagleadams86/paptrack/blob/main/LICENSE"
+       target="_blank" rel="noopener noreferrer">MIT licensed</a>.</p>
+  </div>
+</footer>
 </div>
 
 <div class="toast" id="toast" role="status"></div>
@@ -1508,6 +1511,31 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      day. Pack rule 10 is `!important` as of 2026-08-20, so the floor now holds
      against class and id alike and there is nothing left for an app to
      remember. Don't re-add a local one: a partial patch reads as coverage. */
+/* ── The footer every public page in this account carries ────────────────────
+   Sprint Predictability's, transcribed — it is the design lead for this chrome,
+   and a change here belongs there too. THREE lines, always: what the app does
+   with your data, the privacy policy beside the repo under the label "How it
+   works", and the authorship line.
+
+   The authorship line carries TWO links and the pairing is the part that gets
+   got wrong: "independent personal project" points at NOTICE (who owns it) and
+   "MIT licensed" points at LICENSE (the terms). They were the other way round
+   in Sprint Predictability once — the label promised the licence and landed on
+   the provenance statement, whose own second line then says "See LICENSE for
+   the terms".
+
+   `footer` is a flex ROW so an app with a cross-link to a sibling can put it at
+   the right-hand end; `.footnotes` is what keeps the three paragraphs stacked
+   inside it. Without that wrapper the paragraphs become flex items and lay out
+   side by side, so it is not optional even on a page with no cross-link.
+
+   The links are MUTED rather than accent: this is provenance at the foot of a
+   document, not something to click on the way in. */
+footer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.footnotes { flex: 1 1 320px; min-width: 0; }
+.privacy { font-size: var(--fs-xs); color: var(--text-muted); margin: 28px 0 0; padding-left: 19px; }
+.privacy-links { margin-top: 6px; }
+.privacy-links a { color: var(--text-muted); }
 </style>
 
 <script>
