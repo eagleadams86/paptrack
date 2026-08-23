@@ -445,6 +445,15 @@
        fixed height and 8px of vertical padding the text box is smaller than the
        button, and only a flex line box centres it reliably across engines. */
     display: inline-flex; align-items: center; justify-content: center;
+    /* AND THE GAP IS THE PRICE OF THAT. `<span>⇩</span> Back Up` is one element
+       and one text node; in a flex container the text node becomes an anonymous
+       flex item and its LEADING WHITESPACE IS STRIPPED, so the glyph sat flush
+       against the word — "⇩Back Up" here against "⇩ Back Up" in every sibling,
+       whose header buttons are ordinary blocks. Same markup, different box.
+       Reported 2026-08-23. 4px because a word space at this size measures
+       3.58px; this is that, rounded to something a reader of this file can hold
+       in their head. */
+    gap: 4px;
   }
   /* ── The header row on TOUCH ───────────────────────────────────────────────
      theme.css puts every <select> at 16px on a coarse pointer (pack rule 10, the
@@ -3613,7 +3622,15 @@ async function refreshShareLink() {
                           scope.textContent = ''; warn.textContent = ''; setBusy(true); };
 
   const ids = shareChosenIds();
-  $('shareCountNote').textContent = ids.length + ' of ' + items.length + ' picked';
+  /* "N of M selected", the siblings' wording — and the button beside it names the
+     move it will make rather than staying put, which is what the other four do.
+     Hidden below two supplies: there is nothing to select wholesale. */
+  const boxes = [...document.querySelectorAll('#shareItems input')];
+  const all = boxes.length > 0 && ids.length === boxes.length;
+  const sel = $('shareSelectAll');
+  sel.textContent = all ? 'Select None' : 'Select All';
+  sel.hidden = boxes.length < 2;
+  $('shareCountNote').textContent = ids.length + ' of ' + boxes.length + ' selected';
   if (!ids.length) return stop('Pick at least one supply.');
 
   const extras = { notes: $('shareNotes').checked, order: $('shareOrder').checked,
