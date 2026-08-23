@@ -729,6 +729,9 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .b-neutral { background: var(--surface-alt); border-color: var(--border); } .b-neutral .dot { background: var(--text-muted); }
   /* The details dialog's event list. Two columns on one line — what happened, and when —
      with the date allowed to wrap under on a narrow phone rather than squeezing the label. */
+  /* Clears the facts above it when the details window is one column; the wide
+     layout zeroes this, where the heading starts its own column. */
+  #itemHistoryH { margin-top: 18px; }
   .hist { list-style: none; margin: 0; padding: 0; }
   .hist li {
     display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: space-between;
@@ -1117,6 +1120,46 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
          row is only ever as tall as it is. */
       #itemForm .sec-card { flex: none; }
     }
+  }
+
+  /* ── Three across ─────────────────────────────────────────────────────────
+     Asked for on 2026-08-23. The two-column form was 958px tall in an 868px
+     window, so it opened already scrolling; three columns bring it to 786px and
+     nothing is below the fold.
+
+     1200px, and the number is not a preference — it is the width at which the
+     COLUMNS COME OUT AT 377px, which is exactly what they measure in the
+     two-column layout at 820px. Every field, quick-pick row and date box keeps
+     the size it has today; the only thing that changes is how many sit beside
+     each other. The binding item is Replacement's five quick-picks — 321px of
+     buttons, so 347px of column with the card's padding and border — and three
+     of those plus the gaps and the dialog's own padding is what sets 1200.
+
+     The breakpoint is 1260 and NOT 860, because below it the third column is
+     what breaks first: at 820px across three, a column is 251px, the five
+     quick-picks wrap onto a second line, and Cost each beside Last ordered puts
+     a date box in 107px when a date box cannot go under 129. 1260 is the window
+     at which the dialog can actually REACH 1200 — the browser's own default
+     `dialog` cap is `calc(100% - 6px - 2em)`, which bites before this rule's
+     `100vw - 32px` does, and a classic scrollbar takes 15px more that a media
+     query does not see. Tried at 1150 first: the dialog came out 1097, the
+     column 337, and Replacement's quick-picks wrapped — the exact thing three
+     across is meant to avoid. So the layout never appears part-formed: either
+     the window has room for three 377px columns or it stays as it was.
+
+     The details window comes along, because it is the same width as the form by
+     the rule above and 1200px of prose is a 190-character line. It splits into
+     two: what the supply IS on the left (status, the actions, the facts) and
+     what has HAPPENED to it on the right, which is the one part that grows. */
+  @media (min-width: 1260px) {
+    #formDialog, #itemDialog { width: min(1200px, calc(100vw - 32px)); }
+    #itemForm { grid-template-columns: repeat(3, 1fr); }
+    /* `align-items: start` and not the grid's usual stretch: these are two plain
+       runs of content, not a pair of bordered cards, so there is nothing here
+       for a matched height to tidy up — it would only pad the shorter column. */
+    #itemDialog .detailcols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; align-items: start; }
+    /* The heading is the top of its own column now, so it has nothing to clear. */
+    #itemHistoryH { margin-top: 0; }
   }
   /* ---- Back up & restore ---- */
   /* Every paragraph in a dialog, not only the ones tagged .hint — a class-less
@@ -1610,11 +1653,20 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      One dialog rather than four more buttons per card — a card already carries seven. -->
 <dialog id="itemDialog" aria-labelledby="itemDialogTitle">
   <h2 id="itemDialogTitle"></h2>
-  <div id="itemStatus"></div>
-  <div class="datarow" id="itemActions"></div>
-  <div id="itemFacts"></div>
-  <h3 class="sec-h" style="margin-top:18px">History</h3>
-  <div id="itemHistory"></div>
+  <!-- Two columns from 1260px, stacked below it: what the supply IS on the left,
+       what has HAPPENED to it on the right. The ids are untouched — renderDetails
+       writes into them by id and does not care what holds them. -->
+  <div class="detailcols">
+    <div>
+      <div id="itemStatus"></div>
+      <div class="datarow" id="itemActions"></div>
+      <div id="itemFacts"></div>
+    </div>
+    <div>
+      <h3 class="sec-h" id="itemHistoryH">History</h3>
+      <div id="itemHistory"></div>
+    </div>
+  </div>
   <div class="formfoot">
     <button type="button" class="btn primary" id="itemCloseBtn">Done</button>
   </div>
