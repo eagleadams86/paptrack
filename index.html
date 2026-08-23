@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
 <meta charset="UTF-8">
 <!-- Content Security Policy. GitHub Pages can't set response headers, so this meta
@@ -67,12 +67,17 @@
      stay one picture. -->
 <link rel="manifest" href="manifest.webmanifest">
 <!-- The colour of the window's title bar in an installed app, and of the address
-     bar on Android. Set to midnight's page colour to start with, because that is
-     the default theme; the theme picker rewrites it, so an installed window
-     follows the theme rather than staying dark behind a light page. -->
+     bar on Android. Set to midnight's page colour to start with, because it has
+     to be right before any script runs — the boot script below nudges it to Light
+     when Auto, the default, resolves that way; the theme picker rewrites it, so an
+     installed window follows the theme rather than staying dark behind a light
+     page. -->
 <meta name="theme-color" content="#0a0e1a">
 <script>
-  // Apply saved theme before first paint to avoid a flash. Midnight is the default.
+  // Apply saved theme before first paint to avoid a flash. AUTO is the default
+  // (2026-08-22): never having chosen, or a retired id, both land there, so a first
+  // run follows the reader's own system. The same id is in the markup above, which
+  // is what a browser with script disabled gets.
   (function () {
     var t = localStorage.getItem('pap-theme');
     if (t === 'slate') t = 'dark'; // Slate was renamed Dark when the themes unified (Aug 2026)
@@ -86,8 +91,17 @@
        silent failure the pack warns about — the picker would offer it and the
        page would quietly fall back to midnight. */
     var valid = ['auto', 'midnight', 'dark', 'light', 'sepia'];
-    if (valid.indexOf(t) === -1) t = 'midnight'; // covers the retired forest/solarized/synthwave
+    if (valid.indexOf(t) === -1) t = 'auto'; // covers the retired forest/solarized/synthwave
     document.documentElement.setAttribute('data-theme', t);
+    /* And the title bar with it. The literal in the meta above is Midnight's, and
+       Auto resolves to LIGHT on a light system — without this an installed app opens
+       with a midnight bar over a light page until applyThemeColor() runs at the foot
+       of the file. matchMedia is answerable this early; --bg is not, because
+       theme.css has not loaded. Keep the one value in step with Light's --bg. */
+    if (t === 'auto' && !matchMedia('(prefers-color-scheme: dark)').matches) {
+      var bar = document.querySelector('meta[name="theme-color"]');
+      if (bar) bar.setAttribute('content', '#f5f5f3');
+    }
   })();
 </script>
 <!-- The palette is the theme pack's generated file, LINKED. It must come before
@@ -1132,10 +1146,10 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
              one option that isn't a colour at the top. ◐ is a plain text glyph like
              ☾ and ☀, not an emoji: the colour-font variants are a different weight
              and baseline from the characters beside them. -->
-        <option value="auto">◐ Auto</option>
+        <option value="auto" selected>◐ Auto</option>
         <option value="dark">☾ Dark</option>
         <option value="light">☀ Light</option>
-        <option value="midnight" selected>✦ Midnight</option>
+        <option value="midnight">✦ Midnight</option>
         <option value="sepia">📜 Sepia</option>
       </select>
     </div>

@@ -85,7 +85,7 @@ function ok(cond, note) { if (!cond) throw new Error(note || 'expected truthy');
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 98;
+const EXPECTED = 99;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1154,11 +1154,27 @@ group('The header picker reads the theme the page is actually showing');
    painted "☾ Dark" over a midnight page until the script at the foot of the
    file set .value — the header is drawn long before that runs. Every sibling
    app writes the attribute in for exactly this reason. */
-t('midnight is pre-selected, matching the pre-paint boot in <head>', () => {
-  const opt = w.document.querySelector('#themeSel option[value="midnight"]');
-  ok(opt, 'no midnight option in the theme picker');
+t('auto is pre-selected, matching the pre-paint boot in <head>', () => {
+  const opt = w.document.querySelector('#themeSel option[value="auto"]');
+  ok(opt, 'no auto option in the theme picker');
   ok(opt.defaultSelected,
-    'midnight must carry `selected` in the markup, or the row reads "Dark" until JS runs');
+    'auto must carry `selected` in the markup, or the row reads the wrong theme until JS runs');
+  const others = [...w.document.querySelectorAll('#themeSel option')]
+    .filter((o) => o.value !== 'auto' && o.defaultSelected);
+  eq(others.length, 0, 'exactly one option may carry `selected`, and it is the default');
+});
+/* The default moved from midnight to auto on 2026-08-22, and it lives in THREE places
+   that have to agree: the <html> attribute (what a browser with no script gets), the
+   boot script's fallback (what a reader with nothing saved gets), and the picker's
+   `selected` (what the row READS while all of that happens). Any one of them left on
+   midnight is a silent disagreement — the page looks right to whoever is not on a
+   light-mode system, which on this family's own machines is most of the time. */
+t('and the markup and the boot script agree that the default is auto', () => {
+  ok(/<html[^>]*\sdata-theme="auto"/.test(APP_SRC),
+    '<html> must carry data-theme="auto", or a script-less load falls to :root\'s midnight');
+  const boot = stripComments(APP_SRC).match(/valid\.indexOf\(t\) === -1\) t = '([a-z]+)'/);
+  ok(boot, 'the boot script no longer normalises an unknown saved theme id');
+  eq(boot[1], 'auto', 'an unknown or missing saved id must land on the default, auto');
 });
 t('the glyphs are plain text characters, not emoji-presentation ones', () => {
   const labels = [...w.document.querySelectorAll('#themeSel option')]
@@ -1171,8 +1187,10 @@ t('the glyphs are plain text characters, not emoji-presentation ones', () => {
    to Light, or to Midnight under prefers-color-scheme: dark, before any script runs.
    The failure this pins is the silent one the pack warns about — an app that offers the
    option but leaves it out of the boot script's valid list, so choosing Auto saves a
-   preference the next load quietly turns back into midnight. */
-t('auto survives the boot script instead of being normalised to midnight', () => {
+   preference the next load quietly turns back into the base palette. It matters more now
+   that auto is the DEFAULT: the id would be dropped on the way in as well as on the way
+   back. */
+t('auto survives the boot script instead of being normalised away', () => {
   const boot = APP_SRC.match(/var valid = \[([^\]]*)\]/);
   ok(boot, 'the boot script no longer has a valid-theme list to check');
   ok(/'auto'/.test(boot[1]), "'auto' must be a valid saved theme id, or the picker lies");
