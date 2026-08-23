@@ -431,6 +431,11 @@
      (card rows, dialogs, the empty state) and none of those should move. */
   .top-actions .act {
     height: var(--chrome-h);
+    /* Chrome, so --fs-xs — the size the whole family pins its header row to,
+       and the only thing a fixed 30px box has room for. Stated here since
+       2026-08-23, when `.act` itself moved up to the 16px control size; before
+       that it was inherited from `.act` and this rule did not need to exist. */
+    font-size: var(--fs-xs);
     /* Vertical padding cut to match: at 30px the shipped `8px 12px` leaves a
        14px content box, which the coarse-pointer 16px label below does not fit
        into. The button is sized by its height either way — the padding is only
@@ -441,17 +446,16 @@
        button, and only a flex line box centres it reliably across engines. */
     display: inline-flex; align-items: center; justify-content: center;
   }
-  @media (pointer: coarse) {
-    /* Matching the row on TOUCH takes one more rule, because the two kinds of
-       control get their size from different places there. theme.css puts every
-       <select> at 16px on a coarse pointer (pack rule 10 — under that, iOS zooms
-       the whole page when you focus one). A <button> raises no keyboard, so the
-       pack rightly leaves it alone — which left the picker's label visibly
-       bigger than the two buttons beside it at the same 40px height. Buttons
-       have no zoom to avoid, so this is cosmetic: it exists only so the row
-       reads as one row on a phone. */
-    .top-actions .act { font-size: var(--fs-xs); }
-  }
+  /* THE ONE THING STILL UNEVEN IN THIS ROW, on a phone only: theme.css puts every
+     <select> at 16px on a coarse pointer (pack rule 10 — under that, iOS zooms the
+     whole page when you focus one), and a <button> raises no keyboard so the pack
+     rightly leaves it alone. The picker's label is therefore a size bigger than
+     the two buttons beside it. There WAS a rule here raising the buttons to match;
+     the type audit of 2026-08-22 rewrote it to --fs-xs, which is what they already
+     were, so it has been doing nothing since. It is not simply restored, because
+     the row is a fixed 30px now (it was 40px when that rule was written) and 16px
+     text does not sit in a 30px box. Fixing it properly means a taller header on
+     touch, which is a change to every screen and not one to make in passing. */
   /* The other half of not moving: this button's LABEL changes as you use it —
      "☁️ Sign In to Sync", then "☁️ Charlie", then "⚠️ Not syncing" — and each
      one is a different width, so the row shifted every time sync changed state.
@@ -577,7 +581,7 @@
     .toolbar .search { padding: 7px 12px; }
     .toolbar .search, .toolbar .filter-chip, .toolbar .cleanall { min-height: 40px; }
     /* Pushed to the far end of the row, away from the filters it is not part of. */
-    .toolbar .cleanall { align-self: auto; margin-left: auto; font-size: var(--fs-base); padding: 7px 12px; }
+    .toolbar .cleanall { align-self: auto; margin-left: auto; }
   }
 
   /* ---- Cards ---- */
@@ -734,10 +738,35 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
        button wears: --surface-alt on --border-strong. It was --surface on
        --border, a step down, so these read flat against the card behind them. */
     border: 1px solid var(--border-control); background: var(--surface-alt); color: var(--text-primary);
-    padding: 8px 12px; border-radius: var(--radius-sm); font-size: var(--fs-xs); cursor: pointer;
+    /* …and now the same BOX as `.btn` too: 16px text at 7px/12px, a 40px
+       control. This was 13px at 8px/12px, which made `.act` the one button in
+       the family below the pack's stated size for "controls and buttons" — and
+       `.btn` sits four lines below wearing 16px, so the app disagreed with
+       itself as well as with its siblings. It showed up first in the two
+       windows shared across all six apps (Back Up and delete-all), which were
+       scoped to 16px on 2026-08-23 and then done properly here the same day:
+       one size, no scoped exceptions.
+
+       ONE place pins --fs-xs back, and it is stated where it lives rather than
+       here: the header row, because chrome is --fs-xs family-wide and the box is
+       a fixed 30px. Nothing else has an exception. */
+    padding: 7px 12px; border-radius: var(--radius-sm); font-size: var(--fs-base); cursor: pointer;
   }
   .act:hover { border-color: var(--text-muted); }
-  .quad .act { width: 100%; text-align: center; font-size: var(--fs-xs); }
+  /* Full width in its quadrant, and no size of its own: a card's actions are
+     ordinary buttons and take the ordinary button size. They were pinned to
+     --fs-xs while the same button in a dialog was 16px. */
+  .quad .act { width: 100%; text-align: center; }
+  /* …with ONE exception, and it is a measurement rather than a preference. The
+     card's 2x2 grid leaves a 128px column on a 375px phone, and "Mark Replaced"
+     at 16px needs 138 — so every other card action wrapped onto a second line
+     beside a one-line neighbour. The grid does not stack here on purpose: four
+     tiles in a column would make one supply most of a screen. 460px is the
+     breakpoint the delete-all footer already uses in this file; the column is
+     roomy again by ~390px, so this covers every common phone with margin. */
+  @media (max-width: 460px) {
+    .quad .act { font-size: var(--fs-xs); }
+  }
   /* Destructive buttons. Same shape as every other button — only the colour differs,
      from the existing --err token, so nothing here diverges from the theme pack.
      Mirrored in Sprint Predictability, Flow Metrics, Money Map and Golf Handicap. */
@@ -1025,15 +1054,6 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   @media (max-width: 460px) {
     .clearfoot .safety { flex: 1 0 100%; margin-right: 0; }
   }
-  /* The three buttons here take the pack's control size (--fs-base, 16px), not
-     the 13px `.act` wears everywhere else in this app. The delete-all dialog is
-     ONE dialog across five apps, and the other four sit at 16px because that is
-     what the pack gives "controls and buttons" — so at 13px this app was the odd
-     one out in the only window where the family is meant to look identical.
-     7/12 padding rather than 8/12 so the box lands on the same 40px as theirs.
-     Scoped to this dialog: every other `.act` in the app is untouched.
-     (Asked for 2026-08-23, when the five dialogs were lined up side by side.) */
-  #clearDialog .act, #dataDialog .act { font-size: var(--fs-base); padding: 7px 12px; }
 
   /* ── Back Up & Restore: the family's window ────────────────────────────────
      One window across six apps (2026-08-23) — PAPTrack's, to the pixel. What
