@@ -1057,6 +1057,15 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     cursor: pointer; font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-secondary);
   }
   details.danger-zone > summary:hover { color: var(--text-primary); }
+  /* The banner on somebody else's snapshot — the family's, to the token: a
+     --focus-border spine on --surface-alt, the same shape the starter and the
+     other four use. It says three things and no more: that this is a snapshot,
+     that nothing here touches the reader's own supplies, and the way back. */
+  .viewbar { display: flex; gap: 10px 14px; align-items: baseline; flex-wrap: wrap;
+             border: 1px solid var(--border-strong); border-left: 4px solid var(--focus-border);
+             border-radius: var(--radius); background: var(--surface-alt);
+             padding: 11px 14px; margin-bottom: 16px; font-size: var(--fs-xs); }
+  .viewbar .muted { color: var(--text-muted); }
   .warn { color: var(--err); font-size: var(--fs-xs); margin: 0 0 12px; }
   .warn:empty { display: none; }
   /* The delete-all footer holds three buttons, and on a phone they don't fit
@@ -1067,6 +1076,38 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   @media (max-width: 460px) {
     .clearfoot .safety { flex: 1 0 100%; margin-right: 0; }
   }
+
+  /* ── Share: the family's window ────────────────────────────────────────────
+     1100px, which is what the other five open Share at — it is the widest window
+     in the family because it is the only one that asks two questions side by
+     side before it answers. Stacks under 900px, where two columns of labelled
+     controls stop fitting. */
+  #shareDialog { width: min(1100px, calc(100vw - 32px)); padding: 18px; }
+  #shareDialog .share-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  @media (max-width: 900px) {
+    #shareDialog .share-choices { grid-template-columns: 1fr; }
+  }
+  #shareDialog p { font-size: var(--fs-xs); color: var(--text-secondary); margin: 0 0 12px; }
+  .formpanel { border: 1px solid var(--border); border-radius: var(--radius-sm);
+               padding: 12px; margin: 0; background: var(--surface-alt); }
+  .formpanel + .formpanel, .share-choices + .formpanel { margin-top: 20px; }
+  #shareDialog .share-choices > .formpanel { margin-top: 0; }
+  .formpanel > legend { padding: 0 6px; font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+                        color: var(--text-secondary); text-transform: uppercase;
+                        letter-spacing: var(--ls-label); }
+  .checklist-head { display: flex; align-items: baseline; justify-content: space-between;
+                    gap: 10px; margin-bottom: 8px; }
+  .checklist { display: grid; gap: 8px; max-height: 240px; overflow: auto; }
+  .checkline { display: flex; align-items: flex-start; gap: 8px; font-size: var(--fs-xs);
+               color: var(--text-secondary); }
+  .checkline input { margin-top: 2px; flex: none; }
+  .checkline .hint { display: block; margin-top: 2px; }
+  .act.small { padding: 4px 9px; font-size: var(--fs-xs); }
+  #shareLink { width: 100%; font-family: var(--font-mono); font-size: var(--fs-xs);
+               color: var(--text-secondary); background: var(--surface);
+               border: 1px solid var(--input-border); border-radius: var(--radius-sm);
+               padding: 9px 11px; }
+  #shareMeta:empty, #shareScope:empty { display: none; }
 
   /* ── Back Up & Restore: the family's window ────────────────────────────────
      One window across six apps (2026-08-23) — PAPTrack's, to the pixel. What
@@ -1181,6 +1222,10 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
          in to sync keeps its emoji: the sync module rewrites that label as the
          state changes, and it is the one control here about somewhere else. -->
       <button class="act" id="dataBtn" type="button" title="Back up, restore or clear your data"><span aria-hidden="true">⇩</span> Back Up</button>
+      <!-- ↗ Share, in the slot the comment above reserves for it: after Back Up
+           and before the theme picker, which is always last. Added 2026-08-23 —
+           this was the one app in the family without a share window. -->
+      <button class="act" id="shareBtn" type="button" title="Create a read-only link to show someone these supplies"><span aria-hidden="true">↗</span> Share</button>
       <!-- The four unified themes, listed alphabetically (matches every sibling
            app). ☀ is the plain text sun, not ☀️ — the emoji-presentation
            variant is drawn from the colour font, which is a different weight
@@ -1211,6 +1256,10 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
        because a skip link has to be able to move focus here, and nothing else
        may put it in the tab order. -->
   <main id="maincontent" tabindex="-1">
+
+  <!-- The banner on somebody else's snapshot. Empty and hidden until a shared
+       view fills it, and `no-print` because it is chrome, not the supplies. -->
+  <div class="viewbar no-print" id="viewbar" hidden></div>
 
   <!-- Each tile's three visible parts are decorative to a screen reader on their own — the
        sub-line is a row of emoji, and the count is a bare number. They're hidden from the
@@ -1535,6 +1584,72 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      Its own dialog rather than a confirm(): this is the one action with no way
      back, so it gets room to say exactly how much is going, whether it reaches
      the other devices, and to offer the backup that is the only route back. -->
+<!-- ── The family's share window ─────────────────────────────────────────────
+     The same shape in all six apps: the title, the sentence about where the data
+     goes, a `.share-choices` pair of panels deciding WHAT rides in the link, the
+     "Your Link" panel with the box and its two buttons, the snapshot warning,
+     and a Done that is the only thing in the footer.
+
+     WHAT IS OFF BY DEFAULT IS THE POINT. A supply list is a health record: the
+     schedule and what is due are what someone helping you actually needs, and
+     the notes, the cost and the supplier are not. All three start unticked, the
+     way Money Map's names and notes do. -->
+<dialog id="shareDialog" aria-labelledby="shareDialogTitle">
+  <h2 id="shareDialogTitle">Share a Read-Only Link</h2>
+  <p>Anyone opening this link sees the supplies you pick, with no way to change them and no
+    sign-in. They travel <em>inside</em> the link itself — nothing is uploaded anywhere, and
+    opening it doesn't touch whatever they have saved in their own browser.</p>
+
+  <div class="share-choices">
+  <fieldset class="formpanel">
+    <legend>Which Supplies</legend>
+    <div class="checklist-head">
+      <span class="hint" id="shareCountNote" role="status"></span>
+      <button type="button" class="act small" id="shareSelectAll">Select All</button>
+    </div>
+    <div class="checklist" id="shareItems"></div>
+    <p class="hint" style="margin:12px 0 0">Only the person whose list is on screen. Everyone
+      else's supplies stay where they are — a link is built from what you are looking at.</p>
+  </fieldset>
+
+  <fieldset class="formpanel">
+    <legend>What to Include</legend>
+    <p class="hint" style="margin:0 0 12px">The schedule, what is due and how many spares are
+      on hand always ride — they are what the link is for. These three do not, unless you say
+      so.</p>
+    <label class="checkline"><input type="checkbox" id="shareNotes">
+      <span>Your notes on each supply</span></label>
+    <label class="checkline" style="margin-top:12px"><input type="checkbox" id="shareOrder">
+      <span>What each one costs, and where you order it</span></label>
+    <label class="checkline" style="margin-top:12px"><input type="checkbox" id="shareHistory">
+      <span>The cleaning and replacement history
+        <span class="hint">Every date you have logged, not just the last one — it is also the
+          bulkiest thing in the link.</span></span></label>
+  </fieldset>
+  </div>
+
+  <fieldset class="formpanel">
+    <legend>Your Link</legend>
+    <input type="text" id="shareLink" readonly aria-label="Read-only share link">
+    <p class="hint" id="shareMeta" role="status" style="margin:8px 0 0"></p>
+    <p class="hint" id="shareScope" role="status" style="margin:6px 0 0"></p>
+    <p class="warn" id="shareWarn" role="status"></p>
+    <div class="datarow" style="margin-top:10px">
+      <button type="button" class="btn primary" id="shareCopyBtn">Copy Link</button>
+      <button type="button" class="act" id="shareOpenBtn">Preview It</button>
+    </div>
+  </fieldset>
+
+  <p class="hint" style="margin-top:14px">This is a <strong>snapshot</strong>, frozen as it
+    looks right now — anything you log later won't appear, so send a fresh link when the dates
+    move. There is no way to withdraw one once sent, and whoever holds it can read everything
+    inside it, so treat it like emailing a spreadsheet.</p>
+
+  <div class="formfoot">
+    <button type="button" class="btn primary" id="shareCloseBtn">Done</button>
+  </div>
+</dialog>
+
 <dialog id="clearDialog" aria-labelledby="clearTitle">
   <h2 id="clearTitle">Delete All Data?</h2>
   <p class="hint" id="clearBody"></p>
@@ -1684,6 +1799,19 @@ const LIMITS = {
    because normalizeHistory reads it and the first load happens above its old home. */
 const HISTORY_KINDS = { c: 'Cleaned', r: 'Replaced', o: 'Ordered' };
 const $ = (id) => document.getElementById(id);
+
+/* ── A SHARED VIEW ────────────────────────────────────────────────────────────
+   `#share=` in the address means this page is showing somebody else's snapshot,
+   not this browser's supplies. `viewOnly` is read here, before anything renders,
+   and is the one flag every write path and every edit surface checks. It is on
+   `window` as well because the sync module is a separate <script type="module">
+   and cannot see this file's consts — it must not sign anyone in over a snapshot.
+   The family's flag, and the same name in all six apps. */
+const SHARE_PREFIX = '#share=';
+const shareToken = location.hash.startsWith(SHARE_PREFIX)
+  ? location.hash.slice(SHARE_PREFIX.length) : null;
+let viewOnly = !!shareToken;
+window.papViewOnly = viewOnly;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /* Capitalizes just the first letter — used on the lowercase schedule labels for display. */
 const capFirst = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
@@ -2075,6 +2203,11 @@ function save() {
   /* The app halted on data from a newer build. Nothing may be written over it —
      this is the single write path, so stopping here is the whole guarantee. */
   if (halted) return;
+  /* And a shared view writes NOTHING. Same reasoning, same choke point: a reader
+     opening somebody else's link must never have their own supplies replaced by
+     it. Every edit surface is hidden in a shared view as well, but this is the
+     line that makes it a guarantee rather than a tidy-up. */
+  if (viewOnly) return;
   /* Guarded: Safari's private mode and a full quota both throw here, and an
      unguarded throw would kill the click handler mid-save with nothing on
      screen to say so. The in-memory list is still good — and still reaches the
@@ -2292,7 +2425,12 @@ function render() {
   $('stats').hidden = !has;
   $('toolbar').hidden = !has;
   $('empty').hidden = has;
-  $('addBtn').hidden = !has;
+  /* The two write buttons in the toolbar are decided HERE, not once at boot: this
+     is the function that reveals the toolbar, so anything hidden earlier would be
+     handed back on the first render. A shared view keeps the search box — reading
+     somebody else's list is a reasonable thing to want to do — and loses the two
+     controls that would change it. */
+  $('addBtn').hidden = !has || viewOnly;
 
   if (has) {
     // Three tiles, one per filter chip — clean-due, replace-due (due today or overdue),
@@ -2318,7 +2456,7 @@ function render() {
     $('statReorderSub').textContent = reorder.length ? reorder.map(i => i.emoji).join(' ') : 'stocked up ✓';
     $('statReorderSr').textContent = srLine(reorder, 'to reorder', 'All supplies are stocked up');
 
-    $('cleanAllBtn').hidden = dueClean.length < 2;
+    $('cleanAllBtn').hidden = dueClean.length < 2 || viewOnly;
   }
 
   /* Paused supplies sort below even the as-needed ones (9e9): they are still yours and
@@ -2345,31 +2483,31 @@ function render() {
           <div class="quad-line">${esc(capFirst(cleanLabel(it.cleanDays)))}</div>
           <div class="quad-line">${esc(cleanStatus(it))}</div>
           ${isPaused ? '' : cleanBadge(it)}
-          ${isCleanDue ? `<button class="act" data-act="clean" aria-label="Mark cleaned — ${n}">Mark Cleaned</button>` : ''}
+          ${isCleanDue && !viewOnly ? `<button class="act" data-act="clean" aria-label="Mark cleaned — ${n}">Mark Cleaned</button>` : ''}
         </div>
         <div class="quad">
           <div class="quad-h">↻ Replacing</div>
           <div class="quad-line">${esc(capFirst(replaceLabel(it.replaceDays)))}</div>
           <div class="quad-line">Last replaced ${esc(agoLabel(it.lastReplaced))}</div>
           ${isPaused ? '' : replaceBadge(it)}
-          ${isPaused || replacedToday(it) ? '' : `<button class="act" data-act="replace" aria-label="Mark replaced — ${n}">Mark Replaced</button>`}
+          ${isPaused || replacedToday(it) || viewOnly ? '' : `<button class="act" data-act="replace" aria-label="Mark replaced — ${n}">Mark Replaced</button>`}
         </div>
         <div class="quad">
           <div class="quad-h">📦 Spares</div>
           <div class="stock">
-            <button data-act="stock-" aria-label="One fewer spare — ${n}">−</button>
+            ${viewOnly ? '' : `<button data-act="stock-" aria-label="One fewer spare — ${n}">−</button>`}
             <span class="count">${it.stock}</span>
-            <button data-act="stock+" aria-label="One more spare — ${n}">+</button>
+            ${viewOnly ? '' : `<button data-act="stock+" aria-label="One more spare — ${n}">+</button>`}
           </div>
           ${reorderBadge(it)}
-          ${dueToReorder(it) ? `<button class="act" data-act="ordered" aria-label="Mark ordered — ${n}">Mark Ordered</button>` : ''}
+          ${dueToReorder(it) && !viewOnly ? `<button class="act" data-act="ordered" aria-label="Mark ordered — ${n}">Mark Ordered</button>` : ''}
         </div>
         <div class="quad">
           <div class="quad-h">⚙️ Manage</div>
           <button class="act" data-act="calendar" aria-label="Calendar — ${n}"><span aria-hidden="true">🗓️</span> Calendar</button>
           <button class="act" data-act="details" aria-label="Details and history — ${n}"><span aria-hidden="true">📋</span> Details</button>
-          <button class="act" data-act="edit" aria-label="Edit — ${n}">Edit</button>
-          <button class="act" data-act="delete" aria-label="Delete — ${n}">Delete</button>
+          ${viewOnly ? '' : `<button class="act" data-act="edit" aria-label="Edit — ${n}">Edit</button>
+          <button class="act" data-act="delete" aria-label="Delete — ${n}">Delete</button>`}
         </div>
       </div>
     </article>`;
@@ -3357,7 +3495,224 @@ $('clearConfirm').addEventListener('click', () => {
    a classic script, so the suite could never see it — and so the one function
    standing between a supply name and innerHTML went untested. Nothing in the
    app reads this object. Same pattern as __svTestHooks and __ghTestHooks. */
-window.__papTestHooks = { esc, raisesKeyboard, LIMITS };
+/* ── Share a read-only link ──────────────────────────────────────────────────
+   The family's feature, and the machinery is theirs verbatim: deflate-raw into
+   base64url behind a format marker, so the format can change later without
+   breaking links already sent. Nothing is uploaded and nothing is kept — the
+   supplies ARE the link, which is what makes a link impossible to withdraw and
+   why the window says so twice.
+
+   The payload is built by a PURE function of (items, choices) so the suite can
+   pin exactly what a link carries and, more to the point, what it must not. */
+const SHARE_FORMAT = 1;
+const SHARE_PAYLOAD_V = 1;
+const SHARE_WARN_AT = 8000;
+
+const b64urlEncode = (bytes) => {
+  let out = '';
+  for (const b of bytes) out += String.fromCharCode(b);
+  return btoa(out).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+const b64urlDecode = (str) => {
+  const b = atob(str.replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+};
+async function squeeze(bytes, Stream, format) {
+  const st = new Stream(format);
+  const w = st.writable.getWriter();
+  w.write(bytes); w.close();
+  return new Uint8Array(await new Response(st.readable).arrayBuffer());
+}
+
+/* WHAT RIDES, and it is a short list on purpose. A supply list is a health
+   record: the schedule, what is due and the spares count are what someone
+   helping you needs, and the notes, the cost, the supplier and the full history
+   are not. Those four ride only when asked for, and the window asks with every
+   box unticked.
+
+   Never carried at all, under any option: the profile names, the theme, the
+   sync account, `createdAt`. */
+function buildSharePayload(list, opts) {
+  const o = opts || {};
+  const pick = o.ids && o.ids.length ? new Set(o.ids) : null;
+  const chosen = list.filter((it) => !pick || pick.has(it.id));
+  return {
+    v: SHARE_PAYLOAD_V,
+    sharedAt: toISO(today()),
+    items: chosen.map((it) => {
+      const out = {
+        id: it.id, emoji: it.emoji, name: it.name,
+        cleanDays: it.cleanDays, replaceDays: it.replaceDays,
+        lastCleaned: it.lastCleaned, lastReplaced: it.lastReplaced,
+        stock: it.stock, lowAt: it.lowAt,
+        paused: it.paused, snoozeUntil: it.snoozeUntil,
+      };
+      if (o.notes) out.notes = it.notes;
+      if (o.order) { out.supplier = it.supplier; out.orderUrl = it.orderUrl; out.cost = it.cost; }
+      if (o.history) out.history = it.history;
+      return out;
+    }),
+  };
+}
+
+async function encodeShare(payload) {
+  const json = new TextEncoder().encode(JSON.stringify(payload));
+  if (typeof CompressionStream !== 'function') return '0.' + b64urlEncode(json);
+  return SHARE_FORMAT + '.' + b64urlEncode(await squeeze(json, CompressionStream, 'deflate-raw'));
+}
+
+async function decodeShare(token) {
+  const dot = token.indexOf('.');
+  if (dot < 1) throw new Error('no format marker');
+  const marker = token.slice(0, dot);
+  const bytes = b64urlDecode(token.slice(dot + 1));
+  let json;
+  if (marker === '0') {
+    json = new TextDecoder().decode(bytes);
+  } else if (marker === String(SHARE_FORMAT)) {
+    if (typeof DecompressionStream !== 'function') throw new Error('no DecompressionStream');
+    json = new TextDecoder().decode(await squeeze(bytes, DecompressionStream, 'deflate-raw'));
+  } else {
+    throw new Error('unknown format ' + marker);
+  }
+  const p = JSON.parse(json);
+  if (!p || !Array.isArray(p.items)) throw new Error('not a share payload');
+  /* The same newer-build boundary every other entry point here has. */
+  if (Number(p.v || 1) > SHARE_PAYLOAD_V) {
+    const err = new Error('share payload v' + p.v + ' is newer than this build');
+    err.newerVersion = true;
+    throw err;
+  }
+  return p;
+}
+
+/* ── The window ─────────────────────────────────────────────────────────────*/
+let shareSeq = 0;
+
+function shareChosenIds() {
+  return [...document.querySelectorAll('#shareItems input:checked')].map((el) => el.value);
+}
+
+function renderShareItems() {
+  $('shareItems').innerHTML = items.map((it) =>
+    `<label class="checkline"><input type="checkbox" value="${esc(it.id)}" checked>`
+    + `<span>${esc(it.emoji)} ${esc(it.name)}</span></label>`).join('')
+    || '<p class="hint">There is nothing to share yet.</p>';
+}
+
+/* Rebuilt on every change, not only when the window opens — a picker that
+   changes nothing you can see until you press something else is a picker people
+   distrust. Sequenced, because encodeShare is async and a fast change while a
+   slower build is still running would otherwise let the older answer land last. */
+async function refreshShareLink() {
+  const link = $('shareLink'), meta = $('shareMeta');
+  const scope = $('shareScope'), warn = $('shareWarn');
+  const busy = ++shareSeq;
+  const setBusy = (on) => { $('shareCopyBtn').disabled = on; $('shareOpenBtn').disabled = on; };
+  const stop = (msg) => { link.value = ''; meta.textContent = msg;
+                          scope.textContent = ''; warn.textContent = ''; setBusy(true); };
+
+  const ids = shareChosenIds();
+  $('shareCountNote').textContent = ids.length + ' of ' + items.length + ' picked';
+  if (!ids.length) return stop('Pick at least one supply.');
+
+  const extras = { notes: $('shareNotes').checked, order: $('shareOrder').checked,
+                   history: $('shareHistory').checked };
+  setBusy(true);
+  link.value = 'Building the link…';
+  try {
+    const token = await encodeShare(buildSharePayload(items, Object.assign({ ids }, extras)));
+    if (busy !== shareSeq) return;                 /* a newer build has taken over */
+    const url = location.origin + location.pathname + SHARE_PREFIX + token;
+    link.value = url;
+    setBusy(false);
+    meta.textContent = (ids.length === items.length
+        ? ids.length + (ids.length === 1 ? ' supply' : ' supplies')
+        : ids.length + ' of ' + items.length + ' supplies')
+      + ' · ' + url.length.toLocaleString() + ' characters';
+    /* Says what is riding beyond the schedule, because that is the part with a
+       consequence — and says so in the same breath as the link, not in prose
+       further down that a reader has already scrolled past. */
+    const carried = [extras.notes && 'your notes', extras.order && 'costs and suppliers',
+                     extras.history && 'the full history'].filter(Boolean);
+    scope.textContent = carried.length
+      ? 'Carries ' + carried.join(', ') + '.'
+      : 'Schedules, what is due and spares only.';
+    warn.textContent = url.length > SHARE_WARN_AT
+      ? 'Long enough that some chat apps and mail clients will cut it. Send it as a link '
+        + 'rather than pasting the text, or pick fewer supplies.' : '';
+  } catch (e) {
+    if (busy !== shareSeq) return;
+    stop('This browser could not build a link.');
+  }
+}
+
+const shareDialog = $('shareDialog');
+closeOnBackdropClick(shareDialog);
+
+$('shareBtn').addEventListener('click', () => {
+  if (!items.length) { toast('There is nothing to share yet.'); return; }
+  renderShareItems();
+  openModal(shareDialog);
+  refreshShareLink();
+});
+/* One delegated listener for the checklist, which is rebuilt on every open, plus
+   the three include toggles. */
+$('shareItems').addEventListener('change', refreshShareLink);
+['shareNotes', 'shareOrder', 'shareHistory'].forEach((id) =>
+  $(id).addEventListener('change', refreshShareLink));
+$('shareSelectAll').addEventListener('click', () => {
+  const boxes = [...document.querySelectorAll('#shareItems input')];
+  const allOn = boxes.every((b) => b.checked);
+  boxes.forEach((b) => { b.checked = !allOn; });
+  refreshShareLink();
+});
+$('shareCopyBtn').addEventListener('click', async () => {
+  const v = $('shareLink').value;
+  if (!v || v.indexOf('http') !== 0) return;
+  try { await navigator.clipboard.writeText(v); toast('Link copied'); }
+  catch (e) { $('shareLink').select(); toast('Press ⌘C to copy'); }
+});
+$('shareOpenBtn').addEventListener('click', () => {
+  const v = $('shareLink').value;
+  if (v && v.indexOf('http') === 0) window.open(v, '_blank', 'noopener');
+});
+$('shareCloseBtn').addEventListener('click', () => shareDialog.close());
+
+/* ── Reading one ────────────────────────────────────────────────────────────*/
+let shareMeta = null;
+
+function renderViewbar() {
+  const bar = $('viewbar');
+  bar.hidden = !viewOnly;
+  if (!viewOnly) { bar.textContent = ''; return; }
+  bar.innerHTML = '<strong>You are looking at a shared snapshot.</strong>'
+    + '<span>Nothing here is saved to this browser, and your own supplies are untouched.</span>'
+    + (shareMeta && shareMeta.sharedAt
+        ? '<span class="muted">Shared ' + esc(fmtDate(parseDate(shareMeta.sharedAt))) + '</span>' : '')
+    + '<button type="button" class="act small" id="leaveShare">Back to mine</button>';
+  $('leaveShare').addEventListener('click', () => { location.hash = ''; location.reload(); });
+}
+
+/* Every edit surface goes. The cards already render read-only above; these are
+   the controls that would write, sign in, or replace this browser's copy. */
+function enterViewOnly(payload) {
+  shareMeta = { sharedAt: payload.sharedAt };
+  items = normalizeItems(payload.items);
+  /* addBtn and cleanAllBtn are NOT here: render() owns their `hidden` and would
+     hand them straight back. They check `viewOnly` where they are set instead. */
+  ['dataBtn', 'shareBtn', 'syncBtn', 'profileSel'].forEach((id) => {
+    const el = $(id);
+    if (el) el.hidden = true;
+  });
+  renderViewbar();
+}
+
+window.__papTestHooks = { esc, raisesKeyboard, LIMITS,
+  /* Pure, and the only place a link's contents are decided — pinned directly
+     rather than through the dialog, so the suite can prove what a link carries
+     and what it must never carry without a DOM. */
+  buildSharePayload, SHARE_PAYLOAD_V, SHARE_FORMAT };
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
 window.paptrackGet = () => items;
@@ -3423,7 +3778,27 @@ document.addEventListener('visibilitychange', () => {
 });
 
 fillPresetOptions();
-render();
+
+/* ── Boot ────────────────────────────────────────────────────────────────────
+   A shared view is decoded BEFORE the first render, so the page never paints
+   this browser's own supplies and then swaps them for somebody else's. A link
+   that cannot be read falls back to the reader's own list with a toast rather
+   than to a blank page: their data is still there, and saying so is better than
+   an empty screen that looks like it ate something. */
+(async () => {
+  if (shareToken) {
+    try {
+      enterViewOnly(await decodeShare(shareToken));
+    } catch (e) {
+      viewOnly = false;
+      window.papViewOnly = false;
+      toast(e && e.newerVersion
+        ? 'That link was made by a newer version of PAPTrack.'
+        : 'That link could not be read.');
+    }
+  }
+  render();
+})();
 </script>
 
 <script type="module">
@@ -3579,7 +3954,12 @@ function ensureInit() {
    reader asking for Google rather than the page fetching it on their behalf. */
 function armSync() { ensureInit().catch(() => { /* onClick reports it */ }); }
 
-if (FIREBASE_CONFIG && !inTestHarness && !window.papHalted) {
+/* A SHARED VIEW NEVER SIGNS ANYONE IN. `window.papViewOnly` is the classic
+   script's flag, reachable from this module — which cannot see its consts. The
+   reader is looking at somebody else's snapshot; signing them in would put their
+   own cloud copy behind a page that is not theirs, and the sync module's whole
+   job is to make one copy win. */
+if (FIREBASE_CONFIG && !inTestHarness && !window.papHalted && !window.papViewOnly) {
   if (shouldBootSync()) {
     ensureInit().catch((e) => { console.warn('Sync unavailable:', e); btn.hidden = true; });
   } else {

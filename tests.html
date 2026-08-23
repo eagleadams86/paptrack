@@ -120,6 +120,54 @@ t('numbers are clamped into range and junk becomes the default', () => {
    too, with nothing said. Until 2026-08-22 that was every numeric field (spares
    999 -> 99, reorder-at 999 -> 20, both day fields 3650 -> 365/1095). These
    figures are the phones' own ceilings; if a phone raises one, this fails. */
+/* ── The share window ────────────────────────────────────────────────────────
+   Added 2026-08-23, when this became the last app in the family to get one. What
+   a link carries is the whole risk here: a supply list is a health record. */
+t('a share link carries the schedule and nothing personal by default', () => {
+  const H = w.__papTestHooks;
+  const item = {
+    id: 'a1', emoji: '😷', name: 'Mask', cleanDays: 1, replaceDays: 90,
+    lastCleaned: '2026-08-01', lastReplaced: '2026-07-01', stock: 2, lowAt: 1,
+    paused: false, snoozeUntil: null, createdAt: 123,
+    notes: 'private note', supplier: 'Acme', orderUrl: 'https://example.com',
+    cost: 12.5, history: [{ t: 'clean', d: '2026-08-01' }],
+  };
+  const p = H.buildSharePayload([item], {});
+  eq(Object.keys(p).sort(), ['items', 'sharedAt', 'v'],
+     'a new top-level key in a share payload is a deliberate decision');
+  eq(Object.keys(p.items[0]).sort(),
+     ['cleanDays', 'emoji', 'id', 'lastCleaned', 'lastReplaced', 'lowAt', 'name',
+      'paused', 'replaceDays', 'snoozeUntil', 'stock'],
+     'the schedule, what is due and the spares — and NOTHING else without asking');
+  ok(!('notes' in p.items[0]), 'notes are the most personal thing here and never ride unasked');
+  ok(!('cost' in p.items[0]) && !('supplier' in p.items[0]), 'nor what you pay or who you buy from');
+  ok(!('history' in p.items[0]), 'nor every date you have ever logged');
+  ok(!('createdAt' in p.items[0]), 'and createdAt rides in nothing, ever');
+});
+t('each of the three extras rides only when it is asked for', () => {
+  const H = w.__papTestHooks;
+  const item = { id: 'a1', emoji: '😷', name: 'Mask', cleanDays: 1, replaceDays: 90,
+                 lastCleaned: null, lastReplaced: '2026-07-01', stock: 0, lowAt: 1,
+                 paused: false, snoozeUntil: null, notes: 'n', supplier: 's',
+                 orderUrl: 'https://e.com', cost: 1, history: [] };
+  eq(H.buildSharePayload([item], { notes: true }).items[0].notes, 'n');
+  eq(H.buildSharePayload([item], { order: true }).items[0].supplier, 's');
+  eq(H.buildSharePayload([item], { history: true }).items[0].history, []);
+  ok(!('supplier' in H.buildSharePayload([item], { notes: true }).items[0]),
+     'ticking one does not bring the others along');
+});
+t('a link carries only the supplies that were picked', () => {
+  const H = w.__papTestHooks;
+  const mk = (id) => ({ id: id, emoji: '🔧', name: id, cleanDays: 0, replaceDays: 0,
+                        lastCleaned: null, lastReplaced: '2026-01-01', stock: 0, lowAt: 1,
+                        paused: false, snoozeUntil: null, notes: '', supplier: '',
+                        orderUrl: '', cost: 0, history: [] });
+  const list = [mk('a'), mk('b'), mk('c')];
+  eq(H.buildSharePayload(list, { ids: ['a', 'c'] }).items.map((i) => i.id), ['a', 'c']);
+  /* No picks means everything, which is the safe direction: a link with too much
+     in it is long, a link with too little in it is wrong. */
+  eq(H.buildSharePayload(list, { ids: [] }).items.length, 3, 'no picks means all of them');
+});
 t('the numeric ceilings are the ones the phones use', () => {
   eq(w.__papTestHooks.LIMITS.stock, 999, 'iOS SupplyItem.stockRange / Android MAX_STOCK');
   eq(w.__papTestHooks.LIMITS.lowAt, 999, 'same ceiling as stock, on both phones');
@@ -454,6 +502,29 @@ t('sw.js, its kill switch and the app all read back as text', async () => {
   ok(Number.isFinite(APP_SCHEMA), 'could not read SCHEMA out of index.html');
 });
 
+/* AFTER the fetch above, because it is the test that fills APP_SRC. Placed with
+   the other source-reading tests rather than beside the three payload ones,
+   which need only the hooks — this suite is one straight run, and a test that
+   reads APP_SRC before it is loaded silently compares against an empty string.
+   That cost an hour on 2026-08-23. */
+t('a shared view cannot write, and shows no control that would', () => {
+  const src = APP_SRC;
+  /* indexOf, not regexes. A regex literal holding `</`, a backtick or a quote is
+     a thing to get wrong inside a <script> in an HTML file, and this suite lost
+     an afternoon to one — see the starter's tests for the same lesson. A plain
+     substring says exactly what it is looking for. */
+  /* The single write path is the whole guarantee — the buttons going is a
+     tidy-up, not the guard. */
+  ok(src.indexOf('if (viewOnly) return;') !== -1, 'save() refuses in a shared view');
+  ok(src.indexOf('window.papViewOnly') !== -1,
+     'and the sync module, which cannot see this file\'s consts, reads the flag off window');
+  ok(src.indexOf('!window.papViewOnly') !== -1, 'so a snapshot never signs anyone in');
+  ok(src.indexOf('data-act="edit"') !== -1
+     && src.indexOf('viewOnly ? \'\' : `<button class="act" data-act="edit"') !== -1,
+     'Edit and Delete are not rendered at all');
+  ok(src.indexOf('$(\'addBtn\').hidden = !has || viewOnly') !== -1,
+     'and Add is decided in render(), which is what reveals the toolbar');
+});
 t('the cache list holds only files that are already public', () => {
   const m = SW_SRC.match(/const SHELL = \[([\s\S]*?)\]/);
   ok(m, 'could not find the SHELL list in sw.js');
