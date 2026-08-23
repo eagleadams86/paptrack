@@ -276,11 +276,15 @@ not.
   `schema` field.
 - **A document from a phone carries no `schema` at all, which reads as 1** —
   older, never newer — so a native write can never trip another device's halt,
-  and the native apps needed no change to ship this. **But the convention only
-  holds if every client keeps it: if the iOS or Android app ever adds a stored
-  field, it has to write a higher `schema` too**, or this page will go on quietly
-  normalising that field away. Not yet done, and worth doing when either app next
-  touches its stored shape.
+  and the native apps needed no change to ship this. **The convention only holds
+  if every client keeps it: if a client adds a stored field, it has to write a
+  higher `schema` too**, or this page will go on quietly normalising that field
+  away. **Both phones now do**: iOS writes it in `SyncManager.swift` and reads it
+  back with the same `?? 1` default, and Android in `FirestoreSync.kt` — so all
+  three clients write and honour it, and this paragraph no longer describes
+  anything outstanding. (It said "not yet done" until 2026-08-23, by which time
+  it had been done on both platforms; a note that names an open item is a job
+  someone will pick up, so it has to be closed when the work is.)
 - **The sync module keeps its own `PAP_SCHEMA`** because a `<script type="module">`
   cannot see the classic script's `const`s. Two constants that must agree is
   exactly what drifts silently, so tests.html pins them equal.
