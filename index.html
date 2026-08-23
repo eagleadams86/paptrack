@@ -972,7 +972,13 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      560px, so the same dialog opened narrower here than in the app beside it.
      `width` rather than max-width, because the base `dialog` rule sets width
      and a max-width alone would lose to it. */
-  #formDialog { width: min(820px, calc(100vw - 32px)); }
+  /* The details window takes the SAME WIDTH as the add/edit form it belongs to
+     (asked for 2026-08-23). It is the other half of the same supply: you open
+     the details, read the facts and the history, and the button in it opens the
+     form. They were 560px and 820px, so the wider window opened out from under
+     the narrower one and the facts grid ran at two different measures for the
+     same rows. One supply, one width. */
+  #formDialog, #itemDialog { width: min(820px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
   dialog h2 { margin: 0 0 12px; font-size: var(--fs-md); }
   .field { margin-bottom: 12px; }
