@@ -357,8 +357,16 @@ until a sweep across the family found it, together with the lottery portfolio pa
   sentence instead — but a button inside an `aria-hidden` element is hidden with it, so the
   dot would have been unreachable. Pinned.
 - **The window is sized by its TEXT**: `#helpBody` capped at a 66-character measure and
-  `#helpDialog` at `width: fit-content`, which lands at 662px here with the same 624px of
-  text as every sibling. Both rules or neither. Dismissed with **Got It**.
+  `#helpDialog` at `width: fit-content`. Both rules or neither. **The padding is pinned at
+  20px in the block, not left at this app's 18px** (2026-08-23, a second pass after Charles
+  spotted differences between the windows): with the measure fixed, padding is the only
+  thing left deciding the width, and one measure was coming out as a 674px, a 666px and a
+  662px window across the family. It is 666px everywhere now.
+- **Got It is `class="btn primary"`, the filled button — it was `.act`, this app's outlined
+  secondary.** The one button in the window read as the quiet option where every sibling
+  draws it as the loud one. The heading, the prose colour, the paragraph margins and
+  `#helpBody strong` are all declared in the block too, rather than inherited from whatever
+  `dialog h2` and `dialog p` happen to say here.
 - **Every body in `HELP` is a literal in `index.html` and nothing a reader typed may ever
   reach that `innerHTML`.** Supply names and notes are free text; one of them arriving here
   would be an injection. `tests.html` pins that the table reads nothing from the data.
