@@ -490,7 +490,16 @@ let SW_SRC = '', KILL_SRC = '', APP_SRC = '';
 /* Read off the app rather than repeated here, so a bump moves both together. */
 const SCHEMA_KEY_NAME = 'pap-schema';
 let APP_SCHEMA = 1;
-const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+/* Loop until the source stops changing. A SINGLE pass is fooled by a comment that
+   contains a comment opener: one sweep over `/* a /* b */` leaves a live `/*` behind,
+   and a helper that can be wrong about what is commented out is one that can miss a
+   live off-origin script — which is the whole reason these suites read the source. */
+const stripComments = (src) => {
+  let out = src, prev;
+  do { prev = out; out = out.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''); }
+  while (out !== prev);
+  return out;
+};
 
 t('sw.js, its kill switch and the app all read back as text', async () => {
   const [a, b, c] = await Promise.all([fetch('sw.js'), fetch('sw-kill.js'), fetch('index.html')]);
@@ -1609,8 +1618,9 @@ t('the window is sized by its text, and the dot is the family circle', () => {
     && /\.tile-help \{[^}]*border-radius: 50%;/.test(APP_SRC)
     && /\.tile-help \{[^}]*background: transparent;/.test(APP_SRC),
     'a 16px outlined circle, the same block as every sibling');
-  ok(/\.tile-help::after \{ content: ''; position: absolute; inset: -4px; \}/.test(APP_SRC),
-    "the 24px tap target, WCAG 2.2's, and not the circle's own size");
+  ok(/\.tile-help::after \{ content: ''; position: absolute; inset: -5px; \}/.test(APP_SRC),
+    "a true 24px tap target: -5px, because `inset` grows from the PADDING box "
+       + "and the 1px border made -4px a 22px target");
   ok(/\.tile-help:hover \{ background: var\(--surface-alt\); border-color: var\(--text-secondary\);/
     .test(APP_SRC),
     'and the hover fills rather than borrowing --focus-border');
