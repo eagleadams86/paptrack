@@ -204,17 +204,13 @@
   }
 
   * { box-sizing: border-box; }
-  /* Nothing here moves much — the toast fades and that is the lot — but "not much"
-     is not the same as "none", and a fade is still motion to somebody who has asked
-     the system for none. Written as the blanket rule the WCAG technique suggests so
-     it keeps covering whatever gets added later, rather than naming the toast and
-     going stale the next time something animates. */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important; scroll-behavior: auto !important;
-    }
-  }
+  /* prefers-reduced-motion is the theme pack's rule 15 as of 2026-08-26, so there
+     is nothing to declare here. It was hand-copied into five pages in THREE
+     spellings and missing from four others; `theme.css` carries the one form now
+     and every app gets it by linking the file. The pack's version is the `.01ms`
+     spelling deliberately — `transition: none` never fires `transitionend`.
+     A scroll asked for from SCRIPT still needs its own check: CSS cannot reach
+     `scrollTo({ behavior: 'smooth' })`. */
   [hidden] { display: none !important; }
   /* Visible to screen readers only — carries the text equivalents for content that is
      shown graphically (emoji tiles) or implied by layout (the list's section heading). */

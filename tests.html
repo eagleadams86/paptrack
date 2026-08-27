@@ -1244,7 +1244,29 @@ t('the form fields are the family\u2019s, and an empty date box cannot collapse'
   ok(!/min-height: \d+px/.test(rule), 'in em, because the pack lifts fields to 16px on a coarse pointer');
 });
 t('motion is dropped for anyone who has asked the system for none', () => {
-  ok(/@media \(prefers-reduced-motion: reduce\)/.test(APP_SRC), 'the toast fades, and a fade is still motion');
+  /* The rule moved to the theme pack (rule 15) on 2026-08-26. It had been
+     hand-copied into five of the ten pages in THREE different spellings, and
+     four pages had none at all — so this now asserts that it ARRIVES, and that
+     this page has not grown a second copy of its own on top. Read from the
+     CSSOM rather than the source: which stylesheet a rule came from is the
+     whole question, and a regex over index.html cannot answer it. */
+  let found = null;
+  for (const sheet of w.document.styleSheets) {
+    let rules;
+    try { rules = sheet.cssRules; } catch (e) { continue; }
+    for (const r of rules) {
+      const cond = r.conditionText || (r.media && r.media.mediaText) || '';
+      if (/prefers-reduced-motion/.test(cond)) found = { href: sheet.href || '(inline)', text: r.cssText };
+    }
+  }
+  ok(found, 'nothing reaching this page honours prefers-reduced-motion at all — '
+    + 'the toast fades, and a fade is still motion to somebody who asked for none');
+  ok(/theme\.css/.test(found.href),
+    'and it arrives from the pack rather than being declared here again', found.href);
+  /* `.01ms` and not `none`: a zero-duration transition still fires
+     `transitionend`, where `transition: none` never fires it at all. */
+  ok(/0?\.01ms/.test(found.text) && !/transition:\s*none/.test(found.text),
+    'in the .01ms spelling, which still fires transitionend', found.text.slice(0, 120));
 });
 
 group('The header picker reads the theme the page is actually showing');
