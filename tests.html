@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 116;
+const EXPECTED = 117;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -710,6 +710,122 @@ t('the halt stops every write path, including sync', () => {
   ok(/!inTestHarness && !window\.papHalted/.test(APP_SRC),
     'the sync module must refuse to start once halted');
   ok(/window\.papHalted = true;/.test(APP_SRC), 'and the halt must set the flag the module reads');
+});
+
+/* ── The render smoke walk ──────────────────────────────────────────────────
+   Everything else in this file calls a pure function or reads index.html as
+   text. That covers normalizeItem, the schedule maths and the .ics generation
+   very well, and it leaves the LARGEST part of the app — the render layer —
+   never executed at all: a coverage run on 2026-08-27 put renderDetails,
+   openForm, renderKeepingFocus and 68 others at zero. A throw in any of them
+   would have shipped green, because nothing here had ever drawn a supply.
+
+   So this walks the app the way a person does: plant a full kit, look at each
+   of the three filters, open a supply's details from its own card, and open and
+   close every dialog — recording anything the frame throws while it happens. It
+   cannot tell a right countdown from a wrong one, which is what the tests above
+   are for; it is the difference between "the maths is right" and "the app runs".
+
+   ITS OWN FRAME, AT A REAL SIZE. The suite's frame is 1x1px, where a render
+   draws into a box with no room and proves nothing — and a second frame means
+   planting here cannot disturb a single test either side of it.
+
+   `__plant` replaces the list in memory and never saves, so the reader's own
+   supplies are untouched; the filter chips and the search box are plain
+   variables in the app rather than stored preferences, so there is nothing to
+   put back afterwards either. */
+t('the app actually runs — every filter drawn, every dialog opened', async () => {
+  const f3 = document.createElement('iframe');
+  f3.setAttribute('data-pap-tests', '');
+  f3.setAttribute('aria-hidden', 'true');
+  f3.style.cssText = 'position:absolute;left:-9999px;width:1280px;height:900px;border:0';
+  try {
+    await new Promise((resolve) => { f3.onload = resolve; f3.src = 'index.html'; document.body.appendChild(f3); });
+    const w3 = f3.contentWindow, d3 = w3.document;
+    const H3 = w3.__papTestHooks;
+    ok(H3 && typeof H3.__plant === 'function', 'the app must expose the plant hook');
+
+    const errs = [];
+    w3.addEventListener('error', (e) => errs.push(String(e.message)));
+    w3.addEventListener('unhandledrejection', (e) => errs.push('unhandled rejection: ' + e.reason));
+
+    /* Built from the app's own kit rather than from a fixture written here, so
+       the walk keeps up with the catalogue instead of going stale beside it.
+       The dates are spread so the three filters each have something to show:
+       one overdue for a clean, one overdue for replacement, one out of spares. */
+    const iso = (d) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
+    const kit = H3.KITS.full.map((key, n) => {
+      const p = H3.PRESETS.find((x) => x.key === key);
+      return {
+        id: 'smoke-' + key, emoji: p.emoji, name: p.name,
+        cleanDays: p.cleanDays, replaceDays: p.replaceDays,
+        lastReplaced: iso(-(p.replaceDays + n - 3)),
+        lastCleaned: p.cleanDays ? iso(-(p.cleanDays + n)) : null,
+        stock: n === 0 ? 0 : 2, lowAt: 1, notes: p.note, createdAt: Date.now(),
+      };
+    });
+    H3.__plant(kit);
+    eq(H3.__items().length, kit.length, 'the plant reached the app');
+
+    const drawn = {};
+    drawn['list'] = (d3.getElementById('list') || { textContent: '' }).textContent.trim().length;
+    /* Each filter chip in turn, then off again. A chip that renders an empty
+       list is the failure this is really looking for: a render that threw half
+       way leaves an element that is present and empty, which no "did it throw"
+       check on its own would notice. */
+    [...d3.querySelectorAll('.filter-chip')].forEach((chip) => {
+      chip.click();
+      drawn['filter:' + chip.dataset.filter] = (d3.getElementById('list') || { textContent: '' }).textContent.trim().length;
+      chip.click();
+    });
+    /* Through the card's OWN buttons, not by calling showModal on the dialog.
+       The details window and the edit form are BUILT by their click handlers, so
+       a dialog opened directly is empty in exactly the way a broken one is —
+       which is how the first draft of this test passed with renderDetails
+       throwing: it read 34 characters of static markup off a window that had
+       never been opened, and called that "drawn". A card is not a button; the
+       handler is delegated off `data-act`. */
+    const card = d3.querySelector('#list article.card');
+    ok(card, 'the planted kit drew at least one supply card');
+    ['details', 'edit'].forEach((act) => {
+      const btn = card && card.querySelector('button[data-act="' + act + '"]');
+      if (!btn) { errs.push('no ' + act + ' button on the first card'); return; }
+      btn.click();
+      const dg = [...d3.querySelectorAll('dialog')].find((x) => x.open);
+      drawn['opened:' + act] = dg ? dg.textContent.trim().length : 0;
+      if (!dg) errs.push(act + ' opened no dialog at all');
+      if (dg) { try { dg.close(); } catch (e) { /* already closed */ } }
+    });
+    [...d3.querySelectorAll('dialog')].forEach((dg) => { try { dg.close(); } catch (e) { /* not open */ } });
+
+    const dialogs = [...d3.querySelectorAll('dialog')].filter((dg) => dg.id);
+    dialogs.forEach((dg) => {
+      try { dg.showModal(); drawn['dialog:' + dg.id] = dg.textContent.trim().length; dg.close(); }
+      catch (e) { errs.push('dialog ' + dg.id + ': ' + e.message); }
+    });
+
+    eq(errs.length, 0, 'the frame threw during the walk: ' + errs.join(' | '));
+    ok(drawn.list > 0, 'the supply list rendered no text at all', drawn.list);
+    /* Against the length of the STATIC markup, not against zero. The details
+       window has 34 characters in it before anything is rendered into it, so
+       `> 0` is a check that cannot fail — which is what let a sabotaged
+       renderDetails through the first draft of this test. */
+    ok(drawn['opened:details'] > 200, 'the details window opened without its supply in it',
+       drawn['opened:details']);
+    ok(drawn['opened:edit'] > 200, 'the edit form opened empty', drawn['opened:edit']);
+    ok(dialogs.length >= 7, 'the app should carry the family windows', dialogs.length);
+    Object.keys(drawn).forEach((k) => {
+      if (k.indexOf('filter:') === 0) return;   // a filter may legitimately match nothing
+      ok(drawn[k] > 0, k + ' rendered nothing', drawn[k]);
+    });
+    /* One of the three filters must have matched something, or the walk proved
+       nothing about them: the dates above are chosen so at least one does. */
+    const filters = Object.keys(drawn).filter((k) => k.indexOf('filter:') === 0);
+    eq(filters.length, 3, 'all three filter chips were on screen');
+    ok(filters.some((k) => drawn[k] > 0), 'no filter matched anything — the fixture has gone stale');
+  } finally {
+    f3.remove();
+  }
 });
 
 t('a planted future document really does halt a fresh copy of the app', async () => {

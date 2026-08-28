@@ -3912,6 +3912,16 @@ function enterViewOnly(payload) {
 }
 
 window.__papTestHooks = { esc, raisesKeyboard, LIMITS,
+  /* `__plant` is the one hook here that DOES something. It replaces the supply
+     list IN MEMORY and redraws — it never calls save(), because this suite runs
+     against the reader's own copy of the app and has to stay read-only about
+     storage. loadKit() saves, which is right for a person pressing the button
+     and wrong for a test: the difference between showing the render layer some
+     data and writing example supplies into somebody's real CPAP record. The
+     starter and Golf Handicap carry the same pair, worded the same way. */
+  __plant: function (list) { items = normalizeItems(list); render(); },
+  __items: function () { return items; },
+  PRESETS, KITS,
   /* Pure, and the only place a link's contents are decided — pinned directly
      rather than through the dialog, so the suite can prove what a link carries
      and what it must never carry without a DOM. */
