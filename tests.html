@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 114;
+const EXPECTED = 116;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -309,12 +309,36 @@ t('the average gap is the real interval, not the scheduled one', () => {
    app escapes on the way to innerHTML has to be defused again on the way to a CSV. */
 t('CSV cells that a spreadsheet would run are defused', () => {
   eq(w.csvCell('=cmd|calc'), `"'=cmd|calc"`);
-  eq(w.csvCell('+1'), `"'+1"`);
-  eq(w.csvCell('-2'), `"'-2"`);
+  eq(w.csvCell('+SUM(A1)'), `"'+SUM(A1)"`);
+  eq(w.csvCell('-alpha'), `"'-alpha"`);
   eq(w.csvCell('@x'), `"'@x"`);
+  /* TAB and CR are in the lead set beside the four printable ones: a reader that
+     strips the whitespace finds the formula underneath. */
+  eq(w.csvCell('\tHYPERLINK("x")'), `"'\tHYPERLINK(""x"")"`);
+  eq(w.csvCell('\rcmd'), `"'\rcmd"`);
   eq(w.csvCell('Mask'), '"Mask"', 'ordinary text is left alone');
   eq(w.csvCell('a "quoted" bit'), '"a ""quoted"" bit"');
   eq(w.csvCell(null), '""');
+});
+/* The other half of the same rule, and the reason it is two tests rather than
+   one. Nothing this app stores is negative today — every count is validated at
+   or above zero — so no figure in either export changes. It is pinned here
+   because the rule is the FAMILY's: Golf Handicap's score differentials go
+   below zero, and a guard that quoted them would hand the spreadsheet a column
+   of text in the column people export a CSV to average. */
+t('but a cell that IS a number goes out as a number', () => {
+  eq(w.csvCell('-2'), '"-2"', 'a whole-cell negative is a number, not a formula');
+  eq(w.csvCell('+1'), '"+1"', 'and so is a signed positive one');
+  eq(w.csvCell('7'), '"7"');
+  eq(w.csvCell('-0.5'), '"-0.5"');
+});
+/* The carve-out asks of the WHOLE cell, never of the character after the sign —
+   which is what keeps a payload wearing a number for a hat out of the file. */
+t('a cell that merely STARTS like a number is still defused', () => {
+  eq(w.csvCell('-1+1'), `"'-1+1"`, 'a sum is not a number');
+  eq(w.csvCell('-3abc'), `"'-3abc"`, 'nor is a digit followed by text');
+  eq(w.csvCell("-3+cmd|' /c calc'!A0"), `"'-3+cmd|' /c calc'!A0"`,
+     'a DDE payload leading with a negative digit');
 });
 
 group('Profiles — one account, more than one person');

@@ -3440,10 +3440,27 @@ renderProfilePicker();
    decoration. A spreadsheet reads a cell starting with one of those as a FORMULA, so a
    supply named `=cmd|...` becomes an instruction the moment the file is opened — the same
    free text this app escapes on the way to innerHTML, in a file format with its own
-   execution model. The apostrophe is the standard defusal and is invisible in the sheet. */
+   execution model. The apostrophe is the standard defusal and is invisible in the sheet.
+
+   THE CARVE-OUT IS "IS THE WHOLE CELL A NUMBER?" — a whole number goes out as a
+   number, so the day-count and spares columns stay arithmetic. Nothing this app
+   stores is negative today (every count is validated at or above zero), so the
+   carve-out changes no figure now; it is here because this is the family's one
+   CSV rule, and the sibling it matters in most — Golf Handicap, whose score
+   differentials go below zero — reads it from the same two lines. Asking of the
+   WHOLE cell rather than of the character after the sign is what keeps `-1+1`
+   and `-3+cmd|' /c calc'!A0` defused while `-2` goes through.
+
+   The lead set is OWASP's full list — `=` `+` `-` `@` TAB CR — because a cell
+   opening with a tab or a carriage return is the same attack wearing a coat,
+   and neither can begin a number. The same two lines are in Flow Metrics, Golf
+   Handicap, Sprint Predictability, the starter and both lottery pages, and a
+   change to them belongs in all seven. */
+const FORMULA_LEAD = /^[=+@\-\t\r]/;
+const PLAIN_NUMBER = /^[+-]?[0-9]+(\.[0-9]+)?$/;
 function csvCell(v) {
   const s = String(v ?? '');
-  const risky = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  const risky = (FORMULA_LEAD.test(s) && !PLAIN_NUMBER.test(s)) ? `'${s}` : s;
   return `"${risky.replace(/"/g, '""')}"`;
 }
 function csvRows(rows) {
