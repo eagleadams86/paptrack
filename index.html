@@ -3011,7 +3011,11 @@ function applyPreset(key) {
 }
 function openForm(it = null) {
   editingId = it ? it.id : null;
-  $('formTitle').textContent = it ? `Edit ${it.name}` : 'Add Supply';
+  /* "Edit Supply", not "Edit <the supply's name>". The name is in the Name field an inch
+     below, so the heading was spending its width on the one thing already on screen — and on
+     the phones, where this same title is a single line squeezed between Cancel and Save, it
+     truncated. All three apps say the same two words now. */
+  $('formTitle').textContent = it ? 'Edit Supply' : 'Add Supply';
   $('presetField').hidden = !!it;
   // "Last cleaned" and "last replaced" record something that already happened, so a future
   // date is always a typo — and it used to render as "cleaned -5 days ago". Set on open
