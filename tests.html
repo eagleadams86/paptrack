@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 117;
+const EXPECTED = 120;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -682,7 +682,7 @@ t('the marker rides in its own key, not inside the shared item list', () => {
   ok(/const SCHEMA_KEY = 'pap-schema';/.test(APP_SRC), 'the marker needs its own localStorage key');
   ok(/localStorage\.setItem\(SCHEMA_KEY, String\(SCHEMA\)\)/.test(APP_SRC),
     'save() must stamp the marker beside the items');
-  const save = APP_SRC.slice(APP_SRC.indexOf('function save()'), APP_SRC.indexOf('function uid()'));
+  const save = APP_SRC.slice(APP_SRC.indexOf('function save('), APP_SRC.indexOf('function uid()'));
   const items = save.indexOf('setItem(STORAGE_KEY');
   const marker = save.indexOf('setItem(SCHEMA_KEY');
   ok(items > -1 && marker > items,
@@ -984,6 +984,90 @@ t('a push during sign-in reconciliation is deferred, then still sent', () => {
     'reconciliation must end — success or failure — by lifting the gate');
   ok(/if \(pendingLocalPush\) \{ pendingLocalPush = false; window\.cloudPush\(\); \}/.test(APP_SRC),
     'and an edit deferred behind it must be pushed once it lifts');
+});
+
+group('Per-profile last-edited stamps — one clock per person (2026-08-31)');
+/* `pap-updated` was ONE key for the whole browser, stamped by whichever list
+   was on screen — so profile B's sync compared the cloud's updatedAt against
+   the time profile A was last edited. Split by profile id, the same contract on
+   iOS and Android: the first profile keeps the legacy key (the pap-items /
+   paptrack/{uid} rule again), the others get `pap-updated:<id>`, a missing
+   stamp reads as 0 — unknown, treated as OLDEST — and switching profiles stamps
+   nothing. No SCHEMA bump: the synced document, the backup file and the item
+   shape are unchanged; only local bookkeeping keys moved. */
+t('each profile keeps its own last-edited stamp, on its own key', () => {
+  eq(w.updatedKey('default'), 'pap-updated',
+    'the first profile keeps the legacy key, so an upgraded browser goes on reading the stamp it always had');
+  eq(w.updatedKey('abc123'), 'pap-updated:abc123');
+  ok(/if \(touch\) localStorage\.setItem\(updatedKey\(activeProfileId\), String\(Date\.now\(\)\)\)/.test(APP_SRC),
+    'save() stamps the ACTIVE profile’s key, and only on a real edit');
+  ok(/window\.paptrackUpdatedKey = \(\) => updatedKey\(activeProfileId\)/.test(APP_SRC),
+    'the sync module reads the key through a hook — a second copy of the default-keeps-legacy rule would drift');
+  ok(/const localTs = \(\) => Number\(localStorage\.getItem\(updatedKeyName\(\)\) \|\| 0\)/.test(APP_SRC),
+    'localTs reads that profile’s stamp, and a missing one reads 0 — unknown, treated as oldest, '
+    + 'so it can never win a timestamp comparison against an existing cloud copy');
+  ok(/const touchLocal = \(\) => localStorage\.setItem\(updatedKeyName\(\), String\(Date\.now\(\)\)\)/.test(APP_SRC),
+    '"Keep this device" stamps the same per-profile key before it pushes');
+  ok(!/localStorage\.(getItem|setItem|removeItem)\('pap-updated'[,)]/.test(stripComments(APP_SRC)),
+    'no code path touches the legacy key by literal — everything goes through updatedKey()');
+});
+t('switching profiles stamps nothing — a look is not an edit', () => {
+  const sw = APP_SRC.slice(APP_SRC.indexOf('function switchProfile('), APP_SRC.indexOf('function addProfile('));
+  ok(/save\(false\)/.test(sw),
+    'switchProfile must call save(false) — a stamp there hands a profile the moment you LOOKED at it, '
+    + 'old enough habits to beat a genuinely newer cloud copy');
+  const del = APP_SRC.slice(APP_SRC.indexOf('function deleteProfile('), APP_SRC.indexOf('let editingId'));
+  ok(/save\(false\)/.test(del), 'and deleteProfile’s survivor-switch is a switch too');
+  ok(/function save\(touch = true\)/.test(APP_SRC),
+    'stamping stays the DEFAULT — an edit path has nothing to remember');
+  eq((stripComments(APP_SRC).match(/\bsave\(false\)/g) || []).length, 2,
+    'exactly the two switch call sites opt out; an edit path passing false would stop stamping silently');
+});
+t('the legacy shared stamp migrates to the profile that was on screen, once', async () => {
+  /* Booted for real, like the halt test: the migration runs at the top of the
+     classic script, and what matters — which keys exist AFTERWARDS — is not
+     visible to a source pin. Both keys sets are backed up and restored. */
+  const KEYS = ['pap-items', 'pap-schema', 'pap-profiles', 'pap-profile',
+                'pap-updated', 'pap-updated:two', 'pap-updated-split'];
+  const bk = KEYS.map((k) => [k, localStorage.getItem(k)]);
+  const boot = async () => {
+    const f = document.createElement('iframe');
+    f.setAttribute('data-pap-tests', '');
+    f.setAttribute('aria-hidden', 'true');
+    f.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;border:0;left:-9999px';
+    await new Promise((resolve) => { f.onload = resolve; f.src = 'index.html'; document.body.appendChild(f); });
+    f.remove();
+  };
+  try {
+    /* A pre-split browser: two people, the SECOND on screen, one shared stamp. */
+    localStorage.setItem('pap-items', JSON.stringify([{ id: 'i1', name: 'Mask', replaceDays: 90, lastReplaced: '2026-08-01' }]));
+    localStorage.removeItem('pap-schema');
+    localStorage.setItem('pap-profiles', JSON.stringify([{ id: 'default', name: 'Mine' }, { id: 'two', name: 'Jamie' }]));
+    localStorage.setItem('pap-profile', 'two');
+    localStorage.setItem('pap-updated', '1756500000000');
+    localStorage.removeItem('pap-updated:two');
+    localStorage.removeItem('pap-updated-split');
+    await boot();
+    eq(localStorage.getItem('pap-updated:two'), '1756500000000',
+      'the shared stamp described the list on screen, so the active profile takes it');
+    eq(localStorage.getItem('pap-updated'), null,
+      'and the first profile’s own last edit is unknown — the old value was never about them');
+    eq(localStorage.getItem('pap-updated-split'), '1', 'the migration marks itself done');
+    /* The idempotence half, and the reason the marker exists: the first profile
+       is edited, the second never is. Without the marker the heuristic re-fires
+       and quietly hands the first profile's stamp to the wrong person. */
+    localStorage.setItem('pap-updated', '1756600000000');
+    localStorage.removeItem('pap-updated:two');
+    await boot();
+    eq(localStorage.getItem('pap-updated'), '1756600000000',
+      'a later first-profile edit is not re-migrated');
+    eq(localStorage.getItem('pap-updated:two'), null,
+      'and the never-edited profile stays unknown rather than stealing the stamp');
+  } finally {
+    for (const [k, v] of bk) {
+      if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v);
+    }
+  }
 });
 
 group('esc — the free-text boundary (a supply name or note reaching innerHTML)');

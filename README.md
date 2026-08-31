@@ -148,6 +148,18 @@ Two consequences worth knowing:
 
 **This is web-only, and it brought the web in line with the native apps rather than ahead of them.** iOS (GoogleSignIn-iOS) and Android (Credential Manager) already obtain a Google credential from the platform and hand it to the very same `signInWithCredential` call, never touching a hosted handler. Neither needed any change.
 
+**Each person's list keeps its own clock (2026-08-31).** The "which side is newer?" question
+is asked per profile now: every profile carries its own last-edited timestamp (the first
+keeps the original `pap-updated` key, the others get `pap-updated:<id>`), an edit stamps only
+the person being edited, and **switching people stamps nothing** — looking at a list is not
+changing it. Before this there was one shared timestamp for the whole browser, so a second
+person's sync was comparing the cloud against the time the *first* person was last edited.
+A profile that has never been edited on a device has no stamp at all, which deliberately
+reads as *oldest*: it can never out-time an existing cloud copy, only receive it. On the
+first load after this change the old shared timestamp becomes the stamp of whichever person
+was on screen — everyone else starts unknown, the safe direction. The same change ships in
+the iOS and Android apps; all three follow one contract.
+
 How sync behaves: `localStorage` stays the source of truth. The **first** time a given Google account signs in on a browser, if both the browser and the cloud already have items saved, a dialog asks which to keep ("Keep this device" vs. "Keep Google's data") instead of guessing — silently picking the most-recently-changed side once wiped out a browser's data when an unrelated/stale cloud doc happened to have a newer timestamp. After that first reconciliation (tracked per-account via a `pap-sync-uid` flag in `localStorage`), and for live updates pushed from other devices, whichever side changed most recently (`updatedAt`) wins — with one hard rule on top: **an empty copy never silently beats a copy with items in it**, whatever the timestamps say. A fresh sign-in with nothing saved can't overwrite a cloud copy that has your supplies, and if another device genuinely clears everything, this one asks before following suit (declining restores your copy to the other devices). Signing out or losing connectivity just leaves the local copy in charge. Edits made in the few seconds while a sign-in is still settling which copy wins are held back and pushed the moment it settles, so a half-decided cloud copy is never overwritten.
 
 **When sync stops working, it says so.** Failures used to end in the browser console, which

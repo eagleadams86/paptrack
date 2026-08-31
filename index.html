@@ -2174,6 +2174,62 @@ function activeProfile() {
 /** Where a profile's items sit when it is NOT the one in front of you. */
 function archiveKey(id) { return STORAGE_KEY + ':' + id; }
 
+/* ── Each profile's own last-edited stamp (2026-08-31) ───────────────────────
+   `pap-updated` was ONE key for the whole browser, stamped by whichever list
+   happened to be on screen — so profile B's sync compared the cloud's updatedAt
+   against the time profile A was last edited, and whichever direction that
+   error pointed, it was answering the wrong question. Now the stamp is keyed by
+   PROFILE ID, mirroring the archive keys and the cloud path: the first profile
+   keeps the legacy `pap-updated` (the same don't-disturb-the-common-case rule
+   as `paptrack/{uid}`), and the others get `pap-updated:<id>`. The same split
+   ships on iOS and Android in the same change — all three platforms follow one
+   contract.
+
+   A profile with NO stamp reads as 0 — UNKNOWN, treated as oldest — so it can
+   never win a timestamp comparison against an existing cloud copy. It can still
+   be pushed where no comparison is being made (an empty cloud, or "Keep this
+   device", which stamps first): the empty-never-beats-data rule and the
+   which-copy dialog sit on top of the timestamps, exactly as before.
+
+   NO SCHEMA BUMP, deliberately. The synced document ({items, updatedAt,
+   schema}), the backup file and the item shape are all unchanged — the cloud
+   was ALWAYS per-profile, one updatedAt per document; only the LOCAL
+   bookkeeping was shared. `pap-updated:*` and the one-shot migration marker are
+   keys the halt has never guarded and normalizeItem never sees. */
+const UPDATED_KEY = 'pap-updated';
+/* A `function`, like archiveKey above it — save() and the sync hooks call it,
+   and the TDZ trap this file has already been bitten by twice is real. */
+function updatedKey(id) { return id === FIRST_PROFILE_ID ? UPDATED_KEY : UPDATED_KEY + ':' + id; }
+
+/* The one-shot migration. On the first load after the split, the legacy single
+   stamp becomes the ACTIVE profile's stamp — it described the list that was on
+   screen, whichever that was. Every other profile has no stamp and reads as
+   unknown, the safe direction: unknown loses to any real cloud copy.
+
+   The marker is what makes this runnable exactly once. Without it the
+   heuristic "active isn't the first profile, the legacy key exists, the
+   per-profile key doesn't" re-fires the day the first profile is edited while
+   a NEWER profile has never been — and quietly hands the first profile's stamp
+   to the wrong person. Guarded on `viewOnly`: a shared view writes nothing,
+   timestamps included. */
+const UPDATED_SPLIT_KEY = 'pap-updated-split';
+(function migrateUpdatedStamp() {
+  if (viewOnly) return;
+  try {
+    if (localStorage.getItem(UPDATED_SPLIT_KEY) === '1') return;
+    if (activeProfileId !== FIRST_PROFILE_ID) {
+      const legacy = localStorage.getItem(UPDATED_KEY);
+      if (legacy !== null && localStorage.getItem(updatedKey(activeProfileId)) === null) {
+        localStorage.setItem(updatedKey(activeProfileId), legacy);
+        /* The legacy key is the FIRST profile's key now, and the first profile's
+           last edit is unknown — the old value described the active list. */
+        localStorage.removeItem(UPDATED_KEY);
+      }
+    }
+    localStorage.setItem(UPDATED_SPLIT_KEY, '1');
+  } catch (e) { /* storage refused — stamps are advisory; the sync guards hold */ }
+})();
+
 function saveProfiles() {
   try {
     localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
@@ -2199,7 +2255,11 @@ function switchProfile(id) {
   activeProfileId = id;
   items = readArchive(id);
   saveProfiles();
-  save();
+  /* touch: false — a switch changes which list is on screen, not the list.
+     Stamping here would hand this profile the moment you LOOKED at it, and a
+     look must never outrank another device's real edit. (The stamped push this
+     save schedules is cancelled by paptrackProfileChanged below either way.) */
+  save(false);
   render();
   /* The picker is refreshed HERE rather than by each caller: the header must never name
      a profile that isn't the one on screen, and "every caller remembers to redraw it"
@@ -2239,14 +2299,18 @@ function deleteProfile(id) {
   const gone = profiles.find((p) => p.id === id);
   if (!gone) return false;
   profiles = profiles.filter((p) => p.id !== id);
-  try { localStorage.removeItem(archiveKey(id)); } catch (e) { /* nothing to clean up */ }
+  try {
+    localStorage.removeItem(archiveKey(id));
+    localStorage.removeItem(updatedKey(id));   // a removed person leaves no stamp behind
+  } catch (e) { /* nothing to clean up */ }
   if (activeProfileId === id) {
     /* The live list belongs to the profile being deleted, so it goes with it — and the
-       first remaining profile's archive becomes the list on screen. */
+       first remaining profile's archive becomes the list on screen. touch: false, the
+       switchProfile rule: the survivor's list is unchanged data, not an edit. */
     activeProfileId = profiles[0].id;
     items = readArchive(activeProfileId);
     saveProfiles();
-    save();
+    save(false);
     if (window.paptrackProfileChanged) window.paptrackProfileChanged();
   } else {
     saveProfiles();
@@ -2364,7 +2428,12 @@ function normalizeItems(list) {
     return it;
   });
 }
-function save() {
+/* `touch` (default true): whether this write is an EDIT, which stamps the
+   active profile's last-edited time. switchProfile() and deleteProfile() pass
+   false — putting a different list on screen changes `pap-items` but changes no
+   data, and a stamp there would claim an edit that never happened, old enough
+   habits to beat a genuinely newer cloud copy on the next sign-in. */
+function save(touch = true) {
   /* The app halted on data from a newer build. Nothing may be written over it —
      this is the single write path, so stopping here is the whole guarantee. */
   if (halted) return;
@@ -2383,8 +2452,9 @@ function save() {
        marker without its data, or data without its marker, both read as
        "schema 1" and that is the safe way round. */
     localStorage.setItem(SCHEMA_KEY, String(SCHEMA));
-    // 'pap-updated' is the conflict-resolution timestamp for cloud sync: newer side wins.
-    localStorage.setItem('pap-updated', String(Date.now()));
+    // The conflict-resolution timestamp for cloud sync: newer side wins. Keyed
+    // by profile since 2026-08-31 — see updatedKey() — and only on a real edit.
+    if (touch) localStorage.setItem(updatedKey(activeProfileId), String(Date.now()));
   } catch (e) {
     console.warn('Could not write saved data', e);
     toast('⚠️ This browser is blocking storage (full, or private mode?) — changes may be lost when the tab closes');
@@ -3626,12 +3696,22 @@ $('importFile').addEventListener('change', async (e) => {
          merge. The archives of profiles that were here and are not in the file go with
          them, or they would linger as orphaned keys nothing can reach. */
       for (const p of profiles) {
-        try { localStorage.removeItem(archiveKey(p.id)); } catch (e) { /* nothing to clean */ }
+        try {
+          localStorage.removeItem(archiveKey(p.id));
+          localStorage.removeItem(updatedKey(p.id));
+        } catch (e) { /* nothing to clean */ }
       }
       profiles = people;
       const byId = new Map(incomingProfiles.map((p) => [String(p && p.id), p]));
       activeProfileId = people.some((p) => p.id === parsed.activeProfile)
         ? parsed.activeProfile : people[0].id;
+      /* EVERY restored profile is stamped now, not only the active one save()
+         will reach. A restore is an edit of every list in the file, and the
+         dialog promises "the restored copy becomes the one your other devices
+         get" — a promise the old shared stamp kept by accident and an unknown
+         (oldest-reading) stamp would quietly break the first time each other
+         profile was switched to. */
+      const restoredAt = String(Date.now());
       for (const p of people) {
         const list = normalizeItems((byId.get(p.id) || {}).items || []);
         if (p.id === activeProfileId) items = list;
@@ -3639,6 +3719,8 @@ $('importFile').addEventListener('change', async (e) => {
           try { localStorage.setItem(archiveKey(p.id), JSON.stringify(list)); }
           catch (e) { console.warn('Could not restore a profile', e); }
         }
+        try { localStorage.setItem(updatedKey(p.id), restoredAt); }
+        catch (e) { /* advisory — the which-copy dialog still guards a conflict */ }
       }
       saveProfiles();
       renderProfilePicker();
@@ -3697,7 +3779,10 @@ $('clearConfirm').addEventListener('click', () => {
      that meant "delete the list you happen to be looking at", which is precisely the
      kind of quiet exception this dialog exists to avoid. */
   for (const p of profiles) {
-    try { localStorage.removeItem(archiveKey(p.id)); } catch (e) { /* nothing to clean */ }
+    try {
+      localStorage.removeItem(archiveKey(p.id));
+      localStorage.removeItem(updatedKey(p.id));   // their stamps go with them
+    } catch (e) { /* nothing to clean */ }
   }
   profiles = normalizeProfiles(null);
   activeProfileId = profiles[0].id;
@@ -4005,6 +4090,11 @@ window.__papTestHooks = { esc, raisesKeyboard, LIMITS,
 window.paptrackGet = () => items;
 /* Read by the sync module to pick this profile's document — see `docRef` there. */
 window.paptrackProfileId = () => activeProfileId;
+/* And the localStorage key holding this profile's last-edited stamp, so the
+   module's localTs()/touchLocal() read and write the RIGHT profile's clock —
+   one source for the default-keeps-the-legacy-key rule instead of a third
+   copy of it in the module. */
+window.paptrackUpdatedKey = () => updatedKey(activeProfileId);
 window.paptrackAdopt = (newItems, ts, schema) => {
   /* The copy-from-the-future check, live edition. The boot check only guards the
      load, but onSnapshot can hand a page running yesterday's cached code a
@@ -4020,7 +4110,7 @@ window.paptrackAdopt = (newItems, ts, schema) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newItems));
       localStorage.setItem(SCHEMA_KEY, String(schema));
-      localStorage.setItem('pap-updated', String(ts || Date.now()));
+      localStorage.setItem(updatedKey(activeProfileId), String(ts || Date.now()));
     } catch (e) { console.warn('Could not write synced data', e); }
     haltForNewerData(schema);
   }
@@ -4031,7 +4121,9 @@ window.paptrackAdopt = (newItems, ts, schema) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     localStorage.setItem(SCHEMA_KEY, String(SCHEMA));
-    localStorage.setItem('pap-updated', String(ts || Date.now()));
+    /* The ACTIVE profile's stamp: sync only ever adopts into the list on
+       screen — a profile switch tears the listener down first. */
+    localStorage.setItem(updatedKey(activeProfileId), String(ts || Date.now()));
   } catch (e) {
     console.warn('Could not write synced data', e);
     toast('⚠️ This browser is blocking storage (full, or private mode?) — changes may be lost when the tab closes');
@@ -4040,7 +4132,7 @@ window.paptrackAdopt = (newItems, ts, schema) => {
 };
 
 /* Another tab of this same browser writes localStorage directly, and the write
-   raises 'pap-updated' to the pushed timestamp — so the cloud snapshot's
+   raises the profile's own last-edited stamp to the pushed timestamp — so the cloud snapshot's
    newer-than-local guard would skip it and this tab would sit stale until
    reload. The storage event only ever fires in the tabs that DIDN'T write. */
 window.addEventListener('storage', (e) => {
@@ -4102,7 +4194,9 @@ fillPresetOptions();
    this browser, if both sides already have items the user is asked which to keep (see
    chooseSyncSource) rather than silently picking one by timestamp — that guesswork is what
    wiped a browser's data once already. After that first reconciliation, and for live
-   updates from other devices, the newer side (by the 'pap-updated' timestamp) wins —
+   updates from other devices, the newer side (by the profile's own last-edited
+   stamp — `pap-updated` for the first profile, `pap-updated:<id>` after, see
+   localTs below) wins —
    except that an empty copy never silently beats one with items in it; see startSync
    for the full rule. */
 const FIREBASE_CONFIG = {
@@ -4156,7 +4250,18 @@ const SDK = 'https://www.gstatic.com/firebasejs/12.18.0/';
 const GIS = 'https://accounts.google.com/gsi/client';
 const btn = document.getElementById('syncBtn');
 const privacyNote = document.getElementById('privacyNote');
-const localTs = () => Number(localStorage.getItem('pap-updated') || 0);
+/* The ACTIVE profile's last-edited stamp — per profile since 2026-08-31, read
+   through the classic script's hook (this module cannot see its consts, and a
+   second copy of the default-keeps-`pap-updated` rule is exactly the kind of
+   thing that drifts). The fallback mirrors docRef's defensive shape and is
+   for a halted page, where the hooks were never defined and sync never boots.
+   A profile that has never been edited has NO stamp and reads 0 — unknown,
+   which is treated as OLDEST: it can never win a timestamp comparison against
+   a cloud copy, only be pushed where no comparison happens (an empty cloud, or
+   an explicit "Keep this device", which stamps first via touchLocal). */
+const updatedKeyName = () =>
+  (window.paptrackUpdatedKey ? window.paptrackUpdatedKey() : 'pap-updated');
+const localTs = () => Number(localStorage.getItem(updatedKeyName()) || 0);
 
 /* tests.html loads this page in a hidden iframe (marked data-pap-tests) to reach
    the pure functions. The harness must not boot a real session: if this origin
@@ -4521,7 +4626,7 @@ const docRef = () => {
    this the choice sticks here and nowhere else: a third device holding an
    in-between timestamp would push its copy back up and resurrect exactly what
    was rejected. (The Android port fixed this first; same rule here.) */
-const touchLocal = () => localStorage.setItem('pap-updated', String(Date.now()));
+const touchLocal = () => localStorage.setItem(updatedKeyName(), String(Date.now()));
 
 /* Shows the syncChoiceDialog and resolves to true if the user wants to keep Google's copy,
    false to keep this device's copy. Escape is deliberately blocked: either answer replaces

@@ -249,6 +249,37 @@ More than one person, one app. The design decision that keeps this small:
 - **Only the active profile syncs.** Switching tears the listener down and restarts
   reconciliation on the new document, because "keep this device or keep Google's?" is a
   question about one document and a second profile has never been asked it.
+- **Each profile carries its OWN last-edited stamp (2026-08-31), and it is a three-app
+  contract like the schema marker.** `pap-updated` was one key for the whole browser,
+  stamped by whichever list was on screen — so profile B's sync compared the cloud's
+  `updatedAt` against the time profile A was last edited. Split by profile id now:
+  the first profile keeps the legacy `pap-updated` (the `pap-items` / `paptrack/{uid}`
+  rule again), the others get `pap-updated:<id>` — `updatedKey()` in the classic script,
+  read by the sync module through `window.paptrackUpdatedKey()` rather than by a second
+  copy of the rule. Four things that must stay true, all pinned in `tests.html`:
+  - **Switching stamps NOTHING** — `switchProfile()` and `deleteProfile()`'s
+    survivor-switch call `save(false)`; a stamp there hands a profile the moment you
+    LOOKED at it, old enough habits to beat a genuinely newer cloud copy. Every edit
+    path stays on the stamping default.
+  - **A profile with no stamp reads as 0 — unknown, treated as OLDEST** — so it can never
+    win a timestamp comparison against an existing cloud copy; it can still be pushed
+    where no comparison happens (an empty cloud, or an explicit "Keep this device",
+    which stamps first). The empty-never-beats-data rule and the which-copy dialog sit
+    on top, unchanged.
+  - **The migration is one-shot, and the `pap-updated-split` marker is load-bearing**:
+    the legacy stamp becomes the ACTIVE profile's stamp (it described the list on
+    screen), everyone else reads unknown — and without the marker the heuristic re-fires
+    the day the first profile is edited while a newer one never has been, quietly
+    handing the first profile's stamp to the wrong person. Verified by booting a real
+    copy twice, like the halt.
+  - **Restore stamps EVERY restored profile**, not just the active one `save()` reaches:
+    the dialog promises "the restored copy becomes the one your other devices get", a
+    promise the shared stamp kept by accident and an unknown stamp would quietly break.
+  **NO SCHEMA BUMP, deliberately** — the synced document, the backup file and the item
+  shape are unchanged (the cloud was always per-profile, one `updatedAt` per document;
+  only the LOCAL bookkeeping was shared), and the new keys are bookkeeping the halt has
+  never guarded. iOS and Android make the same split in the same change — one contract,
+  three platforms.
 - **Schema 3 exists for the backup file, not for the items.** The item shape is unchanged;
   what changed is that a backup carries `profiles` alongside `items`, and an older build
   restoring one would take `items` and silently drop everybody else.
