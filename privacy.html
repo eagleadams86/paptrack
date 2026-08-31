@@ -73,7 +73,7 @@ footer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
        is why this closes before it and why .wrap stays an ordinary <div>. -->
   <main>
   <h1>PAPTrack — Privacy Policy</h1>
-  <p class="meta">Effective August 22, 2026</p>
+  <p class="meta">Effective August 31, 2026</p>
 
   <p>PAPTrack is built to work entirely in your browser. This page explains exactly what data
   exists, where it goes, and who can see it. It covers the web app at
@@ -89,8 +89,16 @@ footer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
   of what you marked and when</strong>: the dates you pressed Mark cleaned, Mark replaced or
   Mark ordered, up to sixty entries per supply, oldest dropped. It is a record of your own
   taps, kept on the same terms as everything else here, and it goes wherever the rest of your
-  supply list goes — nowhere at all unless you sign in. Plus your preferences (theme). There is
-  no account, no profile and no usage tracking required to use the app, and nothing about your
+  supply list goes — nowhere at all unless you sign in. Plus your preferences (theme).</p>
+
+  <p>Since 22 August 2026 the app can hold <strong>more than one list</strong> — a profile for
+  each person in a household — and each profile has a short name you choose for it, up to 24
+  characters. That name stays on this device. It is never sent to sync: a synced list is
+  identified by a random internal id, not by whose list it is, so the names you pick are not
+  part of what leaves the browser. A name does appear in a backup file, because a backup is a
+  copy of what is on the device — and that file goes only where you send it.</p>
+
+  <p>There is no account and no usage tracking required to use the app, and nothing about your
   therapy, your machine's data or your health records is collected: PAPTrack never reads a CPAP
   device or an adherence report.</p>
 
@@ -107,9 +115,11 @@ footer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
   </div>
   <div class="card">
     <p><strong>Google sign-in / Firestore (optional, off until you choose it).</strong>
-    If you tap "Sign in to sync", your supply list is stored in a Firebase/Firestore database
+    If you tap "Sign In to Sync", your supply list is stored in a Firebase/Firestore database
     operated by the developer so the same list can appear on your other devices, and Firebase
-    Authentication records your Google account's email address and display name. Access rules
+    Authentication records your Google account's email address and display name. If you keep
+    more than one profile, each one's list is stored as its own record under your account,
+    labelled with a random id rather than with the name you gave that profile. Access rules
     restrict every account to its own data — other signed-in users cannot read yours. This
     only happens if you sign in; the app never does it on its own.</p>
   </div>
