@@ -2363,6 +2363,16 @@ function normalizeHistory(raw) {
     .map((e) => (e && typeof e === 'object'
       && HISTORY_KINDS[e.k] && isoOrNull(e.d) ? { k: e.k, d: e.d } : null))
     .filter(Boolean)
+    /* Sorted before it is capped, and both matter. logEvent appends today's date, so a list
+       this app wrote is already in order — but one arriving from a synced document, a device
+       with a skewed clock or a hand-edited backup need not be, and two readers depend on the
+       order. replaceIntervals measures the span between CONSECUTIVE entries, so out of order
+       it averages negative gaps into nonsense; and logEvent's same-day dedupe checks the LAST
+       element, which is only "the most recent thing recorded" once the list is sorted.
+       Capping after the sort also makes the 60 kept the 60 NEWEST rather than whichever 60
+       happened to arrive last — a newest-first list used to lose its 30 most recent events.
+       Same rule in all three apps, shipped together 2026-08-31. */
+    .sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0))
     .slice(-LIMITS.history);
 }
 

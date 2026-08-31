@@ -266,10 +266,22 @@ t('history keeps only entries it can read, newest kept when over the cap', () =>
   eq(h([{ k: 'c', d: iso(-1) }, { k: 'zz', d: iso(-1) }, { k: 'r', d: 'nonsense' }, 'junk', null]),
     [{ k: 'c', d: iso(-1) }], 'one readable entry out of five');
   eq(h('not an array'), []);
+  /* Deliberately NEWEST-first, which is the order this list is not usually in: logEvent
+     appends today's date, so a list this app wrote is ascending. A synced document, a device
+     with a skewed clock or a hand-edited backup need not be, and the cap has to mean the same
+     thing either way. */
   const many = Array.from({ length: 90 }, (_, i) => ({ k: 'c', d: iso(-i) }));
   const kept = h(many);
   eq(kept.length, w.__papTestHooks.LIMITS.history);
-  eq(kept[kept.length - 1], many[many.length - 1], 'the tail is what survives — oldest dropped');
+  eq(kept.map(e => e.d).join(), kept.map(e => e.d).slice().sort().join(),
+    'normalized history is in date order, whatever order it arrived in');
+  /* This used to assert many[many.length - 1] — the OLDEST entry — while its own message said
+     the newest survive. It was pinning the bug: capping an unsorted list keeps whichever 60 sit
+     at the end, which for a newest-first list is the 60 OLDEST, silently discarding the 30 most
+     recent events. */
+  eq(kept[kept.length - 1].d, iso(0), 'the newest entry survives');
+  eq(kept[0].d, iso(-(w.__papTestHooks.LIMITS.history - 1)),
+    'and the 60 kept are the 60 newest — oldest dropped');
 });
 t('cost is money or nothing, and never negative', () => {
   const c = (v) => w.normalizeItem({ name: 'x', lastReplaced: iso(0), cost: v }).cost;
