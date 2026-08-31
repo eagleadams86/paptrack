@@ -569,6 +569,12 @@ t('a shared view cannot write, and shows no control that would', () => {
   ok(src.indexOf('data-act="edit"') !== -1
      && src.indexOf('viewOnly ? \'\' : `<button class="act" data-act="edit"') !== -1,
      'Edit and Delete are not rendered at all');
+  /* The Details window stays on a snapshot's card — reading somebody else's
+     history is what a link is for — but its Pause / Snooze / Mark Ordered
+     buttons would mutate the snapshot in memory and toast that something was
+     recorded while save() refused it. They shipped unguarded until 2026-08-31. */
+  ok(src.indexOf('viewOnly ? \'\' : `<button type="button" class="act" data-d="pause">') !== -1,
+     'the Details window\'s own write buttons must not render in a shared view');
   ok(src.indexOf('$(\'addBtn\').hidden = !has || viewOnly') !== -1,
      'and Add is decided in render(), which is what reveals the toolbar');
 });
@@ -704,8 +710,9 @@ t('the halt fires above the current version and not at or below it', () => {
 });
 
 t('the halt stops every write path, including sync', () => {
-  /* There is no share-view flag here to reuse, so the halt sets its own — and
-     it is only as good as everything that writes checking it. */
+  /* The halt sets its own flag, deliberately separate from the share view's
+     `viewOnly` (which arrived later, 2026-08-23) — and it is only as good as
+     everything that writes checking it. */
   ok(/if \(halted\) return;/.test(APP_SRC), 'save() must be a no-op once halted');
   ok(/!inTestHarness && !window\.papHalted/.test(APP_SRC),
     'the sync module must refuse to start once halted');
@@ -797,6 +804,25 @@ t('the app actually runs — every filter drawn, every dialog opened', async () 
       if (dg) { try { dg.close(); } catch (e) { /* already closed */ } }
     });
     [...d3.querySelectorAll('dialog')].forEach((dg) => { try { dg.close(); } catch (e) { /* not open */ } });
+
+    /* The share window through its REAL button, so renderShareItems runs. The
+       bulk open below reaches this dialog too, but by showModal, which draws
+       only the static markup — the checklist is BUILT by the button's handler,
+       and a broken renderShareItems leaves it present and empty in exactly the
+       way the details window's first draft was. The link itself is built async
+       and deliberately not awaited: the checklist is the synchronous half. */
+    d3.getElementById('shareBtn').click();
+    const shareDg = d3.getElementById('shareDialog');
+    if (!shareDg.open) errs.push('the Share button opened no dialog');
+    /* Counted as CHECKBOXES against the planted kit, not as text length: the
+       function's own empty-list fallback ("There is nothing to share yet.") is
+       text too, so a broken render that fell through to it would pass a
+       non-empty check — proved by sabotage on 2026-08-31, which this replaced. */
+    const shareBoxes = d3.querySelectorAll('#shareItems input[type="checkbox"]').length;
+    if (shareBoxes !== kit.length)
+      errs.push('the share checklist drew ' + shareBoxes + ' of ' + kit.length + ' supplies');
+    drawn['share:items'] = d3.getElementById('shareItems').textContent.trim().length;
+    try { shareDg.close(); } catch (e) { /* never opened */ }
 
     const dialogs = [...d3.querySelectorAll('dialog')].filter((dg) => dg.id);
     dialogs.forEach((dg) => {

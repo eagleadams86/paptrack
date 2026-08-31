@@ -348,8 +348,10 @@
      moment the row wraps to two lines on a phone. Sticky leaves it in the flow
      and the browser does the arithmetic.
 
-     z-index 20 is the siblings' number, above every card and below the toast (9)
-     and any <dialog>, which sits in the top layer anyway. */
+     z-index 20 is the siblings' number, above every card. The toast and any
+     <dialog> outrank it from the top layer, not by z-index — the toast's own
+     z-index 9 only matters on a browser with no popover support, where the two
+     never meet anyway (the toast is anchored to the bottom edge). */
   header {
     position: sticky; top: 0; z-index: 20;
     background: var(--surface);
@@ -527,7 +529,12 @@
   /* Stacked on a phone, as it always was. */
   .toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
   .search {
-    width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    /* --input-border, the pack's gated field edge — this box is a field, and the
+       plain --border it wore measured 1.34:1 against its own fill on midnight,
+       under the 3:1 WCAG 1.4.11 asks of the boundary that identifies a control.
+       Missed by the 2026-08-22 sweep because .search keeps a rule of its own;
+       joined 2026-08-31. No new colour: the token was already in this file. */
+    width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--input-border);
     background: var(--surface); color: var(--text-primary); font-size: var(--fs-sm);
   }
   .search:focus { border-color: var(--accent); }
@@ -757,7 +764,11 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   #itemActions a.act { text-decoration: none; text-align: center; }
   .stock { display: flex; align-items: center; justify-content: center; gap: 8px; }
   .stock button {
-    width: 30px; height: 30px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    /* --border-control, like every other button here: on plain --border the edge
+       of the −/+ steppers measured 1.19:1 against the tile behind them (the 3:1
+       control-boundary rule, WCAG 1.4.11). Missed by the 2026-08-22 sweep, which
+       covered .btn/.act/.filter-chip; joined 2026-08-31. */
+    width: 30px; height: 30px; border-radius: var(--radius-sm); border: 1px solid var(--border-control);
     background: var(--surface); color: var(--text-primary); font-size: var(--fs-base); cursor: pointer; line-height: 1;
   }
   .stock .count { font-weight: 700; min-width: 1.6ch; text-align: center; }
@@ -1028,7 +1039,11 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .field textarea { resize: vertical; }
   .quick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .quick button {
-    border: 1px solid var(--border); background: var(--surface-alt); color: var(--text-secondary);
+    /* --border-control: these chips FILL with the same --surface-alt as the
+       .sec-card they sit on, so the border is the only thing saying they are
+       buttons at all — and plain --border put it at 1.19:1 where WCAG 1.4.11
+       asks 3:1. Missed by the 2026-08-22 sweep; joined 2026-08-31. */
+    border: 1px solid var(--border-control); background: var(--surface-alt); color: var(--text-secondary);
     padding: 4px 10px; border-radius: var(--radius-pill); font-size: var(--fs-xs); cursor: pointer;
   }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -1244,27 +1259,24 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   #dataDialog .datafoot { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 14px; }
 
   /* ---- Footer ---- */
-  /* Left-aligned, like the resupply tip below it and every sibling app's footer — the
-     note wraps to two lines on a phone, and centred wrapped text has no edge to read down. */
-  footer .links { margin-top: 8px; display: flex; gap: 8px; }
-  /* Same padded target as the buttons below — a hairline footer link is no easier
-     to hit than a hairline footer button. The padding is right-only so the link's text
-     starts flush with the note above it. */
-  footer .links a { color: var(--accent); padding: 6px 10px 6px 0; min-height: 32px;
-    display: inline-flex; align-items: center; }
-  footer .copyright { margin-top: 4px; }
-  footer .copyright a { color: var(--text-muted); text-decoration: underline; }
-  footer .copyright a:hover { color: var(--text-secondary); }
-  /* Padded out to clear the 24×24 minimum target size — these are the only route to a
-     backup, so they need to be comfortably tappable rather than hairline-thin links. */
-  footer button {
-    background: none; border: none; color: var(--accent); font-size: var(--fs-xs); cursor: pointer;
-    text-decoration: underline; padding: 6px 10px; border-radius: var(--radius-sm); min-height: 32px;
-  }
-  footer button:hover { background: var(--surface-alt); }
+  /* The footer's rules live in the second <style> block at the foot of the page,
+     beside the markup they style (the family's .footnotes / .privacy shape).
+     The `footer .links` / `footer .copyright` / `footer button` rules that sat
+     here styled the OLD footer — the two underlined backup links that moved into
+     the header's Back Up window on 2026-08-21 — and matched nothing since;
+     removed 2026-08-31 along with their claim that those links were "the only
+     route to a backup", which stopped being true the same day. */
   /* ---- Toast ---- */
+  /* The toast is a POPOVER, so it can be seen over an open modal dialog — the
+     reasoning is on toast() itself, and the same fix is in the sibling apps.
+     The right/top/margin/border/overflow lines undo the UA's own [popover]
+     rules, which would otherwise park it bordered in the middle of the screen.
+     The z-index only matters on a browser with no popover support, where this
+     is the plain fixed element it has always been. */
   .toast {
-    position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    position: fixed; left: 50%; right: auto; top: auto;
+    bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    margin: 0; border: 0; overflow: visible;
     background: var(--text-primary); color: var(--bg); padding: 10px 16px; border-radius: var(--radius-pill);
     font-size: var(--fs-sm); font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 9;
     max-width: calc(100vw - 40px); text-align: center;
@@ -1495,7 +1507,11 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
 </footer>
 </div>
 
-<div class="toast" id="toast" role="status"></div>
+<!-- popover="manual" so the toast can join the browser's TOP LAYER and be seen
+     over an open modal dialog — the reasoning is on toast() itself. On a browser
+     with no popover support the attribute is inert and this stays the plain
+     fixed element it always was. -->
+<div class="toast" id="toast" popover="manual" role="status"></div>
 
 <dialog id="formDialog" aria-labelledby="formTitle">
   <h2 id="formTitle">Add Supply</h2>
@@ -2010,9 +2026,13 @@ if (savedSchema > SCHEMA) haltForNewerData(savedSchema);
    paptrackAdopt() when sync hands one over mid-session, and from the storage
    listener when another tab of this browser writes one.
 
-   Unlike the sibling apps there is no share-view flag here to reuse as the
-   write chokepoint, so it sets its own — `halted`, checked by save() and by the
-   sync module before it initialises. It draws the message with textContent
+   `halted` is its own flag, deliberately separate from `viewOnly` (this app
+   gained a share view on 2026-08-23, after this was written without one to
+   reuse): a halt is about protecting a NEWER saved copy, a shared view about
+   protecting the READER's copy, and folding them together would let leaving a
+   snapshot un-halt a stopped app. Both are checked by save() — the single
+   write path — and by the sync module before it initialises. It draws the
+   message with textContent
    (the number came out of storage, and data is data, not markup) and THROWS, so
    nothing after it initialises. */
 function haltForNewerData(found) {
@@ -2169,7 +2189,11 @@ function readArchive(id) {
 
 /** Swaps the live list for another profile's, archiving the one on screen first. */
 function switchProfile(id) {
-  if (halted || id === activeProfileId || !profiles.some((p) => p.id === id)) return;
+  /* `viewOnly` too: the archive write below goes to localStorage directly rather
+     than through save(), and in a shared view `items` is somebody else's
+     snapshot — archiving it would overwrite the reader's own profile. The picker
+     is hidden in a shared view, so this is the guarantee behind the tidy-up. */
+  if (halted || viewOnly || id === activeProfileId || !profiles.some((p) => p.id === id)) return;
   try { localStorage.setItem(archiveKey(activeProfileId), JSON.stringify(items)); }
   catch (e) { console.warn('Could not archive the current profile', e); }
   activeProfileId = id;
@@ -2656,13 +2680,49 @@ function render() {
 }
 
 /* ---------------- Toast ---------------- */
-let toastTimer;
+/* A modal <dialog> is promoted to the browser's TOP LAYER, which paints above
+   every z-index in the ordinary document — so a toast fired while a dialog was
+   open was drawn UNDER it, dimmed and blurred behind its backdrop, which reads
+   as no feedback at all. This app fires plenty of those: the share window's
+   "Link copied" (which deliberately leaves the window open), "Backup
+   downloaded" and both CSVs from the Back Up window, every pause/snooze/order
+   toast from the Details window, and the profile dialog's. A popover is the one
+   way to put something that ISN'T a dialog into the top layer, and the layer is
+   ordered by when things joined it, so a toast raised after a dialog opened
+   sits above it. `manual`, because nothing else should dismiss it and Escape
+   belongs to the dialog underneath. On a browser with no popover support the
+   attribute is inert and the toast is exactly the fixed element it always was.
+   Golf Handicap's fix, ported 2026-08-31 — this app was the one still without
+   it. */
+const TOAST_POPOVER = 'popover' in HTMLElement.prototype;
+let toastTimer, toastHideTimer, toastRaised = false;
+function raiseToast(el) {
+  if (!TOAST_POPOVER || toastRaised) return;
+  /* A failure here costs the top layer, never the toast. */
+  try { el.showPopover(); toastRaised = true; } catch (e) {}
+}
+function dropToast(el) {
+  if (!toastRaised) return;
+  try { el.hidePopover(); } finally { toastRaised = false; }
+}
 function toast(msg) {
   const t = $('toast');
-  t.textContent = msg;
-  t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  clearTimeout(toastHideTimer);
+  /* Raised BEFORE the text is written: a popover is display:none until shown,
+     and a live region announces a change it was there for. */
+  raiseToast(t);
+  t.textContent = msg;
+  /* The display flip means the opacity:0 starting state was never painted, so
+     the fade would be skipped; reading a layout property settles it. */
+  void t.offsetWidth;
+  t.classList.add('show');
+  toastTimer = setTimeout(() => {
+    t.classList.remove('show');
+    /* Leaves the top layer once it has faded, so a spent toast is never parked
+       above whatever opens next. Matches the .25s opacity transition. */
+    toastHideTimer = setTimeout(() => dropToast(t), 300);
+  }, 2200);
 }
 
 /* ---------------- Card actions ---------------- */
@@ -3252,12 +3312,18 @@ function renderDetails() {
   $('itemStatus').innerHTML = status.map(t => `<p class="hint">${esc(t)}</p>`).join('');
 
   /* Every action re-renders this dialog AND the list behind it. */
+  /* A SHARED VIEW gets none of the three write buttons. The Details button stays
+     on a snapshot's card on purpose — reading somebody else's history is what a
+     link is for — but Pause / Snooze / Mark Ordered would mutate the snapshot in
+     memory and toast that something was recorded when save() had refused it: an
+     edit surface claiming to work. The reorder link stays; it writes nothing,
+     and it only exists when the sharer ticked costs-and-suppliers. */
   $('itemActions').innerHTML = [
-    `<button type="button" class="act" data-d="pause">${paused(it) ? 'Resume this supply' : 'Pause this supply'}</button>`,
-    snoozed(it)
+    viewOnly ? '' : `<button type="button" class="act" data-d="pause">${paused(it) ? 'Resume this supply' : 'Pause this supply'}</button>`,
+    viewOnly ? '' : (snoozed(it)
       ? '<button type="button" class="act" data-d="unsnooze">Wake Reminders Now</button>'
-      : '<button type="button" class="act" data-d="snooze">Snooze Reminders 7 Days</button>',
-    '<button type="button" class="act" data-d="ordered">Mark Ordered Today</button>',
+      : '<button type="button" class="act" data-d="snooze">Snooze Reminders 7 Days</button>'),
+    viewOnly ? '' : '<button type="button" class="act" data-d="ordered">Mark Ordered Today</button>',
     it.orderUrl
       ? `<a class="act" href="${esc(it.orderUrl)}" target="_blank" rel="noopener noreferrer">Reorder at ${esc(it.supplier || 'the supplier')} ↗</a>`
       : '',
@@ -3647,12 +3713,6 @@ $('clearConfirm').addEventListener('click', () => {
   toast('Everything deleted — starting fresh');
 });
 
-/* Read by tests.html only (it loads this file in a hidden iframe and calls the
-   pure functions). Function declarations are already reachable as window
-   properties; `esc` is a top-level `const`, which is NOT a property of window in
-   a classic script, so the suite could never see it — and so the one function
-   standing between a supply name and innerHTML went untested. Nothing in the
-   app reads this object. Same pattern as __svTestHooks and __ghTestHooks. */
 /* ── Share a read-only link ──────────────────────────────────────────────────
    The family's feature, and the machinery is theirs verbatim: deflate-raw into
    base64url behind a format marker, so the format can change later without
@@ -3911,6 +3971,15 @@ function enterViewOnly(payload) {
   renderViewbar();
 }
 
+/* Read by tests.html only (it loads this file in a hidden iframe and calls the
+   pure functions). Function declarations are already reachable as window
+   properties; `esc` is a top-level `const`, which is NOT a property of window in
+   a classic script, so the suite could never see it — and so the one function
+   standing between a supply name and innerHTML went untested. Nothing in the
+   app reads this object. Same pattern as __svTestHooks and __ghTestHooks.
+   (This comment sat 260 lines up, above the share-link section that was later
+   inserted between it and the object it describes — moved back beside it,
+   2026-08-31.) */
 window.__papTestHooks = { esc, raisesKeyboard, LIMITS,
   /* `__plant` is the one hook here that DOES something. It replaces the supply
      list IN MEMORY and redraws — it never calls save(), because this suite runs
@@ -3976,6 +4045,10 @@ window.paptrackAdopt = (newItems, ts, schema) => {
    reload. The storage event only ever fires in the tabs that DIDN'T write. */
 window.addEventListener('storage', (e) => {
   if (e.key !== STORAGE_KEY || e.newValue === null) return;
+  /* Not in a shared view: this tab is showing somebody else's snapshot, and a
+     save in ANOTHER tab of this browser must not swap it for the reader's own
+     list while the banner still says "shared snapshot". */
+  if (viewOnly) return;
   /* Two tabs can be running different builds — one served from the offline
      cache, one fetched fresh after an update — so a newer copy arrives from
      next door as easily as from the cloud. Read straight from storage rather
