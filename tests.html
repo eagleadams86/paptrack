@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 120;
+const EXPECTED = 121;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1539,6 +1539,33 @@ t('motion is dropped for anyone who has asked the system for none', () => {
      `transitionend`, where `transition: none` never fires it at all. */
   ok(/0?\.01ms/.test(found.text) && !/transition:\s*none/.test(found.text),
     'in the .01ms spelling, which still fires transitionend', found.text.slice(0, 120));
+});
+t('every control in the app has a real name, and none is named by its placeholder alone', () => {
+  /* The gap the 2026-08-22 axe run could not see. axe's accessible-name
+     computation accepts a placeholder — the spec lists it as a fallback — so a
+     box with nothing but a placeholder PASSES the WCAG-tagged ruleset that run
+     used. It is still the wrong answer: the placeholder is painted over the
+     moment you type, so a screen reader arriving mid-edit finds a box with no
+     name at all, and voice control has nothing to say to reach it.
+
+     `#profileNew` in the profiles dialog was exactly that, and the Add Supply
+     form four hundred lines above it already says why it must not be. Walked
+     over the whole document rather than pinned to that one id, because the
+     next box added to a dialog is the one nobody will re-audit. */
+  const d = w.document;
+  const named = (el) => {
+    if ((el.getAttribute('aria-label') || '').trim()) return true;
+    const lb = el.getAttribute('aria-labelledby');
+    if (lb && lb.split(/\s+/).some((id) => d.getElementById(id))) return true;
+    if (el.id && d.querySelector('label[for="' + CSS.escape(el.id) + '"]')) return true;
+    return !!(el.closest('label') && el.closest('label').textContent.trim());
+  };
+  const bad = [...d.querySelectorAll('input, select, textarea')]
+    .filter((el) => el.type !== 'hidden')
+    .filter((el) => !named(el))
+    .map((el) => (el.id || el.name || el.type || el.tagName)
+      + (el.getAttribute('placeholder') ? ' (placeholder: "' + el.getAttribute('placeholder') + '")' : ''));
+  eq(bad, [], 'these controls have no accessible name — a placeholder is not one');
 });
 
 group('The header picker reads the theme the page is actually showing');

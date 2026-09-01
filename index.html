@@ -1655,7 +1655,12 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     spares. Everything else — the theme, your reminders, your backups — is shared.</p>
   <div id="profileList"></div>
   <div class="datarow" style="margin-top:12px">
-    <input type="text" id="profileNew" maxlength="24" data-keep-caret placeholder="Add someone — their name">
+    <!-- Named by aria-label, for the reason the Add Supply form already states: a
+         placeholder is not an accessible name. It goes the moment you type, and a
+         screen reader reaching this box mid-edit would have had nothing to call it.
+         Same words as the placeholder, so what is heard is what is seen. -->
+    <input type="text" id="profileNew" maxlength="24" data-keep-caret
+           aria-label="Add someone — their name" placeholder="Add someone — their name">
     <button type="button" class="act" id="profileAddBtn">Add</button>
   </div>
   <p class="hint" id="profileNote" style="margin-top:12px"></p>
