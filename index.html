@@ -4388,6 +4388,7 @@ if (FIREBASE_CONFIG && !inTestHarness && !window.papHalted && !window.papViewOnl
 }
 
 let A, F, auth, db, user = null, unsub = null, pushTimer = null, tokenClient = null;
+let relistenTimer = null;   // the retry after Firestore drops the listener
 
 /* True once startSync() has settled which copy wins for this session. Until it
    is, a debounced push must not run: setDoc would overwrite the cloud document
@@ -4464,6 +4465,7 @@ async function init() {
     reconciled = false; pendingLocalPush = false;
     updateUI();
     if (unsub) { unsub(); unsub = null; }
+    clearTimeout(relistenTimer); relistenTimer = null;
     /* finally, not then: a failed reconciliation must lift the push gate too,
        or an offline sign-in would leave every later edit deferred forever and
        the "next change will try again" promise in the error copy would be a
@@ -4745,6 +4747,7 @@ async function startSync() {
 window.paptrackProfileChanged = () => {
   if (!user) return;
   if (unsub) { unsub(); unsub = null; }
+  clearTimeout(relistenTimer); relistenTimer = null;
   if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
   reconciled = false;
   pendingLocalPush = false;
@@ -4752,8 +4755,14 @@ window.paptrackProfileChanged = () => {
 };
 
 /* The live listener, its own function because startSync is not its only caller:
-   once the error callback drops it, the next successful pushNow() re-attaches. */
+   once the error callback drops it, the next successful pushNow() re-attaches —
+   and, since 2026-09-01, so does a once-a-minute retry while it is down. The
+   push alone left a device that only READS cut off: with nothing to save, a
+   dropped listener stayed dropped until the next sign-in, while the header
+   went on saying the account name. Same fix as Money Map's, same day. */
+const RELISTEN_MS = 60000;
 function attachSnapshot() {
+  clearTimeout(relistenTimer); relistenTimer = null;
   unsub = F.onSnapshot(docRef(), (s) => {
     if (s.metadata.hasPendingWrites || !s.exists()) return;
     const r = s.data();
@@ -4785,6 +4794,16 @@ function attachSnapshot() {
        as the sibling apps; this file was the last one still missing it. */
     setSyncError(e);
     unsub = null;
+    /* The retry: only while still signed in, only while the listener is down,
+       and through the same guarded attach every other call site uses. A
+       listener that errors again just schedules the next try; setSyncError
+       toasts on the first failure only. */
+    clearTimeout(relistenTimer);
+    relistenTimer = setTimeout(() => {
+      relistenTimer = null;
+      if (!user) return;
+      if (!unsub) attachSnapshot();
+    }, RELISTEN_MS);
   });
 }
 

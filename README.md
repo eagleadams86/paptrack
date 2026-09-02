@@ -168,7 +168,10 @@ supplies were reaching your other devices, while nothing had left the browser. T
 reads **⚠️ Not syncing** and the note at the foot of the page gives the cause in plain English
 and what to do about it. Nothing is ever lost when this happens: this browser stays the source
 of truth and the cloud only mirrors it. There's no retry button on purpose — Firestore retries
-the transient causes itself, and the next successful save clears the state. Two details are
+the transient causes itself, and the next successful save clears the state. A dropped
+listener is re-attached by that same save — and, since 2026-09-01, by a once-a-minute retry
+while it is down, so a device that only reads is not cut off from the others' updates until it
+next saves something. Two details are
 load-bearing: the live listener carries an **error callback**, because a listener that errors is
 dropped by Firestore and never fires again (without it, another device's updates simply stop
 arriving while the header still says "syncing"); and `invalid-argument` is **not** assumed to

@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 121;
+const EXPECTED = 122;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1976,6 +1976,26 @@ t('nothing a reader typed can reach the help window', () => {
   const table = code.slice(at, code.indexOf('\n};', at));
   ok(at > 0 && !/\besc\(|\bit\.|\bitems\[|\bstate\./.test(table),
     'the table reads nothing from the data — every body is a literal');
+});
+
+group('A dropped listener is re-attached on a timer (2026-09-01 audit)');
+t('the listener error path schedules a retry, cancelled by sign-out and a profile switch', () => {
+  /* The push-side re-attach above covers a device that SAVES. One that only
+     reads had nothing to push, so a dropped listener stayed dropped until the
+     next sign-in. Source pins, like the group above — the module needs a
+     signed-in account to exercise. */
+  const errAt = APP_SRC.indexOf('setSyncError(e);\n    unsub = null;');
+  ok(errAt > -1, 'the error callback still clears unsub');
+  const after = APP_SRC.slice(errAt, errAt + 700);
+  ok(after.includes('relistenTimer = setTimeout('), 'and schedules the retry');
+  ok(after.includes('if (!unsub) attachSnapshot();'), 'through the guarded attach every other call site uses');
+  ok(after.includes('if (!user) return;'), 'and only while somebody is still signed in');
+  ok(APP_SRC.includes('if (unsub) { unsub(); unsub = null; }\n    clearTimeout(relistenTimer); relistenTimer = null;'),
+    'signing out cancels the retry along with the listener');
+  ok(APP_SRC.includes('if (unsub) { unsub(); unsub = null; }\n  clearTimeout(relistenTimer); relistenTimer = null;'),
+    'and so does switching profile — the retry would otherwise re-open the old profile’s document');
+  ok(/function attachSnapshot\(\) \{\n  clearTimeout\(relistenTimer\)/.test(APP_SRC),
+    'attaching cancels a pending retry, so a push-side re-attach never doubles up with the timer');
 });
 
 async function run() {
