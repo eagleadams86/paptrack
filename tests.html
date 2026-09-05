@@ -1452,9 +1452,27 @@ t('one focus indicator covers the whole app, in the pack\u2019s focus colour', (
   ok(!/--ring:/.test(APP_SRC), 'and the token itself is gone, not just its uses');
 });
 t('the placeholder is a token that clears 4.5:1, not the browser\u2019s default', () => {
-  const rule = (APP_SRC.match(/::placeholder \{[^}]*\}/) || [''])[0];
-  ok(/var\(--text-muted\)/.test(rule), 'left to the UA it measured 3.58:1 on dark');
-  ok(/opacity: 1/.test(rule), 'without this the UA applies its own opacity and undoes the colour');
+  /* This app fixed it locally in --text-muted on 2026-08-22; on 2026-09-05 the same fix
+     became theme pack rule 16, in --text-hint, and the local copy went. So the pin is on
+     the COMPUTED colour, box by box and theme by theme, which is what a reader gets — and
+     it would still catch a theme.css copy that fell behind the pack. */
+  ok(!/::placeholder \{/.test(APP_SRC), 'no local rule — the pack carries it, and a second copy is drift');
+  const d = w.document;
+  const hint = () => {
+    const el = d.createElement('div'); el.style.color = 'var(--text-hint)';
+    d.body.appendChild(el); const c = w.getComputedStyle(el).color; el.remove(); return c;
+  };
+  const boxes = [...d.querySelectorAll('input[placeholder], textarea[placeholder]')];
+  ok(boxes.length >= 2, 'there are placeholders to check: ' + boxes.length);
+  const was = d.documentElement.getAttribute('data-theme');
+  for (const theme of ['midnight', 'dark', 'light', 'sepia']) {
+    d.documentElement.setAttribute('data-theme', theme);
+    const want = hint();
+    const wrong = boxes.filter(b => w.getComputedStyle(b, '::placeholder').color !== want)
+      .map(b => b.id || b.tagName);
+    ok(wrong.length === 0, theme + ': every placeholder is drawn in --text-hint, not the browser\u2019s grey' + (wrong.length ? ' — ' + wrong.join(',') : ''));
+  }
+  d.documentElement.setAttribute('data-theme', was);
 });
 t('a filter chip is drawn on the same edge as every other button here', () => {
   const rule = (APP_SRC.match(/\.filter-chip \{[^}]*\}/) || [''])[0];

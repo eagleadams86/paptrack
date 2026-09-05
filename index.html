@@ -320,14 +320,10 @@
      size and weight — every control here that cares states its own size after this
      rule, so nothing is left to the UA's 13.33px default either. */
   button, select, input, textarea { font: inherit; color: inherit; }
-  /* A placeholder is TEXT, so it answers to the 4.5:1 rule like any other. Left to
-     the browser it is `--text-primary` at the UA's own opacity, which measured
-     3.58:1 on dark, 3.84 on midnight and 4.24 on sepia — a hint nobody with low
-     vision could read, on the one control that tells you what the box is for.
-     `--text-muted` is the token the app already uses for exactly this job (the
-     "Filters:" caption beside it), and it clears the bar on all four themes.
-     `opacity: 1` because the UA applies its own otherwise and would undo it. */
-  ::placeholder { color: var(--text-muted); opacity: 1; }
+  /* No ::placeholder rule here since 2026-09-05: this app fixed the browser's grey in
+     --text-muted on 2026-08-22, and the same fix is theme pack rule 16 now, in --text-hint
+     (both clear 4.5:1 on all four themes; hint is the token DEFINED for placeholders).
+     It arrives with theme.css; a local copy in another token would be drift. */
 
   /* Width lives with the other layout tokens at the top of the file. The 64px of
      bottom padding is the siblings' number. It used to do a second job — keeping
