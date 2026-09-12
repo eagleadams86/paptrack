@@ -728,9 +728,16 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .b-neutral { background: var(--surface-alt); border-color: var(--border); } .b-neutral .dot { background: var(--text-muted); }
   /* The details dialog's event list. Two columns on one line — what happened, and when —
      with the date allowed to wrap under on a narrow phone rather than squeezing the label. */
-  /* Clears the facts above it when the details window is one column; the wide
-     layout zeroes this, where the heading starts its own column. */
-  #itemHistoryH { margin-top: 18px; }
+  /* Each block of the details window — Actions, About This Supply, History — carries
+     its own spacing, so no heading needs an inline margin to clear what is above it.
+     That was the drift the settings windows removed; this one is the same part. */
+  .detailsec { margin-bottom: 18px; }
+  .detailsec:last-child { margin-bottom: 0; }
+  #itemFacts p:last-child { margin-bottom: 0; }
+  /* Its paragraphs already carry 12px; the 6px makes the gap below a status the
+     same 18px that separates the blocks under it. `:not(:empty)` because most
+     supplies are not paused, snoozed or on order and the box is then not there. */
+  #itemStatus:not(:empty) { margin-bottom: 6px; }
   .hist { list-style: none; margin: 0; padding: 0; }
   .hist li {
     display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: space-between;
@@ -1047,7 +1054,10 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   /* Grouped sections mirroring the iOS add/edit form: a bold header, a lighter
      rounded card holding the fields, and a muted footer hint below it. */
   .formsec { margin-bottom: 16px; }
-  .formsec .sec-h {
+  /* Not `.formsec .sec-h`: the details window's headings are the same part, and
+     scoping this to the form left History as a browser-default <h3> — bigger and
+     heavier than every other heading in the app. */
+  .sec-h {
     font-size: var(--fs-sm); color: var(--text-primary); font-weight: 700; margin: 0 0 8px; padding-left: 2px;
   }
   .sec-card {
@@ -1169,9 +1179,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     /* `align-items: start` and not the grid's usual stretch: these are two plain
        runs of content, not a pair of bordered cards, so there is nothing here
        for a matched height to tidy up — it would only pad the shorter column. */
-    #itemDialog .detailcols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; align-items: start; }
-    /* The heading is the top of its own column now, so it has nothing to clear. */
-    #itemHistoryH { margin-top: 0; }
+    #itemDialog .detailcols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: start; }
   }
   /* ---- Back up & restore ---- */
   /* Every paragraph in a dialog, not only the ones tagged .hint — a class-less
@@ -1674,15 +1682,29 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   <!-- Two columns from 1260px, stacked below it: what the supply IS on the left,
        what has HAPPENED to it on the right. The ids are untouched — renderDetails
        writes into them by id and does not care what holds them. -->
+  <!-- Paused / snoozed / on order is true of the whole supply, not of one column,
+       so it sits under the title at full width. It also used to be the thing that
+       pushed the left column's first line out of step with the right's. -->
+  <div id="itemStatus"></div>
   <div class="detailcols">
     <div>
-      <div id="itemStatus"></div>
-      <div class="datarow" id="itemActions"></div>
-      <div id="itemFacts"></div>
+      <!-- Both columns open on a heading, so they start on the same line whatever
+           each one is holding. A block with nothing to show hides, heading and all,
+           rather than leaving a title over empty space. -->
+      <section class="detailsec" id="itemActionsSec">
+        <h3 class="sec-h">Actions</h3>
+        <div class="datarow" id="itemActions"></div>
+      </section>
+      <section class="detailsec" id="itemFactsSec">
+        <h3 class="sec-h">About This Supply</h3>
+        <div id="itemFacts"></div>
+      </section>
     </div>
     <div>
-      <h3 class="sec-h" id="itemHistoryH">History</h3>
-      <div id="itemHistory"></div>
+      <section class="detailsec">
+        <h3 class="sec-h" id="itemHistoryH">History</h3>
+        <div id="itemHistory"></div>
+      </section>
     </div>
   </div>
   <div class="formfoot">
@@ -3403,7 +3425,7 @@ function renderDetails() {
      memory and toast that something was recorded when save() had refused it: an
      edit surface claiming to work. The reorder link stays; it writes nothing,
      and it only exists when the sharer ticked costs-and-suppliers. */
-  $('itemActions').innerHTML = [
+  const actions = [
     viewOnly ? '' : `<button type="button" class="act" data-d="pause">${paused(it) ? 'Resume this supply' : 'Pause this supply'}</button>`,
     viewOnly ? '' : (snoozed(it)
       ? '<button type="button" class="act" data-d="unsnooze">Wake Reminders Now</button>'
@@ -3412,7 +3434,11 @@ function renderDetails() {
     it.orderUrl
       ? `<a class="act" href="${esc(it.orderUrl)}" target="_blank" rel="noopener noreferrer">Reorder at ${esc(it.supplier || 'the supplier')} ↗</a>`
       : '',
-  ].join('');
+  ].filter(Boolean);
+  $('itemActions').innerHTML = actions.join('');
+  /* A shared view with no reorder link has no actions at all: hide the heading with
+     them, rather than promising something to do under it. */
+  $('itemActionsSec').hidden = actions.length === 0;
 
   const facts = [];
   const gap = averageReplaceGap(it);
@@ -3431,6 +3457,9 @@ function renderDetails() {
     facts.push(`${money(it.cost)} each. No yearly figure: an as-needed supply has no cycle to reckon from.`);
   }
   $('itemFacts').innerHTML = facts.map(t => `<p class="hint">${esc(t)}</p>`).join('');
+  /* A brand-new supply with no cost, no supplier and nothing replaced yet has no
+     facts to state — and an empty heading is worse than no heading. */
+  $('itemFactsSec').hidden = facts.length === 0;
 
   /* Newest first — the last thing you did is the thing you are checking. */
   const events = [...(it.history || [])].reverse();
