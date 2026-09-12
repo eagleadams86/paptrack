@@ -178,30 +178,12 @@
      on more to read rather than on a wider card. It
      was 760px until 2026-08-21 — a phone column shown on a desktop. */
   :root { --chrome-h: 30px; --page-w: 2400px; }
-  /* `color-scheme` rides along with the shadows, one per theme, the same shape
-     Money Map uses. It is not a colour of ours and it overrides nothing in the
-     pack — it is how a page TELLS the browser which way round it is, so the bits
-     of UI the browser draws itself follow the theme. Without it those are always
-     drawn light: the calendar button inside every `<input type="date">` was a
-     near-black glyph on a near-black field on the two dark themes, which is the
-     one control in the add/edit form you cannot restyle from CSS. It also fixes
-     the number spinners and the scrollbars, which had the same problem more
-     quietly.
-     Note the pairing follows the PALETTE, not the theme's name: sepia is a warm
-     LIGHT theme and takes `light`. */
-  :root, [data-theme="midnight"] { color-scheme: dark; }
-  [data-theme="dark"] { color-scheme: dark; }
-  [data-theme="light"] { color-scheme: light; }
-  [data-theme="sepia"] { color-scheme: light; }
-  /* Auto has no palette of its own — theme.css resolves it to Light or, under
-     prefers-color-scheme: dark, to Midnight. These two have to resolve the same way,
-     or an Auto page in light mode would wear a dark page's shadow and tell the
-     browser to draw the date picker's calendar button dark on a light field. Same
-     structure as the pack's own auto block. */
-  [data-theme="auto"] { color-scheme: light; }
-  @media (prefers-color-scheme: dark) {
-    [data-theme="auto"] { color-scheme: dark; }
-  }
+  /* `color-scheme` moved INTO the pack on 2026-09-12 (rule 18). theme.css emits
+     it on every palette block — :root, each [data-theme], BOTH halves of auto,
+     and the print block — derived from each theme's `isLight` in tokens.json, so
+     it follows the PALETTE and not the theme's name. This page declared its own
+     until then; don't re-add one, a local block is drift now and it is what left
+     the same declaration missing from ten other pages in the family. */
 
   * { box-sizing: border-box; }
   /* prefers-reduced-motion is the theme pack's rule 15 as of 2026-08-26, so there
