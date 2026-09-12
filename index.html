@@ -79,6 +79,32 @@
   // run follows the reader's own system. The same id is in the markup above, which
   // is what a browser with script disabled gets.
   (function () {
+  /* ── NOTHING BELOW THE HEADER IS PAINTED BEFORE THE FIRST render() ──────
+     (2026-09-12, swept across the family after Charles saw it in Money Map.)
+     The cards inside <main> are all built by render(), so <main> measures ZERO at first paint. The browser paints the parsed body before the main script executes,
+     so first paint was the header and then the FOOTER immediately under it —
+     "Private — stored in this browser; sign in to sync your own devices." flashing at the top of the page on every refresh, before the
+     app appeared and shoved it back down.
+
+     Same reasoning as the theme just below: a thing settled a frame late is a
+     page that visibly jumps as it opens. Three details it cannot do without:
+
+       • SET HERE, before anything that can throw. A browser that refuses
+         localStorage throws on the theme read below — and that is the browser
+         most likely to be slow enough to show the flash in the first place.
+       • `visibility`, NEVER `display: none` — see the rule in the stylesheet.
+         render() runs while this is on and has to measure a REAL layout.
+       • The DOMContentLoaded backstop below, so a script that dies on the way
+         to the release can never leave the page blank.
+
+     Released in the same task as the first render; search `data-booting`.
+     Golf Handicap, Flow Metrics and the NY calculator never had this — their
+     cards are real markup inside <main>, so their first paint is already
+     right. */
+  document.documentElement.dataset.booting = 'on';
+  document.addEventListener('DOMContentLoaded', function () {
+    document.documentElement.removeAttribute('data-booting');
+  }, { once: true });
     var t = localStorage.getItem('pap-theme');
     if (t === 'slate') t = 'dark'; // Slate was renamed Dark when the themes unified (Aug 2026)
     /* 'auto' is in this list and is NOT a fifth theme: theme.css carries a
@@ -1268,6 +1294,20 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     max-width: calc(100vw - 40px); text-align: center;
   }
   .toast.show { opacity: 1; }
+
+/* ── Held back until the first render — see the head script for why ──────────
+   The header is NOT covered: it is static markup and already correct at first
+   paint, so holding it back would only make the page slower to show anything at
+   all. Everything render() decides the content or the presence of lives inside
+   <main> (the tab strip included) or in the footer, and that is the whole list.
+
+   visibility, NEVER display: none. render() runs while this is on, and a chart
+   sizes itself off its container — a zero-width container is a zero-width chart
+   that never corrects itself, because nothing re-measures once it has built.
+   The boxes stay; only the painting is held. */
+html[data-booting] main,
+html[data-booting] footer { visibility: hidden; }
+
 </style>
 </head>
 <body>
@@ -4207,6 +4247,10 @@ fillPresetOptions();
     }
   }
   render();
+  /* The page is now drawn where it belongs, so let it be seen. In the SAME TASK
+     as the render above — a frame later and the reveal is itself the flash. The
+     head script explains what was flashing before it. */
+  document.documentElement.removeAttribute('data-booting');
 })();
 </script>
 
