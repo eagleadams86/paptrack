@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 126;
+const EXPECTED = 129;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -2094,11 +2094,11 @@ group('The header controls are one scrolling line at every width (2026-09-14)');
    Measured live in two frames: one narrow enough that the controls cannot fit,
    and a wide one where nothing may have changed. The frame is a mouse-driven
    desktop one, so the arrows are not taken away by the touch media query. */
-async function headerFrame(width) {
+async function headerFrame(width, height = 800) {
   const f = document.createElement('iframe');
   f.setAttribute('data-pap-tests', '');
   f.setAttribute('aria-hidden', 'true');
-  f.style.cssText = 'position:absolute;left:-9999px;width:' + width + 'px;height:800px;border:0';
+  f.style.cssText = 'position:absolute;left:-9999px;width:' + width + 'px;height:' + height + 'px;border:0';
   await new Promise((resolve) => {
     f.onload = resolve;
     f.src = 'index.html?rowscroll=' + Date.now();
@@ -2148,6 +2148,92 @@ t('a narrow window scrolls the header row on one line, with arrows; a wide one i
      'with NO flex-end: in a row that overflows it pushes the left-hand controls out of reach', rule);
   ok(/@media print \{\s*\.top-actions \{ overflow: visible !important; flex-wrap: wrap !important; \}/.test(APP_SRC),
      'and on paper, which cannot scroll, the row wraps');
+});
+
+/* Charles, the same evening: "keep buttons beside the name". At 705px the five
+   controls (622px) do not all fit beside the name (342px). The first cut took the
+   whole row onto a line of its own there — an 88.5px bar with the name alone on
+   top. The row now takes what the name leaves and scrolls in place: 51px, one line.
+   Red on the previous commit. */
+t('the controls stay BESIDE the name and scroll there, rather than taking a line of their own', async () => {
+  const f = await headerFrame(705);
+  try {
+    const W = f.contentWindow, D = W.document;
+    const ctl = D.querySelector('.top-actions'), brand = D.querySelector('.brand');
+    const dy = ctl.getBoundingClientRect().top - brand.getBoundingClientRect().top;
+    ok(Math.abs(dy) < 16, '705px: the controls sit on the name\'s line, instead of wrapping under it '
+       + '(Charles, 2026-09-14: "keep buttons beside the name")', dy);
+    ok(ctl.scrollWidth > ctl.clientWidth, 'and they scroll there, because they do not all fit — otherwise nothing is being measured',
+       ctl.scrollWidth + ' vs ' + ctl.clientWidth);
+    ok(ctl.getBoundingClientRect().left >= brand.getBoundingClientRect().right,
+       'beside the name, not over it', ctl.getBoundingClientRect().left + ' < ' + brand.getBoundingClientRect().right);
+    ok(!D.querySelector('.headrow > .rownav').hidden, 'with the arrows showing there is more');
+    ok(D.documentElement.scrollWidth <= W.innerWidth, 'and the page itself never scrolls sideways',
+       D.documentElement.scrollWidth + ' > ' + W.innerWidth);
+  } finally { f.remove(); }
+});
+
+/* The browser scrolls a focused element into view only when it is ENTIRELY
+   hidden, so Tab onto a button half past the edge left it half past the edge
+   (Back Up at 480px, 21px still clipped). The straddle is MADE rather than hoped
+   for — at rest a 12px gap can land exactly on the edge. Red with wireScrollRow's
+   focusin listener taken out. */
+t('a control half past the row\'s edge, focused from the keyboard, is brought WHOLE into the row', async () => {
+  const f = await headerFrame(705);
+  try {
+    const D = f.contentWindow.document;
+    const row = D.querySelector('.top-actions');
+    const items = [...row.querySelectorAll('button, select')].filter((c) => c.getClientRects().length && !c.hidden);
+    row.scrollLeft = 0;
+    let box = row.getBoundingClientRect();
+    const half = items.find((el) => el.getBoundingClientRect().right > box.right - 1);
+    ok(half, 'set up: a control reaches past the row\'s edge');
+    const r0 = half.getBoundingClientRect();
+    row.scrollLeft += Math.max(0, r0.left + r0.width / 2 - box.right);
+    box = row.getBoundingClientRect();
+    const r1 = half.getBoundingClientRect();
+    ok(r1.left < box.right && r1.right > box.right, 'set up: ' + half.id + ' straddles the edge',
+       r1.left.toFixed(1) + '..' + r1.right.toFixed(1) + ' vs ' + box.right.toFixed(1));
+    half.focus();
+    ok(half.matches(':focus-visible'), 'set up: a focus the page treats as a keyboard one');
+    const r = half.getBoundingClientRect(), b2 = row.getBoundingClientRect();
+    ok(b2.right - r.right >= 3 && r.left - b2.left >= 3,
+       'focused, ' + half.id + ' is scrolled fully inside the row with its focus ring\'s room',
+       (r.left - b2.left).toFixed(1) + ' left / ' + (b2.right - r.right).toFixed(1) + ' right');
+  } finally { f.remove(); }
+  ok(/if \(t === row \|\| !t\.matches\(':focus-visible'\)\) return;/.test(APP_SRC),
+     'only a keyboard focus scrolls the row — a mouse press needs no help');
+});
+
+/* A sticky bar covers whatever a jump link lands on, so <main>'s scroll-margin
+   has to clear it. It was a fixed 96px, and at 320px the name wraps to two lines
+   and the bar is taller than that. The margin reads the header's MEASURED height
+   now (`trackHeaderHeight()` → `--header-h`). The frame starts scrolled down — the
+   realistic case, and from the very top the browser may not need to move at all.
+   Red on the previous commit. */
+t('the skip link lands <main> below the header, whatever the header\'s height', async () => {
+  const f = await headerFrame(320, 300);
+  try {
+    const W = f.contentWindow, D = W.document;
+    const head = D.querySelector('header'), main = D.querySelector('main');
+    const hh = head.getBoundingClientRect().height;
+    ok(hh > 96, 'set up: at 320px the header is taller than the old fixed 96px', hh);
+    W.scrollTo(0, 400);
+    ok(W.scrollY > 0, 'set up: the page has somewhere to scroll back from', W.scrollY);
+    D.querySelector('.skip').click();
+    await new Promise((r) => setTimeout(r, 150));
+    const hb = head.getBoundingClientRect().bottom, mt = main.getBoundingClientRect().top;
+    ok(mt >= hb - 0.5, '<main> lands BELOW the sticky header, not under it',
+       'main top ' + mt.toFixed(1) + ' vs header bottom ' + hb.toFixed(1));
+    ok(mt - hb <= 21, 'and just clear of it, where it sits under the bar at the top of the page', (mt - hb).toFixed(1));
+    /* The clearance follows the header: widen the window and the bar drops to one line. */
+    f.style.width = '1280px';
+    await new Promise((r) => setTimeout(r, 250));
+    const h2 = head.getBoundingClientRect().height;
+    ok(h2 < hh, 'set up: at 1280px the bar is shorter', h2);
+    eq(W.getComputedStyle(main).scrollMarginTop, (Math.ceil(h2) + 20) + 'px',
+       'and the clearance followed it — measured, not a number written down');
+  } finally { f.remove(); }
 });
 
 async function run() {

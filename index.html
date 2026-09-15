@@ -375,11 +375,14 @@
              display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   /* A sticky bar covers whatever a jump link lands on. The skip link aims at
      <main>, so without this the first thing a keyboard user is sent to is hidden
-     under the header they just skipped. Generous enough for the two-line header a
-     phone gets — the name above one scrolling line of controls, 92.5px measured
-     on a 390px phone since 2026-09-14. (Before that the controls wrapped to two
-     lines of their own and the bar was 138.5px, which this figure never covered.) */
-  main { scroll-margin-top: 96px; }
+     under the header they just skipped. THE CLEARANCE IS THE HEADER'S MEASURED
+     HEIGHT, not a guess (2026-09-14): `trackHeaderHeight()` writes `--header-h`
+     and keeps it true, plus the 20px the bar keeps below itself — so the skip
+     link lands <main> exactly where it sits under the bar at the top of the page.
+     It was a fixed 96px, which covered the 92.5px upright phone and nothing
+     taller: a 320px phone, where the name wraps to two lines, or a larger text
+     size. The 96px fallback is for a page whose script never ran. */
+  main { scroll-margin-top: calc(var(--header-h, 96px) + 20px); }
   /* The family's brand line, adopted 2026-08-21: mark, name and strapline on ONE
      line, the strapline muted behind a middle dot. It was a 40px tile with the
      name and strapline stacked in a block beside it, which made this header two
@@ -403,22 +406,27 @@
   .logo { width: 22px; height: 22px; border-radius: var(--radius-sm); flex: none;
           vertical-align: -4px; margin-right: 9px;
           border: 1px solid var(--border); }
-  /* margin-left:auto rather than a flexible spacer: a spacer would sit on the
-     first line and strand the buttons at the left edge of the second. It is on
-     `.headrow` since 2026-09-14, the row's outer box. */
   /* THE CONTROLS ARE ONE LINE THAT SCROLLS SIDEWAYS, AT EVERY WIDTH (Charles,
      2026-09-14, family-wide: "should we just make them both always single line
      side scrollers?"). Money Map's shape, ported the same day.
-     `.headrow` is the row and its arrows; `.top-actions` is what scrolls. The row
-     is `flex: 0 1 auto` — sized to its content — so while every control fits
-     beside the name it sits there, pushed right by the name's auto margin exactly
-     as before, and the moment it does not, flex-wrap takes the WHOLE row onto a
-     line of its own, where it shrinks to that line and scrolls instead of wrapping
-     to a second and third line of buttons.
+     `.headrow` is the row and its arrows; `.top-actions` is what scrolls. THE ROW
+     STAYS BESIDE THE NAME AND SCROLLS THERE (Charles, the same evening: "keep
+     buttons beside the name"). The first cut was content-sized, so the moment the
+     controls did not all fit beside the name flex-wrap took the whole row onto a
+     line of its own. Now the row takes whatever the name leaves (`flex: 1 1 0%`),
+     its controls packed to the right-hand end by `justify-content: flex-end` ON
+     THE ROW, and it only wraps under the name when that would leave it less than
+     15rem — an upright phone, or a window not much wider. Money Map's rule
+     (financial-plan 2c19e01), verbatim.
+     `margin-left: auto` came off the row with it. It was there to right-align a
+     content-sized row (a flexible spacer would have sat on the first line and
+     stranded the buttons at the left of the second); a row that grows to fill its
+     line leaves an auto margin nothing to take, and the flex-end does the job on
+     either line.
      NO `justify-content: flex-end` ON THE SCROLLER, and that is load-bearing: in a
      row that overflows, flex-end pushes the overflow off the LEFT edge, where no
-     scroll can reach it — the sync button would be unreachable. The auto margins
-     do the right-aligning while the row fits.
+     scroll can reach it — the sync button would be unreachable. On the ROW it is
+     safe, because the row itself never overflows: the scroller inside it shrinks.
      12px, which is what every sibling app's header row uses. This row had 8px —
      its buttons sat visibly tighter together than the same buttons in the app
      beside it. The five apps put their controls straight in `.headbar` at
@@ -427,8 +435,8 @@
      and a matching negative margin, so the box grows inward and no control moves.
      No scrollbar: the arrows beside the row are the sign there is more, and the
      thing a mouse can press. */
-  .headrow { display: flex; align-items: center; gap: 4px; flex: 0 1 auto; min-width: 0;
-             margin-left: auto; }
+  .headrow { display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+             flex: 1 1 0%; min-width: min(15rem, 100%); }
   .top-actions { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; flex: 0 1 auto;
                  min-width: 0; overflow-x: auto; padding: 4px; margin: -4px; scrollbar-width: none; }
   .top-actions::-webkit-scrollbar { display: none; }
@@ -4315,6 +4323,24 @@ function wireScrollRow(row, nav) {
   const step = (dir) => { row.scrollLeft += dir * Math.max(80, Math.round(row.clientWidth * 0.8)); };
   prev.onclick = () => step(-1);
   next.onclick = () => step(1);
+  /* A CONTROL REACHED FROM THE KEYBOARD LANDS WHOLE INSIDE THE ROW. The
+     browser scrolls a focused element into view only when it is entirely
+     hidden, so Tab onto a button half past the edge left it half past the
+     edge (measured on PAPTrack at 480px: Back Up focused with 21px still
+     clipped), and an arrow key along a tab bar did the same. Measured against
+     the PADDING edge, so the 4px bought for the focus ring stays the ring's —
+     the tab nudge's lesson. Only a `:focus-visible` focus: a mouse press
+     needs no help, and scrolling under it would move a tab that is about to
+     be dragged. */
+  row.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (t === row || !t.matches(':focus-visible')) return;
+    const cs = getComputedStyle(row);
+    const padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
+    const box = row.getBoundingClientRect(), tr = t.getBoundingClientRect();
+    if (tr.left < box.left + padL) row.scrollLeft += tr.left - box.left - padL;
+    else if (tr.right > box.right - padR) row.scrollLeft += tr.right - box.right + padR;
+  });
   row.addEventListener('scroll', sync, { passive: true });
   if ('ResizeObserver' in window) new ResizeObserver(sync).observe(row);
   new MutationObserver(sync).observe(row, { subtree: true, childList: true, characterData: true,
@@ -4323,6 +4349,27 @@ function wireScrollRow(row, nav) {
   sync();
 }
 wireScrollRow(document.querySelector('.top-actions'), document.querySelector('.headrow > .rownav'));
+
+/* ── The skip link clears the header, whatever its height ───────────────────
+   A sticky bar covers whatever a jump link lands on, and this bar is not one
+   height: one line on a laptop, the name above the controls on an upright
+   phone, the name itself on two lines on a narrow one, taller again at a larger
+   text size. So `main`'s scroll-margin reads `--header-h`, written here from the
+   header's own box and kept true by a ResizeObserver (the window, the zoom, a
+   label that changes) — rounded UP, so it never lands a fraction short. The
+   header is static markup above this script. (2026-09-14: it replaces a fixed
+   96px, which was shorter than an upright phone's header on the lottery pages.
+   The same function, byte for byte, in PAPTrack and both lottery pages.) */
+function trackHeaderHeight() {
+  const head = document.querySelector('header');
+  if (!head) return;
+  const set = () => document.documentElement.style.setProperty('--header-h',
+    Math.ceil(head.getBoundingClientRect().height) + 'px');
+  if ('ResizeObserver' in window) new ResizeObserver(set).observe(head);
+  window.addEventListener('resize', set);
+  set();
+}
+trackHeaderHeight();
 
 /* ── Boot ────────────────────────────────────────────────────────────────────
    A shared view is decoded BEFORE the first render, so the page never paints
