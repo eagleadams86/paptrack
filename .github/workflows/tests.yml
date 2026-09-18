@@ -49,9 +49,13 @@ jobs:
           const PROVOKED = /^Error: pap: saved data schema \d+ is newer than this build \(\d+\)$/;
           page.on('pageerror', (e) => { if (!PROVOKED.test(String(e))) errors.push(String(e)); });
           await page.goto('http://localhost:8011/tests.html');
+          // 300 s, not 60: the wait has to outlast the SUITE on a CI runner, and a suite only
+          // grows. Money Map (2026-09-07) and Sprint Predictability (2026-09-18) each went red
+          // on a GREEN suite that had simply outgrown 60 s; the job's own timeout-minutes is
+          // the real ceiling. Changed here before it happens rather than after.
           await page.waitForFunction(
             () => !/^Loading/.test(document.getElementById('summary').textContent),
-            null, { timeout: 60000 });
+            null, { timeout: 300000 });
           const summary = await page.evaluate(() => document.getElementById('summary').textContent);
           const failedNames = await page.evaluate(() =>
             [...document.querySelectorAll('tr.fail, li.bad')].map((el) => el.textContent.trim()));
