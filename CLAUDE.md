@@ -512,6 +512,16 @@ until a sweep across the family found it, together with the lottery portfolio pa
     fires), and that is the way back in for editing rather than replacing.
   It does not fight `openModal`: on a touch screen focus goes to the dialog, so
   nothing is selected until you tap a field.
+- **A focused number box ignores the mouse wheel (2026-10-23).** Chrome steps a focused
+  `type=number` on every wheel or trackpad tick over it, so scrolling a window past a box you
+  had just typed in changed what it held — in Wine Cellar it saved Bottles 2 as 0. One
+  passive, capture-phase `wheel` listener right after the select-on-focus block blurs a
+  focused number box on the first tick, which stops the step and lets the page scroll.
+  Reproduced headless in this app before the port (5 → 3 over two ticks); the same listener
+  is in every app in the family, from Wine Cellar's 215c32f. The select-on-focus handler
+  above is NOT the Wine Cellar one and was left alone: its `mouseup` cancel is attached to
+  the box and skipped when the value moved, so it has no spin-arrow runaway. Pinned by
+  `a focused number box ignores the mouse wheel` in tests.html.
 - **Date fields are `appearance: none`, and that lives in `theme.css`, not here.** WebKit
   ignores an author `box-sizing` on a natively drawn control, so `width: 100%` on a date
   input meant the column PLUS its padding and border and the box hung over its neighbour.

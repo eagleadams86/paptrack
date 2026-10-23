@@ -3333,6 +3333,18 @@ document.addEventListener('focusin', (e) => {
   }
 });
 
+/* A FOCUSED NUMBER BOX IGNORES THE MOUSE WHEEL (2026-10-23). Chrome steps a
+   focused <input type="number"> on every wheel or trackpad tick over it, so
+   scrolling a window down past a box you had just typed in quietly changed
+   what it held — in Wine Cellar that saved Bottles 2 as 0 and hid the wine.
+   The box loses focus on the first tick, which stops the step and lets the
+   page scroll as the reader meant. Passive, so scrolling stays smooth; the
+   same listener ships in every app in the family. */
+addEventListener('wheel', (e) => {
+  const el = e.target;
+  if (el && el.tagName === 'INPUT' && el.type === 'number' && el === document.activeElement) el.blur();
+}, { passive: true, capture: true });
+
 /* Clicking outside the form cancels it, same as Cancel or Escape — edits are discarded. A click on
    the backdrop reports the dialog itself as the target, but so does one on the dialog's own padding
    or scrollbar, so test the pointer against the dialog's box rather than trusting the target. Both

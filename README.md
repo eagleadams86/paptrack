@@ -104,6 +104,8 @@ pill off the buttons.
 - **The toolbar is one uniform row** — search box, **+ Add Supply**, the *Filters:* caption, its three chips and *Mark All Due Items Clean*, every one of them a 40px control on a single line from 720px up. The caption used to read *Filter — tap to toggle* and sit *above* its chips, which made the filter block two lines tall and set the height of the whole row: the search box stretched to 57px to match it while the chips stayed at 33px. The add button is the reference — it is the family's button and its size is not this app's to choose, so everything else is measured against it. Below 720px the row stacks, full-width, as it always did
 - **4 themes, and Auto by default** — dropdown in the header, listed alphabetically (Auto, Dark, Light, Midnight, Sepia), shared with every other app in this family via the unified theme pack; choice saved in `localStorage` and applied before first paint. With nothing saved the app follows your own phone or computer — Light on a light setting, Midnight on a dark one — and changes with it while the page is open, no reload needed. Midnight is still the base palette, which is what Auto means by "dark". Forest, Solarized and Synthwave were retired in August 2026, and Slate was renamed Dark — a saved Slate preference carries over automatically
 
+**Scrolling never changes a number box.** A browser steps a number box you have just typed in every time the mouse wheel or trackpad scrolls over it, so scrolling a window down past it used to change the figure without a word. The box now lets go of the cursor the moment you scroll over it, and the page scrolls instead; click it again to carry on typing.
+
 ---
 
 ## Cross-Device Sync (Firebase, Free Tier)
