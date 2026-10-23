@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 131;
+const EXPECTED = 132;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -1135,6 +1135,17 @@ t('a control you press or pick does not', () => {
   eq(w.__papTestHooks.raisesKeyboard({ tagName: 'SELECT' }), false);
   eq(w.__papTestHooks.raisesKeyboard({ tagName: 'DIALOG' }), false, 'the dialog itself, once focus lands there');
   eq(w.__papTestHooks.raisesKeyboard(null), false, 'nothing focused is not a keyboard');
+});
+t('a dropdown or picker opens on focus, so a window never opens on one', () => {
+  /* iOS 26 opens a focused <select>'s menu at once: Wine Cellar's Share and
+     Settings windows opened with their first dropdown already down (Charles,
+     iPhone, 2026-10-23). openModal() asks opensOnFocus(), not raisesKeyboard(). */
+  ok(w.__papTestHooks.opensOnFocus({ tagName: 'SELECT' }), 'a select');
+  ok(w.__papTestHooks.opensOnFocus({ tagName: 'INPUT', type: 'time' }), 'a time picker');
+  ok(w.__papTestHooks.opensOnFocus({ tagName: 'INPUT', type: 'text' }), 'and everything that raises the keyboard');
+  ok(!w.__papTestHooks.opensOnFocus({ tagName: 'INPUT', type: 'checkbox' }), 'a checkbox opens nothing');
+  ok(!w.__papTestHooks.opensOnFocus({ tagName: 'BUTTON' }), 'nor a button');
+  ok(!w.__papTestHooks.opensOnFocus(null), 'nor nothing focused');
 });
 
 group('Dependabot can see the one third-party thing this app runs');

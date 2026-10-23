@@ -1049,6 +1049,13 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
        untouched, only the hand-off is. */
     overscroll-behavior: contain;
   }
+  /* A tall window on an installed iPhone reached up under the status bar, its
+     heading behind the clock (Wine Cellar, 2026-10-23). A dialog is centred, so
+     the room comes off BOTH ends by the larger inset — that is what keeps its top
+     edge clear of the notch. Zero wherever there is no notch. Still vh, for the
+     reason above. */
+  dialog { max-height: calc(100vh - 32px
+             - 2 * max(env(safe-area-inset-top), env(safe-area-inset-bottom))); }
   /* The add/edit form is the one window in the app with real content in it —
      six sections, each a heading, a card of fields and a footnote — and at a
      phone width it was a long scroll on a desktop screen. */
@@ -1976,7 +1983,7 @@ html[data-booting] footer { visibility: hidden; }
    document, not something to click on the way in. */
 footer { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .footnotes { flex: 1 1 320px; min-width: 0; }
-.privacy { font-size: var(--fs-xs); color: var(--text-muted); margin: 28px 0 0; padding-left: 19px; }
+.privacy { font-size: var(--fs-xs); color: var(--text-muted); margin: 28px 0 0; padding: 0 19px; }
 .privacy-links { margin-top: 6px; }
 .privacy-links a { color: var(--text-muted); }
 </style>
@@ -3233,19 +3240,33 @@ const KEYBOARD_TYPES = new Set(['text', 'number', 'search', 'tel', 'url', 'email
 /* Which elements a phone answers with a keyboard — pure over {tagName, type},
    so the list is pinned by tests rather than rediscovered the next time a
    dialog opens on a field nobody thought about. A checkbox, a button and a
-   select all raise nothing, which is why the dialogs that open on one are left
-   exactly as they were. */
+   select raise no keyboard — though a select OPENS on focus, which is what
+   opensOnFocus() below adds. */
 function raisesKeyboard(el) {
   if (!el) return false;
   return el.tagName === 'TEXTAREA'
     || (el.tagName === 'INPUT' && KEYBOARD_TYPES.has(el.type));
+}
+
+/* Which controls OPEN something the moment they are focused, on a touch
+   screen: the keyboard's, plus a <select> and the date and time pickers.
+   iOS 26 opens a focused select's menu at once — Wine Cellar's Share and
+   Settings windows opened with their first dropdown already down (Charles,
+   iPhone, 2026-10-23) — so openModal() asks this, not raisesKeyboard(). */
+function opensOnFocus(el) {
+  if (!el) return false;
+  if (raisesKeyboard(el)) return true;
+  const tag = (el.tagName || '').toUpperCase();
+  if (tag === 'SELECT') return true;
+  return tag === 'INPUT' && ['date', 'time', 'datetime-local', 'month', 'week']
+    .indexOf((el.type || '').toLowerCase()) !== -1;
 }
 function openModal(dlg) {
   dlg.showModal();
   if (!window.matchMedia('(pointer: coarse)').matches) return;
   const el = document.activeElement;
   if (!el || !dlg.contains(el)) return;
-  if (!raisesKeyboard(el)) return;
+  if (!opensOnFocus(el)) return;
   dlg.tabIndex = -1;
   dlg.focus();
 }
@@ -4214,7 +4235,7 @@ function enterViewOnly(payload) {
    (This comment sat 260 lines up, above the share-link section that was later
    inserted between it and the object it describes — moved back beside it,
    2026-08-31.) */
-window.__papTestHooks = { esc, raisesKeyboard, LIMITS,
+window.__papTestHooks = { esc, raisesKeyboard, opensOnFocus, LIMITS,
   /* `__plant` is the one hook here that DOES something. It replaces the supply
      list IN MEMORY and redraws — it never calls save(), because this suite runs
      against the reader's own copy of the app and has to stay read-only about
