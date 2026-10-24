@@ -2181,18 +2181,20 @@ t('a narrow window scrolls the header row on one line, with arrows; a wide one i
      'and on paper, which cannot scroll, the row wraps');
 });
 
-/* Charles, the same evening: "keep buttons beside the name". At 705px the five
-   controls (622px) do not all fit beside the name (342px). The first cut took the
+/* Charles, the same evening: "keep buttons beside the name". At 560px the
+   controls do not all fit beside the name. (The frame was 705px until the
+   subtitle left the name on 2026-10-24; the name alone left the controls room to
+   fit at 705, so the frame moved in to where they overflow again.) The first cut took the
    whole row onto a line of its own there — an 88.5px bar with the name alone on
    top. The row now takes what the name leaves and scrolls in place: 51px, one line.
    Red on the previous commit. */
 t('the controls stay BESIDE the name and scroll there, rather than taking a line of their own', async () => {
-  const f = await headerFrame(705);
+  const f = await headerFrame(560);
   try {
     const W = f.contentWindow, D = W.document;
     const ctl = D.querySelector('.top-actions'), brand = D.querySelector('.brand');
     const dy = ctl.getBoundingClientRect().top - brand.getBoundingClientRect().top;
-    ok(Math.abs(dy) < 16, '705px: the controls sit on the name\'s line, instead of wrapping under it '
+    ok(Math.abs(dy) < 16, '560px: the controls sit on the name\'s line, instead of wrapping under it '
        + '(Charles, 2026-09-14: "keep buttons beside the name")', dy);
     ok(ctl.scrollWidth > ctl.clientWidth, 'and they scroll there, because they do not all fit — otherwise nothing is being measured',
        ctl.scrollWidth + ' vs ' + ctl.clientWidth);
@@ -2210,7 +2212,7 @@ t('the controls stay BESIDE the name and scroll there, rather than taking a line
    for — at rest a 12px gap can land exactly on the edge. Red with wireScrollRow's
    focusin listener taken out. */
 t('a control half past the row\'s edge, focused from the keyboard, is brought WHOLE into the row', async () => {
-  const f = await headerFrame(705);
+  const f = await headerFrame(560);
   try {
     const D = f.contentWindow.document;
     const row = D.querySelector('.top-actions');
@@ -2248,7 +2250,10 @@ t('the skip link lands <main> below the header, whatever the header\'s height', 
     const W = f.contentWindow, D = W.document;
     const head = D.querySelector('header'), main = D.querySelector('main');
     const hh = head.getBoundingClientRect().height;
-    ok(hh > 96, 'set up: at 320px the header is taller than the old fixed 96px', hh);
+    /* It was taller than the old fixed 96px until the subtitle went (2026-10-24);
+       what matters is that it is two lines here, and the 1280px leg below checks
+       the clearance FOLLOWS the height rather than matching one number. */
+    ok(hh > 70, 'set up: at 320px the controls take a line of their own, so the bar is two lines tall', hh);
     W.scrollTo(0, 400);
     ok(W.scrollY > 0, 'set up: the page has somewhere to scroll back from', W.scrollY);
     D.querySelector('.skip').click();
