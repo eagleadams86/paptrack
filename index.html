@@ -4257,6 +4257,155 @@ window.__papTestHooks = { esc, raisesKeyboard, opensOnFocus, LIMITS,
   HELP };
 
 /* ---------------- Cloud sync hooks (used by the sync module below) ---------------- */
+/* ── Sync decision ───────────────────────────────────────────────────────────
+   Which copy wins when a sign-in finds both a local and a cloud copy and this
+   device has never synced under the version-number rule below. Golf
+   Handicap's, verbatim, and exactly the four branches this module's startSync
+   used to write out inline: the first sign-in with data on both sides ASKS,
+   and an empty copy never beats a copy with data in it, whatever the
+   timestamps say. Counts here are item counts.
+─────────────────────────────────────────────────────────────────────────── */
+function syncDecision(localCount, remoteCount, remoteIsNewer, firstSyncForAccount) {
+  if (localCount && remoteCount && firstSyncForAccount) return 'ask';
+  if (remoteCount && !localCount) return 'adopt';
+  if (localCount && !remoteCount) return 'push';
+  return remoteCount && remoteIsNewer ? 'adopt' : 'push';
+}
+
+/* ── Which copy is newer: a version number, not a clock (2026-10-26) ─────────
+   Until this, every push was a blind setDoc of the whole document stamped with
+   this device's clock, and a device took the cloud copy only if its stamp was
+   bigger than its own. So an edit made OFFLINE with the page open was queued by
+   Firestore and replayed on reconnect over whatever another device had saved
+   meanwhile; that device then ignored the replay as older, kept its own copy,
+   and the two quietly disagreed — the other device's work gone from the cloud
+   with nothing on screen. A device with a fast clock won every comparison, and
+   an offline edit followed by a reload was thrown away at the next sign-in.
+   League Night never had the fault, and this is its answer, trimmed to one
+   person's devices:
+
+   - The document carries `rev`, which every write raises by exactly one, and
+     each device remembers the copy it last took or wrote — its BASE, `{rev, at}`
+     per account. A copy whose tag is not the base has been written elsewhere.
+   - Every push is a TRANSACTION that writes only if the cloud is still the
+     base. If it has moved on, nothing is written and the which-copy question
+     is asked instead — both sides changed, and only the reader knows which
+     one matters.
+   - A transaction refuses to run offline, so nothing is ever queued to land
+     later. An unsent edit is DIRTY — the copy's stamp is not the one last sent
+     — and it is sent, through the same check, on reconnect.
+   - `at` rides in the tag beside `rev` so a write from a page still running
+     the old code (no rev) still reads as a change.
+
+   syncPlan() is the verdict, pure and pinned; makeCloudSync() is the engine,
+   written against an `io` the sync module supplies (Firestore's calls, this
+   page's storage, the dialogs), so tests.html drives it with a fake cloud. Golf Handicap's,
+   verbatim — a change here belongs there first, and in the two phone ports. */
+function cloudTag(d) { return { rev: Number((d && d.rev) || 0), at: Number((d && d.updatedAt) || 0) }; }
+function sameTag(a, b) { return !!a && !!b && a.rev === b.rev && a.at === b.at; }
+/* `base` is null when this device has never synced this account under the
+   new rule — then the old clock rules decide, once, and set it. */
+function syncPlan(p) {
+  if (!p.base) return syncDecision(p.localCount, p.remoteCount, p.remoteIsNewer, p.firstSync);
+  if (!p.remote) return 'push';
+  if (sameTag(p.base, p.remote)) return p.dirty ? 'push' : 'none';
+  /* The cloud moved and nothing here is unsent: take it — except an emptied
+     cloud over a device with data, which asks (empty never beats data). */
+  if (!p.dirty) return !p.remoteCount && p.localCount ? 'ask' : 'adopt';
+  /* Both sides changed. With nothing in either, there is nothing to lose. */
+  return !p.localCount && !p.remoteCount ? 'push' : 'ask';
+}
+function makeCloudSync(io) {
+  let pushing = false, again = false, held = null, asking = null;
+  const base = () => {
+    try {
+      const b = JSON.parse(io.getItem(io.keys.base) || 'null');
+      return b && b.uid === io.uid() ? { rev: Number(b.rev) || 0, at: Number(b.at) || 0 } : null;
+    } catch (e) { return null; }
+  };
+  const setBase = (t) => io.setItem(io.keys.base, JSON.stringify({ uid: io.uid(), rev: t.rev, at: t.at }));
+  const dirty = () => io.stamp() !== Number(io.getItem(io.keys.pushed) || 0);
+  const markSent = (at) => io.setItem(io.keys.pushed, String(at));
+  function adopt(data, how) {
+    io.adopt(data);
+    setBase(cloudTag(data));
+    markSent(io.stamp());
+    io.toast(how === 'live' ? 'synced' : 'loaded');
+  }
+  /* Keeping this device: the copy in the cloud becomes the base being replaced,
+     and this one is stamped newest so the choice wins everywhere. */
+  function keep(data) {
+    setBase(cloudTag(data));
+    io.touch();
+    io.toast('kept');
+    return push();
+  }
+  function ask(data, how, emptied) {
+    if (asking) return asking;
+    asking = Promise.resolve(emptied ? io.askEmptied() : io.ask(io.localCount(), io.remoteCount(data), data && data.updatedAt, data))
+      .then((takeCloud) => { asking = null; return takeCloud ? adopt(data, how) : keep(data); })
+      .finally(() => { asking = null; drain(); });
+    return asking;
+  }
+  function resolve(data, how, firstSync) {
+    const plan = syncPlan({ base: base(), remote: data ? cloudTag(data) : null, dirty: dirty(),
+      localCount: io.localCount(), remoteCount: io.remoteCount(data),
+      remoteIsNewer: !!(data && Number(data.updatedAt) > io.stamp()), firstSync: !!firstSync });
+    if (plan === 'adopt') return adopt(data, how);
+    if (plan === 'ask') return ask(data, how, !dirty() && !io.remoteCount(data) && how === 'live');
+    if (plan === 'push') { if (data) setBase(cloudTag(data)); return push(); }
+    return null;
+  }
+  /* A copy that arrived while a push or the question was in flight waits for
+     it, then is looked at against the base that left behind. */
+  function drain() {
+    if (pushing || asking || !held) return;
+    const d = held;
+    held = null;
+    snapshot(d);
+  }
+  async function push() {
+    if (!io.uid()) return;
+    if (pushing) { again = true; return; }
+    pushing = true;
+    let moved = null;
+    try {
+      do {
+        again = false;
+        if (!io.stamp()) io.touch();
+        const at = io.stamp(), b = base(), doc = io.localDoc();
+        const out = await io.transact((cur) => {
+          if (cur && !sameTag(b, cloudTag(cur))) return { moved: cur };
+          const rev = cloudTag(cur).rev + 1;
+          return { write: Object.assign({}, doc, { updatedAt: at, rev: rev }), tag: { rev: rev, at: at } };
+        });
+        if (out.moved) { moved = out.moved; break; }
+        setBase(out.tag);
+        markSent(at);
+      } while (again);
+    } finally { pushing = false; }
+    if (moved) return resolve(moved, 'live');
+    drain();
+  }
+  function snapshot(data) {
+    if (pushing || asking) { held = data; return null; }
+    if (sameTag(base(), cloudTag(data))) return null;
+    return resolve(data, 'live');
+  }
+  return {
+    /* Sign-in: read the cloud, then the same verdict as everything else. A copy
+       that is not a cellar of ours (no state) is written over, never adopted. */
+    start: async () => {
+      const data = await io.read();
+      if (data && !io.valid(data)) { setBase(cloudTag(data)); return push(); }
+      return resolve(data, 'start', io.firstSync());
+    },
+    push: push,
+    snapshot: snapshot,
+    dirty: dirty,
+  };
+}
+
 window.paptrackGet = () => items;
 /* Read by the sync module to pick this profile's document — see `docRef` there. */
 window.paptrackProfileId = () => activeProfileId;
@@ -4912,61 +5061,77 @@ function chooseSyncSource(localCount, remoteCount, remoteUpdatedAt) {
   });
 }
 
-/* Reconciling the two copies at sign-in.
+/* The engine — makeCloudSync in the classic script (Golf Handicap's,
+   verbatim), where tests.html drives it with a fake cloud. Every push is a
+   transaction that writes only while the cloud is still the copy this device
+   last saw (2026-10-26); the rules under it are the old ones: an empty copy
+   never beats a copy with data in it, and a first sign-in with items on both
+   sides asks.
 
-   The rule underneath all the branches: **an empty copy never beats a copy with
-   data in it, whatever the timestamps say.** Timestamp-wins on its own has a
-   hole: signing in on a fresh browser pushes that browser's empty state to the
-   cloud stamped `now`, and the reconciliation dialog only opens when *both*
-   sides hold items — so the device that actually had the supplies, carrying an
-   older timestamp, would skip the dialog, take the empty cloud copy as "newer",
-   and empty itself. (This exact failure cost real data in Sprint Velocity,
-   whose sync this ports; the guard comes back from there.)
+   ONE ENGINE PER PROFILE, bound to it when it is made. Each profile is its own
+   document, so what this device last saw of it — the base — and the stamp it
+   last sent are per profile too (`pap-cloud-base` / `pap-cloud-sent` for the
+   first, `:<id>` after them for the rest — the `pap-updated` rule). A push
+   still out when the profile changes is REFUSED rather than allowed to land:
+   its stamp and its bookkeeping belong to the profile that left the screen. */
+const cloudKeySuffix = (id) => (id === 'default' ? '' : ':' + id);
+function makeProfileSync() {
+  const pid = window.paptrackProfileId ? window.paptrackProfileId() : 'default';
+  const current = () => (window.paptrackProfileId ? window.paptrackProfileId() : 'default') === pid;
+  const keys = { base: 'pap-cloud-base' + cloudKeySuffix(pid), pushed: 'pap-cloud-sent' + cloudKeySuffix(pid) };
+  return makeCloudSync({
+    uid: () => (user && !window.papHalted && current() ? user.uid : null),
+    keys: keys,
+    getItem: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* blocked */ } },
+    stamp: localTs,
+    touch: () => touchLocal(),
+    read: async () => { const snap = await F.getDoc(docRef()); return snap.exists() ? snap.data() : null; },
+    transact: (decide) => {
+      if (!current()) return Promise.reject(Object.assign(new Error('profile changed'), { code: 'pap/stale' }));
+      const ref = docRef();
+      return F.runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const out = decide(snap.exists() ? snap.data() : null);
+        if (out.write) tx.set(ref, out.write);
+        return out;
+      });
+    },
+    /* `schema` is additive: the phones read this document key by key and ignore
+       what they don't know, `rev` included. A document that predates `schema`
+       still reads as 1 — older, never newer, so no write from any client can trip
+       another device's halt by accident. */
+    localDoc: () => ({ items: forCloud(window.paptrackGet()), schema: PAP_SCHEMA }),
+    localCount: () => window.paptrackGet().length,
+    remoteCount: (d) => (d && Array.isArray(d.items) ? d.items.length : 0),
+    valid: (d) => !!(d && Array.isArray(d.items)),
+    firstSync: () => localStorage.getItem('pap-sync-uid') !== user.uid,
+    adopt: (d) => window.paptrackAdopt(d.items, d.updatedAt, d.schema),
+    ask: (localN, remoteN, at) => chooseSyncSource(localN, remoteN, at),
+    /* Clearing everything really is something people do, so this asks rather
+       than refusing — but it asks, because the alternative is a device quietly
+       emptying itself. Cancel keeps what's here and restores it to the others. */
+    askEmptied: () => confirm('Another device has cleared all its PAPTrack supplies.\n\n'
+      + 'Clear this device too? Cancel keeps what’s on this device and restores it '
+      + 'to your other devices.'),
+    toast: (k) => window.toast({ loaded: 'Loaded your data from the cloud ☁️', synced: 'Synced from another device ☁️',
+      kept: 'Kept this device’s data' }[k]),
+  });
+}
+let cloud = null;
+const engine = () => (cloud || (cloud = makeProfileSync()));
 
-   With that rule, the dialog is only needed for the genuine conflict: both
-   sides hold items and neither is obviously right. Once per account per
-   browser — after the first reconciliation both sides are caught up and
-   timestamps are enough. A different Google account signing in re-prompts. */
 async function startSync() {
-  const snap = await F.getDoc(docRef());
-  const remote = snap.exists() ? snap.data() : null;
-  const local = window.paptrackGet();
-  const remoteHas = !!(remote && Array.isArray(remote.items) && remote.items.length);
-  const localHas = local.length > 0;
-  const isFirstSyncForAccount = localStorage.getItem('pap-sync-uid') !== user.uid;
-
-  if (remoteHas && localHas && isFirstSyncForAccount) {
-    const keepGoogle = await chooseSyncSource(local.length, remote.items.length, remote.updatedAt);
-    if (keepGoogle) {
-      window.paptrackAdopt(remote.items, remote.updatedAt, remote.schema);
-      window.toast('Loaded your data from the cloud ☁️');
-    } else {
-      touchLocal();
-      await pushNow();
-      window.toast('Kept this device’s data');
-    }
-  } else if (remoteHas && !localHas) {
-    /* Nothing here to lose. */
-    window.paptrackAdopt(remote.items, remote.updatedAt, remote.schema);
-    window.toast('Loaded your data from the cloud ☁️');
-  } else if (localHas && !remoteHas) {
-    /* The cloud copy is empty — seeded by a sign-in on a browser that had
-       nothing in it yet. It doesn't get to overwrite a device that holds
-       real supplies. */
-    await pushNow();
-  } else if (remoteHas && remote.updatedAt > localTs()) {
-    window.paptrackAdopt(remote.items, remote.updatedAt, remote.schema);
-    window.toast('Loaded your data from the cloud ☁️');
-  } else {
-    await pushNow();
-  }
+  /* A new sign-in, or a new profile on screen: a fresh engine, bound to it. */
+  cloud = makeProfileSync();
+  await cloud.start();
   localStorage.setItem('pap-sync-uid', user.uid);
-  /* Guarded like pushNow's re-attach, and the guard is load-bearing: every push
-     path above already attached the listener inside pushNow(), so an unguarded
-     attach here would open a SECOND onSnapshot and overwrite `unsub` — leaking
-     a listener nothing could ever detach. That doubled reads on every signed-in
-     load, and at sign-out the orphan erred (permission-denied) into a spurious
-     "Not syncing" toast. Shipped for a day after the 08-17 re-attach fix. */
+  clearSyncError();
+  /* Guarded like pushNow's re-attach, and the guard is load-bearing: an
+     unguarded attach could open a SECOND onSnapshot and overwrite `unsub` —
+     leaking a listener nothing could ever detach. That doubled reads on every
+     signed-in load, and at sign-out the orphan erred into a spurious "Not
+     syncing" toast (shipped for a day after the 08-17 re-attach fix). */
   if (!unsub) attachSnapshot();
 }
 
@@ -5002,24 +5167,10 @@ function attachSnapshot() {
     const r = s.data();
     // A document without an items array is a half-written or foreign doc, never an
     // intentional "delete everything" — adopting it would clear this device's list.
-    if (!Array.isArray(r.items) || !(r.updatedAt > localTs())) return;
-    /* Same empty-never-beats-data rule live. Clearing everything really is
-       something people do, so this asks rather than refusing — but it asks,
-       because the alternative is a device quietly emptying itself. Declining
-       re-pushes what's here, stamped now, so the two sides stop disagreeing. */
-    if (!r.items.length && window.paptrackGet().length) {
-      const keep = !confirm('Another device has cleared all its PAPTrack supplies.\n\n'
-        + 'Clear this device too? Cancel keeps what’s on this device and restores it '
-        + 'to your other devices.');
-      if (keep) {
-        touchLocal();
-        pushNow().catch(setSyncError);
-        window.toast('Kept this device’s data');
-        return;
-      }
-    }
-    window.paptrackAdopt(r.items, r.updatedAt, r.schema);
-    window.toast('Synced from another device ☁️');
+    if (!Array.isArray(r.items)) return;
+    // The engine compares it with the copy this device last took or wrote, and
+    // takes it, ignores it, or asks — never by comparing two clocks.
+    Promise.resolve(engine().snapshot(r)).catch(setSyncError);
   }, (e) => {
     /* The second argument is not optional. A listener that errors is handed to this
        callback and then DROPPED by Firestore — it never fires again. Without one,
@@ -5056,12 +5207,7 @@ const forCloud = (v) => JSON.parse(JSON.stringify(v));
 
 async function pushNow() {
   if (!user) return;
-  /* `schema` is additive: the phones read this document key by key and ignore
-     what they don't know. They write the field themselves now, and a document
-     that predates that still reads as 1 — older, never newer, so no write from
-     any client can trip another device's halt by accident. */
-  await F.setDoc(docRef(), { items: forCloud(window.paptrackGet()), schema: PAP_SCHEMA,
-    updatedAt: localTs() || Date.now() });
+  await engine().push();
   /* A dropped listener is re-attached on the same success that clears the
      warning — without this, "Syncing again" would be true of pushes while
      other devices' updates were still arriving nowhere. */
@@ -5069,6 +5215,19 @@ async function pushNow() {
   /* The only thing that clears the warning — which is why there's no retry button:
      the next save recovers the state on its own. */
   clearSyncError();
+}
+
+/* A push that failed — offline, most often, since a transaction will not run
+   without the server — is shown on the button and tried again in a minute while
+   the edit is still unsent, for the connection that comes back without an
+   `online` event. A push refused because the profile changed under it is not a
+   failure: the new profile's sync starts on its own. */
+let retryTimer = null;
+function pushFailed(e) {
+  if (e && e.code === 'pap/stale') return;
+  setSyncError(e);
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => { retryTimer = null; catchUp(); }, RELISTEN_MS);
 }
 
 /* Lifts the sign-in push gate — called (via .finally) whether startSync
@@ -5085,7 +5244,7 @@ window.cloudPush = () => {
   if (!user) return;
   if (!reconciled) { pendingLocalPush = true; return; }
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => { pushTimer = null; pushNow().catch(setSyncError); }, 1200);
+  pushTimer = setTimeout(() => { pushTimer = null; pushNow().catch(pushFailed); }, 1200);
 };
 
 /* Skips the debounce. "Delete all data" calls this so the cleared list reaches
@@ -5098,7 +5257,7 @@ window.cloudFlush = () => {
   if (!reconciled) { pendingLocalPush = true; return; }
   clearTimeout(pushTimer);
   pushTimer = null;
-  pushNow().catch(setSyncError);
+  pushNow().catch(pushFailed);
 };
 
 /* The same window, closed for ordinary edits too. The debounce means "edit, then
@@ -5120,6 +5279,20 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') flushPush();
 });
 addEventListener('pagehide', flushPush);
+
+/* Back online, or back in front of the reader: an edit that could not be sent
+   is sent now, through the same check — a transaction never runs offline, so
+   nothing else would. */
+const catchUp = () => {
+  if (!user || !F || window.papHalted) return;
+  if (!reconciled) return;
+  if (engine().dirty()) window.cloudFlush();
+  if (!unsub) attachSnapshot();
+};
+addEventListener('online', catchUp);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') catchUp();
+});
 </script>
 <!-- ── Offline ────────────────────────────────────────────────────────────────
      Registering sw.js is the whole of the offline feature on this side; the
