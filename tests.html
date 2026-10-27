@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 137;
+const EXPECTED = 138;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -2014,6 +2014,15 @@ function spinProbe(appWin, setUp) {
 }
 function spinFocusIn(appWin, el) { el.dispatchEvent(new appWin.FocusEvent('focusin', { bubbles: true })); }
 function spinPress(appWin, el)   { el.dispatchEvent(new appWin.PointerEvent('pointerdown', { bubbles: true })); }
+
+group('Tick boxes');
+t('every tick box is one size a flex row cannot squeeze (2026-10-27)', () => {
+  const boxes = [...w.document.querySelectorAll('input[type="checkbox"], input[type="radio"]')];
+  ok(boxes.length > 0, 'found the tick boxes', String(boxes.length));
+  const bad = boxes.filter((i) => { const cs = w.getComputedStyle(i);
+    return cs.flexShrink !== '0' || cs.width !== '20px' || cs.height !== '20px'; });
+  eq(bad.map((i) => i.id || i.name || i.value), [], 'every one is 20px, and none can shrink');
+});
 
 group('Select-on-focus versus a number field’s spin arrows');
 t('a plain click keeps the select-all — the caret placement is cancelled', () => {
