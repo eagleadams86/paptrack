@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 138;
+const EXPECTED = 147;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -2539,6 +2539,142 @@ t('a control focused from above the window lands below the sticky header, not be
   ok(/html \{ scroll-padding-top: calc\(var\(--header-h, 96px\) \+ 8px\); \}/.test(APP_SRC),
      'the clearance is on the root, from the measured header plus 8px for the ring');
   ok(!/main \{ scroll-margin-top/.test(APP_SRC), 'and <main> carries no scroll-margin of its own to add on top of it');
+});
+
+group('Keeping both devices\u2019 changes (2026-10-29)');
+/* Two changed copies used to be a whole-copy choice, so one device's real work
+   was routinely thrown away. Now each device keeps the copy it last synced and
+   the two are compared supply by supply against it; only a field BOTH changed
+   is asked about. Money Map's group, ported. Invented supplies, never anybody's
+   real record. */
+const mBase = () => w.normalizeItems([
+  { id: 'syn-a', emoji: '🔧', name: 'Test cushion', cleanDays: 1, replaceDays: 30,
+    lastReplaced: '2026-01-05', lastCleaned: '2026-01-06', stock: 3, lowAt: 1, createdAt: 1000 },
+  { id: 'syn-b', emoji: '🔧', name: 'Test tubing', cleanDays: 7, replaceDays: 90,
+    lastReplaced: '2026-02-01', stock: 2, lowAt: 1, createdAt: 2000 },
+  { id: 'syn-c', emoji: '🔧', name: 'Test filter', cleanDays: 0, replaceDays: 14,
+    lastReplaced: '2026-02-10', stock: 8, lowAt: 2, createdAt: 3000 },
+]);
+const mById = (list, id) => list.find((x) => x.id === id);
+const mSchema = () => Number((APP_SRC.match(/const SCHEMA = (\d+);/) || [])[1]);
+t('separate edits on each device are both kept, with no question', () => {
+  const base = mBase(), L = mBase(), R = mBase();
+  mById(L, 'syn-a').lastReplaced = '2026-03-01';
+  mById(R, 'syn-b').stock = 7;
+  R.push(w.normalizeItem({ id: 'syn-d', name: 'Test chamber', replaceDays: 180, lastReplaced: '2026-01-20', createdAt: 4000 }));
+  mById(L, 'syn-c').name = 'Renamed here';
+  const m = w.mergeSupplies(base, L, { items: R, schema: mSchema() }, 'local');
+  eq(m.conflicts.length, 0);
+  eq([mById(m.merged, 'syn-a').lastReplaced, mById(m.merged, 'syn-b').stock], ['2026-03-01', 7]);
+  ok(mById(m.merged, 'syn-d'), 'the supply added on the other device arrives');
+  eq(mById(m.merged, 'syn-c').name, 'Renamed here', 'and this device’s rename stays');
+  ok(w.sameSupplies(w.normalizeItems(m.merged), m.merged), 'the merged list is already what boot would read');
+});
+t('History logged on each device is combined, never asked about', () => {
+  const base = mBase(), L = mBase(), R = mBase();
+  mById(L, 'syn-a').history = [{ k: 'c', d: '2026-03-02' }];
+  mById(R, 'syn-a').history = [{ k: 'r', d: '2026-03-05' }, { k: 'c', d: '2026-03-02' }];
+  const m = w.mergeSupplies(base, L, { items: R, schema: mSchema() }, 'local');
+  eq(m.conflicts.length, 0);
+  eq(mById(m.merged, 'syn-a').history, [{ k: 'c', d: '2026-03-02' }, { k: 'r', d: '2026-03-05' }],
+     'both events, once each, in date order');
+});
+t('a field both changed is ONE conflict, named with both dates, and the choice decides only it', () => {
+  const base = mBase(), L = mBase(), R = mBase();
+  mById(L, 'syn-a').lastReplaced = '2026-03-01';
+  mById(R, 'syn-a').lastReplaced = '2026-03-04';
+  mById(R, 'syn-a').stock = 9;
+  const m = w.mergeSupplies(base, L, R, 'local'), g = w.mergeSupplies(base, L, R, 'remote');
+  eq(m.conflicts.length, 1);
+  eq([mById(m.merged, 'syn-a').lastReplaced, mById(g.merged, 'syn-a').lastReplaced], ['2026-03-01', '2026-03-04']);
+  eq(mById(m.merged, 'syn-a').stock, 9, 'the other device’s unclashing edit is kept either way');
+  const d = w.describeChanges(m.conflicts, L, R);
+  eq(d.length, 1);
+  eq(d[0].label, 'Supply “Test cushion” · Last replaced');
+  eq([d[0].local, d[0].remote], [w.fmtDate(w.parseDate('2026-03-01')), w.fmtDate(w.parseDate('2026-03-04'))]);
+});
+t('supplies match by id: a delete on one side lands; a delete against an edit is asked', () => {
+  const base = mBase(), L = mBase(), R = mBase();
+  L.splice(1, 1);
+  let m = w.mergeSupplies(base, L, R, 'local');
+  eq([m.conflicts.length, !!mById(m.merged, 'syn-b')], [0, false]);
+  mById(R, 'syn-b').replaceDays = 60;
+  m = w.mergeSupplies(base, L, R, 'local');
+  eq(m.conflicts.length, 1);
+  const d = w.describeChanges(m.conflicts, L, R)[0];
+  eq([d.label, d.local], ['Supply “Test tubing”', 'not there'], 'named from the copy that still has it');
+  eq(mById(w.mergeSupplies(base, L, R, 'remote').merged, 'syn-b').replaceDays, 60);
+});
+t('machinery is never a conflict and never listed; a list with no ids is matched by position or not at all', () => {
+  const base = mBase(), L = mBase(), R = mBase();
+  mById(L, 'syn-a').createdAt = 5;
+  mById(R, 'syn-a').createdAt = 999999;
+  const m = w.mergeSupplies(base, L, R, 'local');
+  eq(m.conflicts.length, 0, 'both sides moved it, and still no question');
+  eq(mById(m.merged, 'syn-a').createdAt, 5, 'this device’s createdAt stands');
+  eq(w.diffSupplies(L, R), []);
+  /* A missing id is filled with a RANDOM one by normalizeItem — never compared. */
+  const noIds = (list) => list.map((x) => Object.assign({}, x, { id: undefined }));
+  const nb = noIds(base), nl = noIds(L), nr = noIds(R);
+  nr[0].stock = 5;
+  const p = w.mergeSupplies(nb, nl, nr, 'local');
+  eq([p.conflicts.length, p.merged[0].stock], [0, 5], 'equal lengths merge index by index');
+  nl.pop();
+  eq(w.mergeSupplies(nb, nl, nr, 'local').conflicts.length, 1, 'unequal lengths are one conflict');
+});
+t('a copy from a NEWER build is never merged', () => {
+  eq(w.mergeSupplies(mBase(), mBase(), { items: mBase(), schema: mSchema() + 1 }, 'local'), null);
+  eq(w.mergeSupplies({ items: mBase(), schema: mSchema() + 1 }, mBase(), mBase(), 'local'), null);
+});
+t('with no base the whole copies are diffed, and the window shows both times and the list', async () => {
+  const L = mBase(), R = mBase();
+  mById(L, 'syn-c').stock = 4;
+  const items = w.describeChanges(w.diffSupplies(L, R), L, R);
+  eq(items.length, 1);
+  const p = w.__papSyncHooks.chooseSyncSource(L, R, 2000, { items, localAt: 1000 });
+  const doc = w.document;
+  const times = doc.getElementById('syncChoiceTimes').textContent;
+  ok(/This device/.test(times) && /Google/.test(times), 'both copies dated', times);
+  ok(/the newer save/.test(times.split('Google')[1]), 'Google’s is marked newer', times);
+  eq(doc.querySelectorAll('#syncChoiceList li').length, 1);
+  ok(doc.getElementById('syncChoiceList').textContent.includes('Supply “Test filter” · On hand — this device: 4; Google: 8'),
+     'the line names the supply, the field and both counts', doc.getElementById('syncChoiceList').textContent);
+  eq(doc.getElementById('syncKeepGoogleBtn').textContent, "Keep Google's Data");
+  doc.getElementById('syncKeepDeviceBtn').click();
+  eq(await p, false, 'Keep This Device answers false');
+});
+t('conflict mode: its own button words, and a long list is capped at 12', async () => {
+  const L = [], R = [];
+  for (let i = 0; i < 15; i++) {
+    L.push(w.normalizeItem({ id: 'syn-' + i, name: 'Test ' + i, lastReplaced: '2026-01-01', createdAt: i }));
+    R.push(w.normalizeItem({ id: 'syn-' + i, name: 'Test ' + i, lastReplaced: '2026-01-02', createdAt: i }));
+  }
+  const items = w.describeChanges(w.diffSupplies(L, R), L, R);
+  const p = w.__papSyncHooks.chooseSyncSource(L, R, 0, { conflicts: true, items, localAt: 0 });
+  const doc = w.document, lis = doc.querySelectorAll('#syncChoiceList li');
+  eq(lis.length, 13);
+  eq(lis[12].textContent, '…and 3 more');
+  eq([doc.getElementById('syncKeepDeviceBtn').textContent, doc.getElementById('syncKeepGoogleBtn').textContent],
+     ['Keep This Device’s Version', 'Keep Google’s Version']);
+  doc.getElementById('syncKeepGoogleBtn').click();
+  eq(await p, true, 'Keep Google’s Version answers true');
+});
+t('the sync module merges only from a base copy that IS the engine’s base, per profile, and never merges an empty copy', () => {
+  const code = stripComments(APP_SRC);
+  const mod = code.slice(code.indexOf('<script type="module">'));
+  ok(/c\.rev !== b\.rev \|\| c\.at !== b\.at/.test(mod), 'the base copy is checked against the engine tag');
+  ok(mod.includes("const BASE_COPY_KEY = 'pap-cloud-base-copy';")
+     && mod.includes('const baseCopyKey = (pid) => BASE_COPY_KEY + cloudKeySuffix(pid);'),
+     'it is named per profile, the engine keys’ way');
+  eq([w.baseCopyKeyFor('default'), w.baseCopyKeyFor('p2')], ['pap-cloud-base-copy', 'pap-cloud-base-copy:p2'],
+     'and the classic script’s spelling, used to delete it, agrees');
+  ok(mod.includes('const full = local.length > 0 && remote.items.length > 0;'), 'empty never merges');
+  ok(/\}\)\.then\(\(out\) => \{ if \(out\.write\) rememberBase\(pid, out\.write\);/.test(mod), 'a written copy becomes the base copy');
+  ok(mod.includes('adopt: (d) => { adoptInto(d.items, d.updatedAt, d.schema); rememberBase(pid, d); },'), 'so does an adopted one');
+  ok(mod.includes('ask: (localN, remoteN, at, d) => settleTwoCopies(pid, d, at),'), 'the engine asks through the merge');
+  eq((mod.match(/window\.paptrackAdopt\(/g) || []).length, 1, 'and every adoption goes through ONE call');
+  const clear = code.slice(code.indexOf("$('clearConfirm').addEventListener"));
+  ok(clear.slice(0, 1200).includes('localStorage.removeItem(baseCopyKeyFor(p.id));'), 'Delete All Data removes every profile’s copy');
 });
 
 async function run() {

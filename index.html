@@ -1073,6 +1073,22 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   #formDialog, #itemDialog { width: min(820px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(4,6,14,0.6); backdrop-filter: blur(2px); }
   dialog h2 { margin: 0 0 12px; font-size: var(--fs-md); }
+  /* The which-copy window's evidence (2026-10-29): two dated lines, then what
+     differs. Money Map's block, in this page's dialog type: --fs-xs prose,
+     --text-secondary for the quieter half. No colour of its own — the newer
+     save is marked in words. */
+  .sync-times { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0;
+    font-size: var(--fs-xs); }
+  .sync-times dt { color: var(--text-secondary); }
+  .sync-times dd { margin: 0; }
+  dialog p.sync-listhead { margin: 16px 0 6px; font-weight: 600; color: var(--text-primary); }
+  .sync-diff { margin: 0; padding-left: 20px; max-height: 40vh; overflow: auto; font-size: var(--fs-xs); }
+  .sync-diff li { margin: 4px 0; overflow-wrap: anywhere; }
+  .sync-diff .sync-vals { color: var(--text-secondary); }
+  /* On a phone the two answers split the row evenly — left to shrink on their
+     own, the longer conflict label wrapped to three lines beside a one-line
+     partner. They are equal choices, so they get equal boxes. */
+  @media (max-width: 520px) { #syncChoiceDialog .formfoot > button { flex: 1 1 0; min-width: 0; white-space: normal; } }
   .field { margin-bottom: 12px; }
   .field label { display: block; font-size: var(--fs-xs); color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
   /* THE FAMILY'S FIELD: `--surface` on a `--border-strong` edge (2026-08-22).
@@ -1944,6 +1960,11 @@ html[data-booting] footer { visibility: hidden; }
 <dialog id="syncChoiceDialog" aria-labelledby="syncChoiceTitle">
   <h2 id="syncChoiceTitle">Which Data Do You Want to Keep?</h2>
   <p id="syncChoiceBody" style="margin:0 0 16px"></p>
+  <!-- When each copy was last saved, and what differs between them: filled by
+       chooseSyncSource through textContent only (supply names are the reader's). -->
+  <dl id="syncChoiceTimes" class="sync-times"></dl>
+  <p id="syncChoiceListHead" class="sync-listhead" hidden></p>
+  <ul id="syncChoiceList" class="sync-diff" hidden></ul>
   <div class="formfoot">
     <button type="button" class="act" id="syncKeepDeviceBtn">Keep This Device</button>
     <button type="button" class="btn" id="syncKeepGoogleBtn">Keep Google's Data</button>
@@ -2329,6 +2350,13 @@ const UPDATED_KEY = 'pap-updated';
 /* A `function`, like archiveKey above it — save() and the sync hooks call it,
    and the TDZ trap this file has already been bitten by twice is real. */
 function updatedKey(id) { return id === FIRST_PROFILE_ID ? UPDATED_KEY : UPDATED_KEY + ':' + id; }
+/* Sync's base copy (2026-10-29): the last-synced copy of a profile's supplies,
+   kept by the sync module so two devices' changes can be combined. Its name is
+   the module's `baseCopyKey()` — the engine's per-profile rule, `:<id>` after
+   the key for any profile but the first — spelled once more here because the
+   paths that delete a profile's data live in this script. tests.html holds the
+   two spellings equal. */
+function baseCopyKeyFor(id) { return 'pap-cloud-base-copy' + (id === FIRST_PROFILE_ID ? '' : ':' + id); }
 
 /* The one-shot migration. On the first load after the split, the legacy single
    stamp becomes the ACTIVE profile's stamp — it described the list that was on
@@ -2431,6 +2459,7 @@ function deleteProfile(id) {
   try {
     localStorage.removeItem(archiveKey(id));
     localStorage.removeItem(updatedKey(id));   // a removed person leaves no stamp behind
+    localStorage.removeItem(baseCopyKeyFor(id));   // nor a last-synced copy of their supplies
   } catch (e) { /* nothing to clean up */ }
   if (activeProfileId === id) {
     /* The live list belongs to the profile being deleted, so it goes with it — and the
@@ -3875,6 +3904,10 @@ $('importFile').addEventListener('change', async (e) => {
         try {
           localStorage.removeItem(archiveKey(p.id));
           localStorage.removeItem(updatedKey(p.id));
+          /* A restore REPLACES — it must never be folded into the cloud copy as
+             though it were an edit, so no profile keeps a base to merge against
+             and a cloud that moved meanwhile asks about whole copies. */
+          localStorage.removeItem(baseCopyKeyFor(p.id));
         } catch (e) { /* nothing to clean */ }
       }
       profiles = people;
@@ -3902,6 +3935,7 @@ $('importFile').addEventListener('change', async (e) => {
       renderProfilePicker();
     } else {
       items = incoming;
+      try { localStorage.removeItem(baseCopyKeyFor(activeProfileId)); } catch (e) { /* nothing to clean */ }
     }
     save(); render();
     if (window.paptrackProfileChanged) window.paptrackProfileChanged();
@@ -3958,6 +3992,10 @@ $('clearConfirm').addEventListener('click', () => {
     try {
       localStorage.removeItem(archiveKey(p.id));
       localStorage.removeItem(updatedKey(p.id));   // their stamps go with them
+      /* And sync's last-synced copy of each list (2026-10-29) — a whole second
+         copy of the supplies, so "everything" has to include it. The next push
+         records the emptied list there. */
+      localStorage.removeItem(baseCopyKeyFor(p.id));
     } catch (e) { /* nothing to clean */ }
   }
   profiles = normalizeProfiles(null);
@@ -4410,6 +4448,273 @@ function makeCloudSync(io) {
     snapshot: snapshot,
     dirty: dirty,
   };
+}
+
+/* ── Keeping both devices' changes (2026-10-29) ─────────────────────────────
+   Money Map's fix (financial-plan e73c28b), ported. The version number above
+   tells a device THAT the cloud moved while it had an unsent change, and until
+   now the only answer was to pick one whole copy and replace the other — so a
+   mask marked cleaned on the phone and a spares count changed on the laptop
+   could not both survive: whichever copy was picked lost the other's work.
+   Charlie lost real edits exactly this way in Money Map.
+   Now each device also keeps the copy it last took or wrote (the sync module's
+   `pap-cloud-base-copy`, per profile like the engine's own keys, checked
+   against the engine's base tag), and the question is answered three ways:
+   - BASE → this device and BASE → the cloud are compared supply by supply,
+     field by field. Supplies are matched by `id`, never by position, so one
+     added on one side cannot shift another's edit onto the wrong supply. A
+     change made on only one side is simply kept.
+   - Only a field BOTH sides changed, to different values, is a conflict, and
+     only those are asked about — named, with both values where a value means
+     something on its own (a date, a count).
+   - `createdAt` is machinery (set once, never edited, not shown anywhere): never
+     a conflict, never listed. The doc's `schema`, `updatedAt` and `rev` never
+     reach this at all — only the items list is merged, and the engine stamps
+     the rest on the way out. Nothing in this app's document is per-device view
+     state: the theme, filters and search live outside it.
+   Without a base copy (a first sign-in, or a device not synced since this
+   shipped) there is no telling an addition from a deletion, so it stays the
+   whole-copy choice — but it now says what differs. All pure and pinned. */
+const SYNC_MACHINERY = new Set(['createdAt']);
+function syncIsObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
+function syncStable(v) {
+  if (Array.isArray(v)) return '[' + v.map((x) => (x === undefined ? 'null' : syncStable(x))).join(',') + ']';
+  if (syncIsObj(v)) {
+    return '{' + Object.keys(v).sort().filter((k) => v[k] !== undefined)
+      .map((k) => JSON.stringify(k) + ':' + syncStable(v[k])).join(',') + '}';
+  }
+  return JSON.stringify(v);
+}
+function syncSame(a, b) {
+  if (a === b) return true;
+  if (a === undefined || b === undefined) return false;
+  return syncStable(a) === syncStable(b);
+}
+/* A list is matched by id only when EVERY item carries one and none repeats. */
+function syncIds(a) {
+  if (!Array.isArray(a)) return null;
+  const ids = [];
+  for (const e of a) {
+    if (!syncIsObj(e) || (typeof e.id !== 'string' && typeof e.id !== 'number')) return null;
+    ids.push(String(e.id));
+  }
+  return new Set(ids).size === ids.length ? ids : null;
+}
+function syncUnion(a, b) { return [...new Set([...(a || []), ...(b || [])])]; }
+/* The items list of a cloud doc ({ items, schema }), a stored base copy, or a
+   bare list; and the build that wrote it (a bare list is this page's). */
+function syncList(x) { return Array.isArray(x) ? x : (x && Array.isArray(x.items) ? x.items : []); }
+function syncSchemaOf(x) { return Array.isArray(x) ? SCHEMA : Number((x && x.schema) || 1); }
+/* The list as boot would read it — normalizeItem, the app's own load rule — so
+   a default filled in on one side and not the other is never a "change". Two
+   of normalizeItem's defaults are NOT the same twice, and are taken back out
+   here rather than compared: a missing or repeated id (it issues a random one,
+   so the same supply would look like a different supply on every read — left
+   without an id, the list simply stops being matched by id) and a missing
+   createdAt (Date.now()). Adoption re-runs normalizeItems, which fills both. */
+function syncNormal(x) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of syncList(x)) {
+    const it = normalizeItem(raw);
+    if (!it) continue;
+    const rid = typeof raw.id === 'string' ? raw.id.slice(0, 64).replace(/[^A-Za-z0-9_-]/g, '') : '';
+    if (!rid || seen.has(rid)) delete it.id;
+    else seen.add(rid);
+    if (!Number.isFinite(Math.floor(Number(raw.createdAt)))) delete it.createdAt;
+    out.push(it);
+  }
+  return JSON.parse(JSON.stringify(out));
+}
+function syncMerge3(b, l, r, path, out) {
+  if (syncSame(l, r)) return l;
+  if (syncSame(b, l)) return r;
+  if (syncSame(b, r)) return l;
+  if (syncIsObj(l) && syncIsObj(r) && (b === undefined || syncIsObj(b))) {
+    const bb = b || {}, res = {};
+    for (const k of syncUnion(Object.keys(l), Object.keys(r))) {
+      const v = SYNC_MACHINERY.has(k) ? (l[k] !== undefined ? l[k] : r[k])
+        : k === 'history' && path.length === 1 && syncIsObj(path[0]) ? syncMergeHistory(l[k], r[k])
+        : syncMerge3(bb[k], l[k], r[k], path.concat(k), out);
+      if (v !== undefined) res[k] = v;
+    }
+    return res;
+  }
+  if (Array.isArray(l) && Array.isArray(r) && (b === undefined || Array.isArray(b))) {
+    const bb = b || [];
+    const il = syncIds(l), ir = syncIds(r), ib = syncIds(bb);
+    if (il && ir && ib) return syncMergeById(bb, l, r, ib, il, ir, path, out);
+    if (l.length === r.length && bb.length === l.length) {
+      return l.map((_, i) => syncMerge3(bb[i], l[i], r[i], path.concat(i), out));
+    }
+  }
+  out.conflicts.push({ path, local: l, remote: r });
+  return out.prefer === 'remote' ? r : l;
+}
+/* A supply's History is a log of things DONE — a wash on the phone and a
+   replacement on the laptop both happened, so both are kept, never asked
+   about. Events are {k, d}; the same event on the same day is one event, and
+   normalizeHistory puts them back in date order and keeps the newest. */
+function syncMergeHistory(l, r) {
+  if (syncSame(l, r)) return l;
+  const seen = new Set(), all = [];
+  for (const e of [...(Array.isArray(l) ? l : []), ...(Array.isArray(r) ? r : [])]) {
+    const key = e && e.k + '|' + e.d;
+    if (!e || seen.has(key)) continue;
+    seen.add(key);
+    all.push(e);
+  }
+  return normalizeHistory(all);
+}
+function syncMergeById(b, l, r, ib, il, ir, path, out) {
+  const map = (a) => new Map(a.map((e) => [String(e.id), e]));
+  const B = map(b), L = map(l), R = map(r);
+  /* Order: the side that REORDERED wins; if this device kept the base order,
+     the cloud's order is the one to follow. Items only the other side has go
+     in after the item they followed there. */
+  const common = (ids) => ids.filter((id) => B.has(id) && L.has(id) && R.has(id));
+  const localKeptOrder = syncSame(common(il), common(ib));
+  const first = localKeptOrder ? ir : il, second = localKeptOrder ? il : ir;
+  const order = first.slice();
+  second.forEach((id, i) => {
+    if (order.includes(id)) return;
+    const prev = i ? second[i - 1] : null;
+    const at = prev === null ? 0 : (order.includes(prev) ? order.indexOf(prev) + 1 : order.length);
+    order.splice(at, 0, id);
+  });
+  const res = [];
+  for (const id of order) {
+    const v = syncMerge3(B.get(id), L.get(id), R.get(id), path.concat({ id }), out);
+    if (v !== undefined) res.push(v);
+  }
+  return res;
+}
+/* Key by key, the entry with the later `ts` (or this device's, when neither
+   says). Money Map's price-cache rule; this app's document carries no cache
+   today, so nothing calls it — kept so the set of pure pieces is the family's
+   and a cache added later has its rule waiting. */
+function syncMergeCache(l, r) {
+  if (!syncIsObj(l)) return r;
+  if (!syncIsObj(r)) return l;
+  const res = Object.assign({}, r, l);
+  for (const k of Object.keys(r)) {
+    if (k in l && syncIsObj(l[k]) && syncIsObj(r[k]) && Number(r[k].ts) > Number(l[k].ts)) res[k] = r[k];
+  }
+  return res;
+}
+/* → { merged, conflicts } — merged is an ITEMS LIST — or null when any copy
+   comes from a NEWER build (paptrackAdopt's halt must see it untouched).
+   Conflicts are resolved toward `prefer` ('local' | 'remote') in `merged`. */
+function mergeSupplies(base, local, remote, prefer) {
+  if ([base, local, remote].some((x) => syncSchemaOf(x) > SCHEMA)) return null;
+  const b = syncNormal(base), l = syncNormal(local), r = syncNormal(remote);
+  const out = { conflicts: [], prefer: prefer === 'remote' ? 'remote' : 'local' };
+  const merged = syncMerge3(b, l, r, [], out);
+  return { merged: Array.isArray(merged) ? merged : l, conflicts: out.conflicts };
+}
+/* Every place two copies differ, machinery left out — for the case with no
+   base copy, where nothing can be merged but the reader can still be told
+   what they are choosing between. */
+function diffSupplies(local, remote) {
+  const out = [];
+  const walk = (a, b, path) => {
+    if (syncSame(a, b)) return;
+    if (syncIsObj(a) && syncIsObj(b)) {
+      for (const k of syncUnion(Object.keys(a), Object.keys(b))) {
+        if (!SYNC_MACHINERY.has(k)) walk(a[k], b[k], path.concat(k));
+      }
+      return;
+    }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const ia = syncIds(a), ib = syncIds(b);
+      if (ia && ib) {
+        const A = new Map(a.map((e) => [String(e.id), e])), B = new Map(b.map((e) => [String(e.id), e]));
+        for (const id of syncUnion(ia, ib)) walk(A.get(id), B.get(id), path.concat({ id }));
+        return;
+      }
+      if (a.length === b.length) { a.forEach((_, i) => walk(a[i], b[i], path.concat(i))); return; }
+    }
+    out.push({ path, local: a, remote: b });
+  };
+  walk(syncNormal(local), syncNormal(remote), []);
+  return out;
+}
+/* The same supplies, field for field, once both are read the way boot reads them. */
+function sameSupplies(a, b) { return syncSame(syncNormal(a), syncNormal(b)); }
+
+/* ── Naming a difference for a person ───────────────────────────────────────
+   Paths are cut back to one supply and one of its fields — the form's own
+   words — and the supply is named from whichever copy still has it. Every
+   change inside a supply's History is ONE line. A value is shown only where it
+   means something by itself: a date, a number of days, a count, a cost, paused
+   or not. Free text (a name, notes, a supplier, a link) says only that the two
+   differ — the reader knows which supply, and can open it. */
+const SYNC_FIELD_LABELS = {
+  emoji: 'Icon', name: 'Name', notes: 'Notes',
+  cleanDays: 'Clean every', lastCleaned: 'Last cleaned',
+  replaceDays: 'Replace every', lastReplaced: 'Last replaced',
+  stock: 'On hand', lowAt: 'Reorder at',
+  supplier: 'Supplier', orderUrl: 'Reorder link', cost: 'Cost each', lastOrdered: 'Last ordered',
+  paused: 'Paused', snoozeUntil: 'Snoozed until', history: 'History',
+};
+function syncHumanize(k) {
+  const s = String(k).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[-_]+/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function syncItemCut(path) { return path.slice(0, Math.min(path.length, 2)); }
+function syncPickItem(list, seg) {
+  if (!Array.isArray(list)) return undefined;
+  if (syncIsObj(seg)) return list.find((e) => syncIsObj(e) && String(e.id) === String(seg.id));
+  return typeof seg === 'number' ? list[seg] : undefined;
+}
+function syncNameIn(lists, seg) {
+  for (const l of lists) {
+    const hit = syncPickItem(l, seg);
+    if (hit) return String(hit.name || '').trim() || 'Untitled';
+  }
+  return 'Untitled';
+}
+function syncLabel(cut, lists) {
+  if (!cut.length) return 'Your supply list';
+  const name = syncNameIn(lists, cut[0]);
+  if (cut.length === 1) return `Supply “${name}”`;
+  return `Supply “${name}” · ${SYNC_FIELD_LABELS[cut[1]] || syncHumanize(cut[1])}`;
+}
+/* One field's value, short — or '' when it is free text and only "differs" is honest. */
+function syncSay(field, v) {
+  if (v === undefined) return 'not there';
+  const day = (s) => (isoOrNull(s) ? fmtDate(parseDate(s)) : '');
+  switch (field) {
+    case 'lastCleaned': case 'lastOrdered': return v ? day(v) : 'never';
+    case 'lastReplaced': return day(v);
+    case 'snoozeUntil': return v ? day(v) : 'not snoozed';
+    case 'cleanDays': return v > 0 ? `${v} day${v === 1 ? '' : 's'}` : 'no cleaning';
+    case 'replaceDays': return v > 0 ? `${v} day${v === 1 ? '' : 's'}` : 'as needed';
+    case 'stock': case 'lowAt': return typeof v === 'number' ? String(v) : '';
+    case 'cost': return typeof v === 'number' && v > 0 ? money(v) : 'not recorded';
+    case 'paused': return v ? 'paused' : 'not paused';
+    default: return '';
+  }
+}
+/* → [{ label, local, remote }] — one per supply field, in list order.
+   local / remote are short phrases: a value, "not there", or "" (differs). */
+function describeChanges(changes, local, remote) {
+  const lists = [syncNormal(local), syncNormal(remote)];
+  const seen = new Map();
+  for (const c of changes) {
+    const cut = syncItemCut(c.path);
+    const key = syncStable(cut);
+    if (seen.has(key)) continue;
+    const pick = (list) => {
+      if (!cut.length) return list;
+      const it = syncPickItem(list, cut[0]);
+      return cut.length === 1 || it === undefined ? it : it[cut[1]];
+    };
+    const lv = pick(lists[0]), rv = pick(lists[1]);
+    const say = (v) => (cut.length === 2 ? syncSay(cut[1], v) : (v === undefined ? 'not there' : ''));
+    seen.set(key, { label: syncLabel(cut, lists), local: say(lv), remote: say(rv) });
+  }
+  return [...seen.values()];
 }
 
 window.paptrackGet = () => items;
@@ -5041,15 +5346,78 @@ const touchLocal = () => localStorage.setItem(updatedKeyName(), String(Date.now(
 /* Shows the syncChoiceDialog and resolves to true if the user wants to keep Google's copy,
    false to keep this device's copy. Escape is deliberately blocked: either answer replaces
    one of the two copies, so there is no safe default to dismiss into — the choice has to be
-   made explicitly. Both buttons are reachable by keyboard, so this isn't a focus trap. */
-function chooseSyncSource(localCount, remoteCount, remoteUpdatedAt) {
+   made explicitly. Both buttons are reachable by keyboard, so this isn't a focus trap.
+
+   `local` / `remote` are the two supply lists. `opts.items` is describeChanges()' list;
+   `opts.conflicts` says they are the only things in question — everything else from both
+   copies is already kept — rather than the differences between two whole copies, one of
+   which goes. Every word goes in through textContent: supply names are the reader's own
+   free text, and a synced document is somebody else's input as far as this page knows. */
+const SYNC_LIST_CAP = 12;
+function chooseSyncSource(local, remote, remoteUpdatedAt, opts) {
+  opts = opts || {};
   return new Promise((resolve) => {
     const dlg = document.getElementById('syncChoiceDialog');
     const body = document.getElementById('syncChoiceBody');
-    const when = remoteUpdatedAt ? new Date(remoteUpdatedAt).toLocaleString() : 'an earlier sign-in';
-    body.textContent = `This device has ${localCount} item${localCount === 1 ? '' : 's'} saved locally. Your Google account already has ${remoteCount} item${remoteCount === 1 ? '' : 's'} (last updated ${when}). Pick which to keep — the other copy will be replaced.`;
+    const items = opts.items || [];
+    const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const at = (t) => (t ? new Date(t).toLocaleString() : 'not known');
+    const localAt = Number(opts.localAt) || 0, remoteAt = Number(remoteUpdatedAt) || 0;
+    if (opts.conflicts) {
+      body.textContent = `Both copies changed the same ${items.length === 1 ? 'thing' : 'things'} since they last `
+        + `synced. Everything else either copy changed is kept. For the ${plural(items.length, 'item')} `
+        + `below, pick which version to keep.`;
+    } else {
+      const ln = (local || []).length, rn = (remote || []).length;
+      const supplies = (n) => `${n} suppl${n === 1 ? 'y' : 'ies'}`;
+      const counts = ln === rn
+        ? `This device and your Google account both have ${supplies(ln)}`
+          + (items.length ? ', but what is recorded on them differs.' : '.')
+        : `This device has ${supplies(ln)} saved locally; your Google account has ${supplies(rn)}.`;
+      body.textContent = `${counts} Pick which copy to keep — the other copy will be replaced`
+        + (items.length ? ', so anything listed below as only in the other copy will be lost.' : '.');
+    }
+    const times = document.getElementById('syncChoiceTimes');
+    times.textContent = '';
+    const newer = localAt && remoteAt && localAt !== remoteAt ? (localAt > remoteAt ? 'local' : 'remote') : '';
+    [['This device', `last saved ${at(localAt)}`, 'local'],
+     ['Google', `last saved ${at(remoteAt)}`, 'remote']].forEach(([who, when, side]) => {
+      const dt = document.createElement('dt'), dd = document.createElement('dd');
+      dt.textContent = who;
+      dd.textContent = when + (newer === side ? ' — the newer save' : '');
+      times.append(dt, dd);
+    });
+    const head = document.getElementById('syncChoiceListHead');
+    const list = document.getElementById('syncChoiceList');
+    list.textContent = '';
+    head.hidden = list.hidden = !items.length;
+    head.textContent = opts.conflicts
+      ? `Changed in both (${items.length})`
+      : `What’s different (${items.length})`;
+    items.slice(0, SYNC_LIST_CAP).forEach((it) => {
+      const li = document.createElement('li');
+      li.append(document.createTextNode(it.label));
+      const say = (v, absent) => (v === 'not there' ? absent : v);
+      const lv = say(it.local, opts.conflicts ? 'deleted' : 'not there');
+      const rv = say(it.remote, opts.conflicts ? 'deleted' : 'not there');
+      const other = opts.conflicts ? 'changed' : 'different';
+      const vals = document.createElement('span');
+      vals.className = 'sync-vals';
+      vals.textContent = lv || rv
+        ? ` — this device: ${lv || other}; Google: ${rv || other}`
+        : ' — different in each copy';
+      li.append(vals);
+      list.append(li);
+    });
+    if (items.length > SYNC_LIST_CAP) {
+      const li = document.createElement('li');
+      li.textContent = `…and ${items.length - SYNC_LIST_CAP} more`;
+      list.append(li);
+    }
     const deviceBtn = document.getElementById('syncKeepDeviceBtn');
     const googleBtn = document.getElementById('syncKeepGoogleBtn');
+    deviceBtn.textContent = opts.conflicts ? 'Keep This Device’s Version' : 'Keep This Device';
+    googleBtn.textContent = opts.conflicts ? 'Keep Google’s Version' : "Keep Google's Data";
     const preventCancel = (e) => e.preventDefault();
     function finish(keepGoogle) {
       deviceBtn.removeEventListener('click', onDevice);
@@ -5081,6 +5449,99 @@ function chooseSyncSource(localCount, remoteCount, remoteUpdatedAt) {
    still out when the profile changes is REFUSED rather than allowed to land:
    its stamp and its bookkeeping belong to the profile that left the screen. */
 const cloudKeySuffix = (id) => (id === 'default' ? '' : ':' + id);
+const profileNow = () => (window.paptrackProfileId ? window.paptrackProfileId() : 'default');
+/* The one road into paptrackAdopt — a copy from another device, or the two
+   copies combined — so the schema always travels with it (the halt reads it). */
+function adoptInto(list, ts, schema) { window.paptrackAdopt(list, ts, schema); }
+/* ── The base copy: what makes "keep both" possible (2026-10-29) ────────────
+   The engine remembers only the TAG of the copy this device last took or wrote.
+   This is that copy's CONTENT, kept beside it so two changed copies can be
+   compared supply by supply against where they both started (mergeSupplies, in
+   the classic script). PER PROFILE, named exactly like the engine's keys —
+   `pap-cloud-base-copy` for the first profile, `:<id>` after it — because each
+   profile is its own document with its own base. Stored with its own tag and
+   used only while that tag is still the engine's base: a stale or foreign copy
+   is no base at all, and the question falls back to the whole-copy choice.
+   Recorded at the moments the base is set: a copy adopted, a copy written, and
+   a copy read that turns out to BE the base (so a device already in step gains
+   one without an edit). Delete All Data removes every profile's. */
+const BASE_COPY_KEY = 'pap-cloud-base-copy';
+const baseCopyKey = (pid) => BASE_COPY_KEY + cloudKeySuffix(pid);
+function rememberBase(pid, doc) {
+  if (!user || !doc || !Array.isArray(doc.items)) return;
+  const rev = Number(doc.rev) || 0, at = Number(doc.updatedAt) || 0;
+  try {
+    const had = JSON.parse(localStorage.getItem(baseCopyKey(pid)) || 'null');
+    if (had && had.uid === user.uid && had.rev === rev && had.at === at) return;
+    localStorage.setItem(baseCopyKey(pid), JSON.stringify({ uid: user.uid, rev, at,
+      items: doc.items, schema: Number(doc.schema) || 1 }));
+  } catch (e) { /* full or blocked — the whole-copy question still works */ }
+}
+function engineBase(pid) {
+  try {
+    const b = JSON.parse(localStorage.getItem('pap-cloud-base' + cloudKeySuffix(pid)) || 'null');
+    return b && user && b.uid === user.uid ? { rev: Number(b.rev) || 0, at: Number(b.at) || 0 } : null;
+  } catch (e) { return null; }
+}
+function rememberIfBase(pid, doc) {
+  if (doc && sameTag(engineBase(pid), cloudTag(doc))) rememberBase(pid, doc);
+}
+function baseCopy(pid) {
+  try {
+    const c = JSON.parse(localStorage.getItem(baseCopyKey(pid)) || 'null');
+    const b = engineBase(pid);
+    if (!c || !b || c.uid !== user.uid || c.rev !== b.rev || c.at !== b.at) return null;
+    return Array.isArray(c.items) ? { items: c.items, schema: c.schema } : null;
+  } catch (e) { return null; }
+}
+/* What the engine's `ask` hook answers. true = take Google's copy as it is;
+   false = keep this device's — which, after a merge, IS the merged list, already
+   adopted here, so the engine's keep() pushes it through its usual transaction.
+   An empty copy on either side never merges: emptiness is not an edit to fold
+   in, and "an empty copy never silently beats one with data" outranks this. */
+let keptNews = '';
+async function settleTwoCopies(pid, d, at) {
+  const local = window.paptrackGet(), remote = { items: (d && d.items) || [], schema: d && d.schema };
+  const localAt = localTs();
+  const full = local.length > 0 && remote.items.length > 0;
+  const base = full ? baseCopy(pid) : null;
+  const take = (merged, said) => {
+    if (!window.sameSupplies(merged, local)) adoptInto(merged, Date.now(), PAP_SCHEMA);
+    /* The cloud copy is everything the merged list grew from, so it is the
+       right base for the next comparison — keep() makes it the engine's base
+       too (from Wine Cellar's port). */
+    rememberBase(pid, d);
+    keptNews = said;
+    return false;
+  };
+  if (full && base) {
+    const m = window.mergeSupplies(base, local, remote, 'local');
+    if (m && !m.conflicts.length) {
+      return take(m.merged, window.sameSupplies(m.merged, local) ? 'quiet' : 'merged');
+    }
+    if (m) {
+      const items = window.describeChanges(m.conflicts, local, remote.items);
+      const keepGoogle = await chooseSyncSource(local, remote.items, at, { conflicts: true, items, localAt });
+      const m2 = window.mergeSupplies(base, local, remote, keepGoogle ? 'remote' : 'local');
+      return take(m2.merged, keepGoogle ? 'merged-google' : 'merged-device');
+    }
+  }
+  /* A copy from a NEWER build is never read into anything here — paptrackAdopt's
+     halt has to see it untouched (mergeSupplies answers null for exactly that). */
+  if (full && window.mergeSupplies(local, local, remote, 'local')) {
+    const diffs = window.diffSupplies(local, remote);
+    /* Nothing differs but machinery (createdAt): nothing to choose between. */
+    if (!diffs.length) {
+      const m = window.mergeSupplies(local, local, remote, 'local');
+      if (m) return take(m.merged, 'quiet');
+    }
+    const items = window.describeChanges(diffs, local, remote.items);
+    return chooseSyncSource(local, remote.items, at, { items, localAt });
+  }
+  return chooseSyncSource(local, remote.items, at, { localAt });
+}
+/* For tests.html: the window can be drawn without a sign-in. It only shows. */
+window.__papSyncHooks = { chooseSyncSource };
 function makeProfileSync() {
   const pid = window.paptrackProfileId ? window.paptrackProfileId() : 'default';
   const current = () => (window.paptrackProfileId ? window.paptrackProfileId() : 'default') === pid;
@@ -5092,7 +5553,12 @@ function makeProfileSync() {
     setItem: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* blocked */ } },
     stamp: localTs,
     touch: () => touchLocal(),
-    read: async () => { const snap = await F.getDoc(docRef()); return snap.exists() ? snap.data() : null; },
+    read: async () => {
+      const snap = await F.getDoc(docRef());
+      const d = snap.exists() ? snap.data() : null;
+      rememberIfBase(pid, d);
+      return d;
+    },
     transact: (decide) => {
       if (!current()) return Promise.reject(Object.assign(new Error('profile changed'), { code: 'pap/stale' }));
       const ref = docRef();
@@ -5101,7 +5567,7 @@ function makeProfileSync() {
         const out = decide(snap.exists() ? snap.data() : null);
         if (out.write) tx.set(ref, out.write);
         return out;
-      });
+      }).then((out) => { if (out.write) rememberBase(pid, out.write); return out; });
     },
     /* `schema` is additive: the phones read this document key by key and ignore
        what they don't know, `rev` included. A document that predates `schema`
@@ -5112,16 +5578,27 @@ function makeProfileSync() {
     remoteCount: (d) => (d && Array.isArray(d.items) ? d.items.length : 0),
     valid: (d) => !!(d && Array.isArray(d.items)),
     firstSync: () => localStorage.getItem('pap-sync-uid') !== user.uid,
-    adopt: (d) => window.paptrackAdopt(d.items, d.updatedAt, d.schema),
-    ask: (localN, remoteN, at) => chooseSyncSource(localN, remoteN, at),
+    adopt: (d) => { adoptInto(d.items, d.updatedAt, d.schema); rememberBase(pid, d); },
+    ask: (localN, remoteN, at, d) => settleTwoCopies(pid, d, at),
     /* Clearing everything really is something people do, so this asks rather
        than refusing — but it asks, because the alternative is a device quietly
        emptying itself. Cancel keeps what's here and restores it to the others. */
     askEmptied: () => confirm('Another device has cleared all its PAPTrack supplies.\n\n'
       + 'Clear this device too? Cancel keeps what’s on this device and restores it '
       + 'to your other devices.'),
-    toast: (k) => window.toast({ loaded: 'Loaded your data from the cloud ☁️', synced: 'Synced from another device ☁️',
-      kept: 'Kept this device’s data' }[k]),
+    /* A 'kept' after settleTwoCopies merged is not "kept this device's data" —
+       keptNews says what really happened, and 'quiet' (nothing but machinery
+       differed) says nothing at all. */
+    toast: (k) => {
+      const how = k === 'kept' ? keptNews : '';
+      keptNews = '';
+      if (how === 'quiet') return;
+      window.toast(how === 'merged' ? 'Combined changes from both devices ☁️'
+        : how === 'merged-device' ? 'Kept both devices’ changes — this device’s version where they clashed ☁️'
+        : how === 'merged-google' ? 'Kept both devices’ changes — Google’s version where they clashed ☁️'
+        : { loaded: 'Loaded your data from the cloud ☁️', synced: 'Synced from another device ☁️',
+            kept: 'Kept this device’s data' }[k]);
+    },
   });
 }
 let cloud = null;
@@ -5174,6 +5651,7 @@ function attachSnapshot() {
     // A document without an items array is a half-written or foreign doc, never an
     // intentional "delete everything" — adopting it would clear this device's list.
     if (!Array.isArray(r.items)) return;
+    rememberIfBase(profileNow(), r);
     // The engine compares it with the copy this device last took or wrote, and
     // takes it, ignores it, or asks — never by comparing two clocks.
     Promise.resolve(engine().snapshot(r)).catch(setSyncError);
