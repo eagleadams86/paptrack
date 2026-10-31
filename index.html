@@ -1370,7 +1370,7 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .checkline .hint { display: block; margin-top: 2px; }
   .act.small { padding: 4px 9px; font-size: var(--fs-xs); }
   #shareLink { width: 100%; font-family: var(--font-mono); font-size: var(--fs-xs);
-               color: var(--text-secondary); background: var(--surface);
+               color: var(--text-secondary); background: transparent;
                border: 1px solid var(--input-border); border-radius: var(--radius-sm);
                padding: 9px 11px; }
   #shareMeta:empty, #shareScope:empty { display: none; }
@@ -1427,6 +1427,17 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
 html[data-booting] main,
 html[data-booting] footer { visibility: hidden; }
 
+
+/* A FIELD SITS ONE STEP OFF WHAT IS BEHIND IT (theme pack rule 21, 2026-10-31).
+   On a card that step is the tile shade, --surface-alt. A dialog section
+   (.formpanel, .sec-card) is itself filled with --surface-alt, so a field inside one
+   takes the card colour back — otherwise it melts into the box and only its
+   edge says it is there. A read-only box has no fill of its own: it sits flush
+   with whatever is behind it, which is what tells it apart from a box you type
+   in. background-color, not background: a select's arrow may be an image. */
+:is(.formpanel, .sec-card) :is(input, select, textarea):not([type=checkbox], [type=radio], [type=range], [readonly]) {
+  background-color: var(--surface); }
+:is(.formpanel, .sec-card) :is(input, textarea)[readonly] { background-color: transparent; }
 </style>
 </head>
 <body>
