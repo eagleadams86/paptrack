@@ -95,7 +95,7 @@ function ok(cond, note, detail) {
    registers today, so ADDING a test never fails the build; removing one does,
    which is the moment to ask whether it should have gone. Lower it deliberately
    when a test is deliberately retired. */
-const EXPECTED = 147;
+const EXPECTED = 148;
 let w; // the app iframe's window
 
 /* Local-midnight ISO date offset from today, matching the app's own date maths. */
@@ -2231,9 +2231,10 @@ t('the window is sized by its text, and the dot is the family circle', () => {
   ok(/\.tile-help::after \{ content: ''; position: absolute; inset: -5px; \}/.test(APP_SRC),
     "a true 24px tap target: -5px, because `inset` grows from the PADDING box "
        + "and the 1px border made -4px a 22px target");
-  ok(/\.tile-help:hover \{ background: var\(--surface-alt\); border-color: var\(--text-secondary\);/
+  ok(/\.tile-help:hover \{ background: var\(--border-strong\); border-color: var\(--text-secondary\);/
     .test(APP_SRC),
-    'and the hover fills rather than borrowing --focus-border');
+    'and the hover fills rather than borrowing --focus-border — with --border-strong, '
+    + 'the family\u2019s fill since 2026-10-31: --surface-alt is no fill at all on a tile that is a well');
   ok(/class="btn primary" id="helpCloseBtn">Got It</.test(APP_SRC),
     '"Got It", as in every other app, and on the FILLED primary — it was an `.act`, '
     + 'this app\'s outlined secondary, so the one button in the window read as the '
@@ -2675,6 +2676,68 @@ t('the sync module merges only from a base copy that IS the engine’s base, per
   eq((mod.match(/window\.paptrackAdopt\(/g) || []).length, 1, 'and every adoption goes through ONE call');
   const clear = code.slice(code.indexOf("$('clearConfirm').addEventListener"));
   ok(clear.slice(0, 1200).includes('localStorage.removeItem(baseCopyKeyFor(p.id));'), 'Delete All Data removes every profile’s copy');
+});
+
+/* ── The content well (theme pack rule 21, 2026-10-31) ─────────────────────
+   A box of content inside a card is --surface-alt on a --border edge, so the
+   three tiles and every supply card's four quadrants are ONE fill in all four
+   themes. --bg or a bare --surface would match in two themes and be the odd
+   one out in the other two, because the pack's surfaces stack in different
+   orders in the light and dark palettes — so this is read in every theme, not
+   one. The tile row is a card of its own: the tiles sit IN it rather than on
+   the page. Its own full-size frame and the smoke walk's plant (in memory,
+   never saved), for the same reason the walk has one. */
+group('Content wells: tiles and quadrants are one fill in every theme');
+t('the tiles and every quadrant share the well fill, on a card that differs, in all four themes', async () => {
+  const f4 = document.createElement('iframe');
+  f4.setAttribute('data-pap-tests', '');
+  f4.setAttribute('aria-hidden', 'true');
+  f4.style.cssText = 'position:absolute;left:-9999px;width:1280px;height:900px;border:0';
+  try {
+    await new Promise((resolve) => { f4.onload = resolve; f4.src = 'index.html'; document.body.appendChild(f4); });
+    const W4 = f4.contentWindow, D4 = W4.document, H4 = W4.__papTestHooks;
+    const iso = (d) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
+    H4.__plant(H4.KITS.full.map((key, n) => {
+      const p = H4.PRESETS.find((x) => x.key === key);
+      return { id: 'well-' + key, emoji: p.emoji, name: p.name, cleanDays: p.cleanDays,
+        replaceDays: p.replaceDays, lastReplaced: iso(-n), lastCleaned: null,
+        stock: n === 0 ? 0 : 2, lowAt: 1, notes: '', createdAt: Date.now() };
+    }));
+    const bg = (e) => W4.getComputedStyle(e).backgroundColor;
+    const row = D4.getElementById('stats');
+    const tiles = [...D4.querySelectorAll('#stats > .stat')];
+    const quads = [...D4.querySelectorAll('#list article.card .quad')];
+    const card = D4.querySelector('#list article.card');
+    ok(!row.hidden && tiles.length === 3, 'set up: the three tiles are showing', tiles.length);
+    ok(quads.length >= 8, 'set up: the planted kit drew its cards', quads.length);
+    const el = D4.documentElement;
+    ['midnight', 'dark', 'light', 'sepia'].forEach((th) => {
+      el.setAttribute('data-theme', th);
+      const alt = W4.getComputedStyle(el).getPropertyValue('--surface-alt').trim();
+      const well = bg(tiles[0]);
+      ok(alt.length > 0 && well !== 'rgba(0, 0, 0, 0)', th + ': the well is a real fill', well);
+      const all = tiles.concat(quads);
+      ok(all.every((e) => bg(e) === well), th + ': every tile and quadrant is the same fill',
+        [...new Set(all.map(bg))].join(' / '));
+      ok(all.every((e) => { const cs = W4.getComputedStyle(e);
+        return cs.borderTopStyle === 'solid' && cs.borderTopWidth === '1px'; }),
+        th + ': and every well is ruled with a 1px edge');
+      /* No table here, so no heading band: what has to differ is the card the
+         wells sit in — a well that matched its card would be no well at all. */
+      eq(bg(row), bg(card), th + ': the tile row is a card, filled like a supply card');
+      ok(bg(row) !== well && bg(card) !== well, th + ': and the card stands apart from the wells in it',
+        bg(card) + ' vs ' + well);
+      ok(bg(row) !== bg(D4.body), th + ': the tile row is not the bare page', bg(row));
+    });
+    el.removeAttribute('data-theme');
+    /* The quadrant's 1px edge came out of its padding, so the box inside is the
+       width the 660px badge floor was measured against: 10px a side, as before. */
+    const qcs = W4.getComputedStyle(quads[0]);
+    eq(parseFloat(qcs.paddingLeft) + parseFloat(qcs.borderLeftWidth), 10,
+      'the quadrant’s inner box did not shrink when it gained its edge');
+  } finally {
+    f4.remove();
+  }
 });
 
 async function run() {

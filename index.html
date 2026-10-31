@@ -566,9 +566,25 @@
      A page that scrolls in two dimensions at 320px fails WCAG 1.4.10 Reflow, and
      320px is also the narrowest phone this is meant to be used on. With the min
      at 0 the columns give way and the text inside them wraps instead. */
-  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
-  .stat {
+  /* ── THE TILE ROW IS A CARD, AND A TILE IS A WELL (theme pack rule 21, the
+     content well, adopted 2026-10-31 — the last web app in the family to take it).
+     The row is ruled and filled like a supply card (`--surface`, `--border`,
+     `--radius`, the family's 18px), and the three tiles inside it are wells:
+     `--surface-alt` on a `--border` edge at `--radius-sm`. Until now the tiles were
+     bare `--surface` cards standing straight on the page, and the pack's surfaces
+     do not climb the same way in every theme — bg < surface < surfaceAlt in
+     Midnight and Dark, surfaceAlt ≈ bg < surface in Light and Sepia — so a tile
+     and a supply card's quadrant (already `--surface-alt`) were one colour in no
+     theme at all. Now a tile and a quadrant are the same fill in all four, and
+     each sits on a `--surface` card. Never `--bg` or a bare `--surface` for a box
+     inside a card. No new colour, no shadow (rule 14). On paper the browser drops
+     the fills (nothing here asks for print-color-adjust), so the wells print white
+     inside their ruled edge. */
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0;
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; }
+  .stat {
+    background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm);
     padding: 10px;
     display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
   }
@@ -762,8 +778,13 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
      block keeps its natural height and the card just ends in a gap. */
   .quadrants { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;
                align-items: stretch; flex: 1 1 auto; align-content: stretch; }
+  /* A QUADRANT IS A CONTENT WELL (pack rule 21, 2026-10-31): the tiles' fill on a
+     `--border` edge, so the four boxes on a card and the three tiles above the
+     list are one colour in every theme. 9px of padding, not 10, because the 1px
+     edge is new: the box INSIDE stays exactly the width it was, and that width is
+     what the 660px badge floor on the list grid was measured against. */
   .quad {
-    background: var(--surface-alt); border-radius: var(--radius-sm); padding: 10px;
+    background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px;
     display: flex; flex-direction: column; gap: 8px;
   }
   .quad-h { font-size: var(--fs-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
@@ -983,7 +1004,10 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
     background: transparent; color: var(--text-secondary);
     font-family: inherit; font-size: var(--fs-xs); font-weight: 700;
     line-height: 1; text-transform: none; cursor: pointer; vertical-align: 1px; }
-  .tile-help:hover { background: var(--surface-alt); border-color: var(--text-secondary);
+  /* The hover fill is `--border-strong`, family-wide since 2026-10-31: it was
+     `--surface-alt`, which is no fill at all now that the tiles it sits on are
+     `--surface-alt` wells (pack rule 21). */
+  .tile-help:hover { background: var(--border-strong); border-color: var(--text-secondary);
     color: var(--text-primary); }
   /* -5px, NOT -4: `inset` resolves against the PADDING box, and the circle is a
      16px BORDER box with a 1px border — so the padding box is 14px and -4px grew
@@ -993,7 +1017,20 @@ h1, h2, h3 { font-weight: var(--fw-semibold); }
   .tile-help::after { content: ''; position: absolute; inset: -5px; }
   /* A stat label is a centred column with the count under it, so the dot rides
      on the label's own line. App-specific, outside the shared block. */
-  .stat .label { display: flex; align-items: center; justify-content: center; }
+  /* `flex-wrap: wrap` since the tiles became wells inside a card (2026-10-31): the
+     card's 18px and the tiles' new edge take 26px from a three-across row, and at
+     a 320px phone "REORDER" and its dot no longer fit on one line — they ran past
+     the tile's edge by ~6px (they were already touching it before). Wrapped, the
+     dot drops under its word and stays inside the tile; it wraps only where the
+     line cannot hold both, and the tiles stretch to the tallest, so the row stays
+     even. */
+  .stat .label { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; row-gap: 2px; }
+  /* …and on a phone the tiles give back 4px a side of their own padding, so a
+     320px screen keeps "on schedule" whole rather than breaking it mid-word
+     (overflow-wrap: anywhere is the last resort, not the layout). The card's
+     18px is the family's card and is left alone. 460px is this file's phone
+     breakpoint, the one the card actions already use. */
+  @media (max-width: 460px) { .stat { padding-left: 6px; padding-right: 6px; } }
 
   /* ── The help window ──────────────────────────────────────────────────────
      THE SAME TWO RULES ARE IN EVERY APP THAT HAS ONE (2026-08-23), and they are
