@@ -1756,7 +1756,7 @@ t('two cards on a form row are the same height', () => {
 });
 t('the form fields are the family\u2019s, and an empty date box cannot collapse', () => {
   const rule = (APP_SRC.match(/\.field input, \.field select[^{]*\{[^}]*\}/) || [''])[0];
-  ok(/background: var\(--surface\)/.test(rule), 'it was --bg, the page colour, which read as a hole in the dialog');
+  ok(/background: var\(--surface-alt\)/.test(rule), 'a field is the tile shade (pack rule 21); it was --bg once, which read as a hole in the dialog');
   ok(/border: 1px solid var\(--input-border\)/.test(rule),
     'the pack has a token for a field\u2019s edge, gated at 3:1 — --border-strong is a panel edge');
   ok(/min-height: calc\(1\.5em \+ 20px\)/.test(rule),
