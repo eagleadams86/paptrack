@@ -592,5 +592,12 @@ once held as its base. Not "ignore a lower rev": an old-code page writes with no
 still be heard. The copy a transaction read and the one `start()` reads are never filtered.
 Sim scenarios 13 and 13b (`lateEcho`, `lateEchoParked`), red first. Same text in Money Map,
 Golf Handicap, Wine Cellar and PAPTrack web.
-PAPTrack's engine still lacks Golf's 2026-11-12 parked-copy fixes (a push that throws; the moved
-path) — this port added only the late-echo guard.
+**Golf's 2026-11-12 fixes arrived the same day (2026-11-19).** `makeCloudSync` and `runSyncSim`
+are Golf Handicap's again, byte for byte: a push that throws looks at the copy parked behind it,
+the moved path drops it, `snapshot()` / `start()` drop it when they see a fresher one (sim 11,
+11b, 12). And sync starts by itself after an offline launch: `ensureInit` forgets a failed load,
+`catchUp` has an `!F` branch that retries under the boot branch's conditions (not the harness,
+not halted, not a shared view) and un-hides `#syncBtn`. Pinned as text; driven once in headless
+Chromium with Google's hosts blocked then released — hidden after the offline boot, back after
+`online`. NOT ported: Golf restarting `startSync` from `catchUp` while its push gate is held —
+here `reconciliationDone` opens the gate even after a failed start, so there is nothing held.
