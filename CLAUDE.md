@@ -580,3 +580,17 @@ until a sweep across the family found it, together with the lottery portfolio pa
 - **Firebase is pinned in `package.json` AND in the `firebasejs/…` URL, and a test holds them
   equal.** Dependabot cannot rewrite a URL, so a manifest-only bump has to fail. All three sync
   apps move to the same version together, like the vendored Chart.js.
+
+## The Late Echo (2026-11-19, found in Money Map)
+
+`onSnapshot` hears this device's own transaction write some time AFTER the commit returns. Two
+saves close together both commit, and then the first one's echo arrives: not the base, nothing
+unsent, so `syncPlan` said `adopt` — the screen went back a save and toasted "Synced from
+another device", twice, with no other device involved. `makeCloudSync` now remembers every tag
+`setBase` replaces (`past` / `wasBase`, 64, in memory) and `snapshot()` drops a copy this device
+once held as its base. Not "ignore a lower rev": an old-code page writes with no `rev` and must
+still be heard. The copy a transaction read and the one `start()` reads are never filtered.
+Sim scenarios 13 and 13b (`lateEcho`, `lateEchoParked`), red first. Same text in Money Map,
+Golf Handicap, Wine Cellar and PAPTrack web.
+PAPTrack's engine still lacks Golf's 2026-11-12 parked-copy fixes (a push that throws; the moved
+path) — this port added only the late-echo guard.
